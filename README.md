@@ -40,47 +40,38 @@ fi
 You can also inspect the full structured output to see what envsense detects:
 
 ```bash
+# Human-friendly summary
+envsense info
+
 # Print detected environment as JSON
-envsense --json
+envsense info --json
 
-# Pretty print for humans
-envsense --pretty
+# Restrict to specific keys
+envsense info --fields contexts,traits
 
-# Only contexts
-envsense --only contexts
-
-# Explain why
-envsense --explain
+# Pipe-friendly text
+envsense info --raw
 ```
 
 Example JSON output:
 
 ```json
 {
-  "contexts": {
-    "agent": true,
-    "ide": true,
-    "ci": false,
-    "container": false,
-    "remote": false
-  },
-  "facets": {
-    "agent_id": "cursor",
-    "ide_id": "vscode",
-    "ci_id": null,
-    "container_id": null
-  },
+  "contexts": ["agent", "ide"],
   "traits": {
     "is_interactive": true,
     "color_level": "truecolor",
     "supports_hyperlinks": true,
     "is_piped_stdout": false
   },
-  "evidence": [
-    {"signal":"env","key":"CURSOR_AGENT","value":"1","supports":["agent"],"confidence":0.95},
-    {"signal":"env","key":"TERM_PROGRAM","value":"vscode","supports":["ide"],"confidence":0.95}
-  ],
-  "version": "0.1.0"
+  "facets": {
+    "agent_id": "cursor",
+    "ide_id": "vscode"
+  },
+  "meta": {
+    "schema_version": "0.1.0",
+    "rules_version": ""
+  }
 }
 ```
 

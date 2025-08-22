@@ -1,13 +1,23 @@
 use assert_cmd::Command;
+use predicates::prelude::*;
 use predicates::str::contains;
 
 #[test]
 fn prints_json_with_version() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("--json")
+    cmd.args(["info", "--json"])
         .assert()
         .success()
-        .stdout(contains("\"version\":\"0.1.0\""));
+        .stdout(contains("\"schema_version\""));
+}
+
+#[test]
+fn fields_limit_output() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--json", "--fields=contexts"])
+        .assert()
+        .success()
+        .stdout(contains("\"contexts\"").and(contains("\"traits\"").not()));
 }
 
 #[test]

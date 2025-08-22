@@ -1,39 +1,47 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use colored::Colorize;
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
 use envsense::schema::{EnvSense, Evidence};
+use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
+use std::io::{IsTerminal, stdout};
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    name = "envsense",
+    about = "Environment awareness utilities",
+    arg_required_else_help = true
+)]
 struct Cli {
-    /// Evaluate check expressions (compatibility flag)
-    #[arg(long, value_name = "PREDICATE", num_args = 1.., hide = true)]
-    check: Vec<String>,
-
-    /// Output JSON (compact)
-    #[arg(long)]
-    json: bool,
-
-    /// Pretty-print JSON output
-    #[arg(long)]
-    pretty: bool,
-
-    /// Output only a specific section: contexts, facets, traits, evidence
-    #[arg(long)]
-    only: Option<String>,
-
-    /// When used with --check, also explain results
-    #[arg(long)]
-    explain: bool,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Show what envsense knows
+    Info(InfoArgs),
     /// Evaluate predicates against the environment
     Check(CheckCmd),
+}
+
+#[derive(Args, Clone)]
+struct InfoArgs {
+    /// Output JSON (stable schema)
+    #[arg(long)]
+    json: bool,
+
+    /// Plain text without colors/headers
+    #[arg(long)]
+    raw: bool,
+
+    /// Comma-separated keys to include: contexts,traits,facets,meta
+    #[arg(long, value_name = "list")]
+    fields: Option<String>,
+
+    /// Disable color
+    #[arg(long = "no-color")]
+    no_color: bool,
 }
 
 #[derive(Args, Clone)]
@@ -81,6 +89,210 @@ struct JsonCheck {
     reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     signals: Option<BTreeMap<String, String>>,
+}
+
+#[derive(Debug)]
+struct Snapshot {
+    contexts: Vec<String>,
+    traits: Value,
+    facets: Value,
+    meta: Value,
+}
+
+fn collect_snapshot() -> Snapshot {
+    let env = EnvSense::default();
+    let mut contexts = Vec::new();
+    if env.contexts.agent {
+        contexts.push("agent".to_string());
+    }
+    if env.contexts.ide {
+        contexts.push("ide".to_string());
+    }
+    if env.contexts.ci {
+        contexts.push("ci".to_string());
+    }
+    if env.contexts.container {
+        contexts.push("container".to_string());
+    }
+    if env.contexts.remote {
+        contexts.push("remote".to_string());
+    }
+    Snapshot {
+        contexts,
+        traits: serde_json::to_value(env.traits).unwrap(),
+        facets: serde_json::to_value(env.facets).unwrap(),
+        meta: json!({
+            "schema_version": env.version,
+            "rules_version": env.rules_version,
+        }),
+    }
+}
+
+fn filter_json_fields(value: Value, fields: &str) -> Result<Value, String> {
+    let requested: Vec<&str> = fields
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    let obj = value
+        .as_object()
+        .ok_or_else(|| "expected object".to_string())?;
+    let mut map = Map::new();
+    for k in requested {
+        if let Some(v) = obj.get(k) {
+            map.insert(k.to_string(), v.clone());
+        } else {
+            return Err(format!("unknown field: {}", k));
+        }
+    }
+    Ok(Value::Object(map))
+}
+
+fn value_to_string(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        _ => v.to_string(),
+    }
+}
+
+fn render_human(
+    snapshot: &Snapshot,
+    fields: Option<&str>,
+    color: bool,
+    raw: bool,
+) -> Result<String, String> {
+    let default_fields = ["contexts", "traits", "facets"];
+    let selected: Vec<&str> = match fields {
+        Some(f) => f
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .collect(),
+        None => default_fields.to_vec(),
+    };
+    for s in &selected {
+        if !["contexts", "traits", "facets", "meta"].contains(s) {
+            return Err(format!("unknown field: {}", s));
+        }
+    }
+    let mut out = String::new();
+    for (i, field) in selected.iter().enumerate() {
+        match *field {
+            "contexts" => {
+                let mut ctx = snapshot.contexts.clone();
+                ctx.sort();
+                let payload = ctx.join(", ");
+                if raw {
+                    out.push_str(&payload);
+                } else {
+                    let heading = if color {
+                        "Contexts:".bold().to_string()
+                    } else {
+                        "Contexts:".to_string()
+                    };
+                    out.push_str(&heading);
+                    if !payload.is_empty() {
+                        out.push(' ');
+                        out.push_str(&payload);
+                    }
+                }
+            }
+            "traits" => {
+                let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.traits
+                {
+                    map.iter()
+                        .map(|(k, v)| (k.clone(), value_to_string(v)))
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                items.sort_by(|a, b| a.0.cmp(&b.0));
+                let payload = items
+                    .into_iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if raw {
+                    out.push_str(&payload);
+                } else {
+                    let heading = if color {
+                        "Traits:".bold().to_string()
+                    } else {
+                        "Traits:".to_string()
+                    };
+                    out.push_str(&heading);
+                    if !payload.is_empty() {
+                        out.push(' ');
+                        out.push_str(&payload);
+                    }
+                }
+            }
+            "facets" => {
+                let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.facets
+                {
+                    map.iter()
+                        .map(|(k, v)| (k.clone(), value_to_string(v)))
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                items.sort_by(|a, b| a.0.cmp(&b.0));
+                let payload = items
+                    .into_iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if raw {
+                    out.push_str(&payload);
+                } else {
+                    let heading = if color {
+                        "Facets:".bold().to_string()
+                    } else {
+                        "Facets:".to_string()
+                    };
+                    out.push_str(&heading);
+                    if !payload.is_empty() {
+                        out.push(' ');
+                        out.push_str(&payload);
+                    }
+                }
+            }
+            "meta" => {
+                let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.meta {
+                    map.iter()
+                        .map(|(k, v)| (k.clone(), value_to_string(v)))
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                items.sort_by(|a, b| a.0.cmp(&b.0));
+                let payload = items
+                    .into_iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if raw {
+                    out.push_str(&payload);
+                } else {
+                    let heading = if color {
+                        "Meta:".bold().to_string()
+                    } else {
+                        "Meta:".to_string()
+                    };
+                    out.push_str(&heading);
+                    if !payload.is_empty() {
+                        out.push(' ');
+                        out.push_str(&payload);
+                    }
+                }
+            }
+            _ => {}
+        }
+        if i + 1 < selected.len() {
+            out.push('\n');
+        }
+    }
+    Ok(out)
 }
 
 fn evaluate(
@@ -301,61 +513,55 @@ fn list_checks() {
     }
 }
 
-fn output_env(env: &EnvSense, pretty: bool) {
-    if pretty {
-        println!("{}", serde_json::to_string_pretty(env).unwrap());
+fn run_info(args: InfoArgs) -> Result<(), i32> {
+    let snapshot = collect_snapshot();
+    if args.json {
+        let mut v = json!({
+            "contexts": snapshot.contexts,
+            "traits": snapshot.traits,
+            "facets": snapshot.facets,
+            "meta": snapshot.meta,
+        });
+        if let Some(f) = args.fields.as_deref() {
+            v = match filter_json_fields(v, f) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return Err(2);
+                }
+            };
+        }
+        match serde_json::to_string_pretty(&v) {
+            Ok(s) => println!("{}", s),
+            Err(_) => return Err(3),
+        }
     } else {
-        println!("{}", serde_json::to_string(env).unwrap());
+        let want_color =
+            stdout().is_terminal() && !args.no_color && std::env::var_os("NO_COLOR").is_none();
+        let rendered = match render_human(&snapshot, args.fields.as_deref(), want_color, args.raw) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("{}", e);
+                return Err(2);
+            }
+        };
+        println!("{}", rendered);
     }
-}
-
-fn output_json<T: serde::Serialize>(value: &T, pretty: bool) {
-    if pretty {
-        println!("{}", serde_json::to_string_pretty(value).unwrap());
-    } else {
-        println!("{}", serde_json::to_string(value).unwrap());
-    }
+    Ok(())
 }
 
 fn main() {
     let cli = Cli::parse();
-    if let Some(cmd) = &cli.command {
-        let code = match cmd {
-            Commands::Check(args) => run_check(args),
-        };
-        std::process::exit(code);
-    }
-
-    if !cli.check.is_empty() {
-        let args = CheckCmd {
-            predicates: cli.check.clone(),
-            any: false,
-            all: false,
-            quiet: false,
-            format: Format::Plain,
-            explain: cli.explain,
-            list_checks: false,
-        };
-        let code = run_check(&args);
-        std::process::exit(code);
-    }
-
-    let env = EnvSense::default();
-    if cli.json || cli.pretty || cli.only.is_some() || cli.explain {
-        if let Some(section) = cli.only.as_deref() {
-            match section {
-                "contexts" => output_json(&env.contexts, cli.pretty || cli.explain),
-                "facets" => output_json(&env.facets, cli.pretty || cli.explain),
-                "traits" => output_json(&env.traits, cli.pretty || cli.explain),
-                "evidence" => output_json(&env.evidence, cli.pretty || cli.explain),
-                _ => output_env(&env, cli.pretty || cli.explain),
+    match cli.command {
+        Some(Commands::Info(args)) => {
+            if let Err(code) = run_info(args) {
+                std::process::exit(code);
             }
-        } else {
-            output_env(&env, cli.pretty || cli.explain);
         }
-        return;
+        Some(Commands::Check(args)) => {
+            let code = run_check(&args);
+            std::process::exit(code);
+        }
+        None => {}
     }
-
-    // Default behavior: print compact JSON
-    output_env(&env, false);
 }
