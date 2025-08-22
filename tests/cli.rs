@@ -172,3 +172,32 @@ fn quiet_flag_suppresses_output() {
         .failure()
         .stdout(predicates::str::is_empty());
 }
+
+#[test]
+fn agent_json_output() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["agent", "--json"])
+        .assert()
+        .success()
+        .stdout(contains("\"cursor\""));
+}
+
+#[test]
+fn check_agent_flag() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--agent"])
+        .assert()
+        .success()
+        .stdout("true\n");
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "--agent"])
+        .assert()
+        .failure()
+        .stdout("false\n");
+}
