@@ -78,7 +78,8 @@ struct CheckCmd {
         value_name = "PREDICATE",
         num_args = 1..,
         help = "Predicates to evaluate",
-        long_help = check_predicate_long_help()
+        long_help = check_predicate_long_help(),
+        required_unless_present = "list_checks"
     )]
     predicates: Vec<String>,
 

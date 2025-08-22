@@ -1,5 +1,7 @@
+use crate::agent::{StdEnv, detect_agent};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -132,6 +134,27 @@ impl EnvSense {
             }
     }
 
+    fn detect_agent(&mut self) {
+        let det = detect_agent(&StdEnv);
+        if det.agent.is_agent {
+            self.contexts.agent = true;
+            if let Some(id) = det.agent.name.clone() {
+                self.facets.agent_id = Some(id);
+            }
+            if let Some(raw) = det.agent.session.get("raw").and_then(Value::as_object) {
+                if let Some((k, v)) = raw.iter().next() {
+                    self.evidence.push(Evidence {
+                        signal: Signal::Env,
+                        key: k.clone(),
+                        value: v.as_str().map(|s| s.to_string()),
+                        supports: vec!["agent".into(), "agent_id".into()],
+                        confidence: det.agent.confidence,
+                    });
+                }
+            }
+        }
+    }
+
     pub fn detect() -> Self {
         let mut env = Self {
             contexts: Contexts::default(),
@@ -141,6 +164,7 @@ impl EnvSense {
             version: SCHEMA_VERSION.to_string(),
             rules_version: String::new(),
         };
+        env.detect_agent();
         env.detect_ide();
         env
     }

@@ -176,7 +176,7 @@ Here’s a concrete, no-fluff implementation plan that gets you from zero → Ru
   * <10ms typical detection on a warm process (no external commands).
 * **CLI**
 
-  * `envsense --check agent` exit codes correct across platforms.
+  * `envsense check agent` exit codes correct across platforms.
   * `--explain` always lists at least one evidence item for every `true` claim.
 * **Node**
 
