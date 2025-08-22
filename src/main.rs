@@ -6,6 +6,13 @@ use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use std::io::{IsTerminal, stdout};
 
+const CHECK_PREDICATE_LONG_HELP: &str = concat!(
+    "Predicates to evaluate\n\n",
+    "Contexts: agent, ide, ci, container, remote\n",
+    "Facets: facet:agent_id=<VALUE>, facet:ide_id=<VALUE>, facet:ci_id=<VALUE>, facet:container_id=<VALUE>\n",
+    "Traits: trait:is_interactive, trait:is_tty_stdin, trait:is_tty_stdout, trait:is_tty_stderr, trait:is_piped_stdin, trait:is_piped_stdout, trait:supports_hyperlinks\n",
+);
+
 #[derive(Parser)]
 #[command(
     name = "envsense",
@@ -46,7 +53,12 @@ struct InfoArgs {
 
 #[derive(Args, Clone)]
 struct CheckCmd {
-    #[arg(value_name = "PREDICATE", num_args = 1..)]
+    #[arg(
+        value_name = "PREDICATE",
+        num_args = 1..,
+        help = "Predicates to evaluate",
+        long_help = CHECK_PREDICATE_LONG_HELP
+    )]
     predicates: Vec<String>,
 
     /// Succeed if any predicate matches (default: all must match)
