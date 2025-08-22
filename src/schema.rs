@@ -92,16 +92,64 @@ pub struct EnvSense {
 
 pub const SCHEMA_VERSION: &str = "0.1.0";
 
-impl Default for EnvSense {
-    fn default() -> Self {
-        Self {
+impl EnvSense {
+    fn detect_ide(&mut self) {
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
+            if term_program == "vscode" {
+                self.contexts.ide = true;
+                self.evidence.push(Evidence {
+                    signal: Signal::Env,
+                    key: "TERM_PROGRAM".into(),
+                    value: Some(term_program),
+                    supports: vec!["ide".into()],
+                    confidence: 0.95,
+                });
+
+                if std::env::var("CURSOR_TRACE_ID").is_ok() {
+                    self.facets.ide_id = Some("cursor".into());
+                    self.evidence.push(Evidence {
+                        signal: Signal::Env,
+                        key: "CURSOR_TRACE_ID".into(),
+                        value: None,
+                        supports: vec!["ide_id".into()],
+                        confidence: 0.95,
+                    });
+                } else if let Ok(version) = std::env::var("TERM_PROGRAM_VERSION") {
+                    let ide_id = if version.to_lowercase().contains("insider") {
+                        "vscode-insiders"
+                    } else {
+                        "vscode"
+                    };
+                    self.facets.ide_id = Some(ide_id.into());
+                    self.evidence.push(Evidence {
+                        signal: Signal::Env,
+                        key: "TERM_PROGRAM_VERSION".into(),
+                        value: Some(version),
+                        supports: vec!["ide_id".into()],
+                        confidence: 0.95,
+                    });
+                }
+            }
+        }
+    }
+
+    pub fn detect() -> Self {
+        let mut env = Self {
             contexts: Contexts::default(),
             facets: Facets::default(),
             traits: Traits::default(),
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
             rules_version: String::new(),
-        }
+        };
+        env.detect_ide();
+        env
+    }
+}
+
+impl Default for EnvSense {
+    fn default() -> Self {
+        Self::detect()
     }
 }
 
