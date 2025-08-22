@@ -1,13 +1,121 @@
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin;
+use predicates::prelude::*;
 use predicates::str::contains;
+
+#[cfg(target_os = "macos")]
+fn script_cmd(envs: &[(&str, &str)]) -> Command {
+    let bin = cargo_bin("envsense");
+    let mut cmd = Command::new("script");
+    cmd.arg("-q")
+        .arg("/dev/null")
+        .arg(bin)
+        .arg("info")
+        .arg("--fields=traits");
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    cmd
+}
+
+#[cfg(not(target_os = "macos"))]
+fn script_cmd(envs: &[(&str, &str)]) -> Command {
+    let bin = cargo_bin("envsense");
+    let mut cmd = Command::new("script");
+    cmd.arg("-qec")
+        .arg(format!("{} info --fields=traits", bin.display()))
+        .arg("/dev/null");
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    cmd
+}
 
 #[test]
 fn prints_json_with_version() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("--json")
+    cmd.args(["info", "--json"])
         .assert()
         .success()
-        .stdout(contains("\"version\":\"0.1.0\""));
+        .stdout(contains("\"schema_version\""));
+}
+
+#[test]
+fn fields_limit_output() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--json", "--fields=contexts"])
+        .assert()
+        .success()
+        .stdout(contains("\"contexts\"").and(contains("\"traits\"").not()));
+}
+
+#[test]
+fn human_info_multiline() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["info", "--fields=traits", "--no-color"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "Traits:\n  color_level = none\n  is_interactive = false",
+        ));
+}
+
+#[test]
+fn raw_contexts_without_headings_or_color() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("TERM_PROGRAM", "vscode")
+        .env("TERM_PROGRAM_VERSION", "1.75.0")
+        .args(["info", "--raw", "--fields=contexts"])
+        .assert()
+        .success()
+        .stdout("ide\n");
+}
+
+#[test]
+fn color_output_honors_tty_and_no_color() {
+    script_cmd(&[("TERM", "xterm")])
+        .assert()
+        .success()
+        .stdout(contains("\u{1b}[1;36m").and(contains("\u{1b}[31m")));
+
+    script_cmd(&[("TERM", "xterm"), ("NO_COLOR", "1")])
+        .assert()
+        .success()
+        .stdout(contains("\u{1b}[").not().and(contains("Traits:")));
+}
+
+#[test]
+fn invalid_fields_error() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--fields=bogus"])
+        .assert()
+        .code(2)
+        .stderr(contains("unknown field: bogus"));
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--json", "--fields=bogus"])
+        .assert()
+        .code(2)
+        .stderr(contains("unknown field: bogus"));
+}
+
+#[test]
+fn meta_field_selection() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--json", "--fields=meta"])
+        .assert()
+        .success()
+        .stdout(contains("\"schema_version\"").and(contains("\"rules_version\"")));
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["info", "--fields=meta", "--no-color"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "Meta:\n  rules_version = \n  schema_version = 0.1.0",
+        ));
 }
 
 #[test]
