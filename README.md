@@ -18,17 +18,17 @@ These heuristics get duplicated across dotfiles and codebases. **envsense** cent
 
 ```bash
 # Check if running inside any coding agent
-envsense --check agent && echo "Running inside a coding agent"
+envsense check agent && echo "Running inside a coding agent"
 
 # Check if specifically running in Cursor
-envsense --check facet:agent_id=cursor && echo "Cursor detected"
+envsense check facet:agent_id=cursor && echo "Cursor detected"
 
 # Check if running in VS Code or VS Code Insiders
-envsense --check facet:ide_id=vscode && echo "VS Code"
-envsense --check facet:ide_id=vscode-insiders && echo "VS Code Insiders"
+envsense check facet:ide_id=vscode && echo "VS Code"
+envsense check facet:ide_id=vscode-insiders && echo "VS Code Insiders"
 
 # Combine checks in scripts
-if envsense --check facet:ide_id=cursor; then
+if envsense check -q facet:ide_id=cursor; then
   export PAGER=cat
 fi
 ```
@@ -105,13 +105,13 @@ Example JSON output:
 
 ```bash
 # Context: any CI
-envsense --check ci && echo "In CI"
+envsense check ci && echo "In CI"
 
 # Facet: specifically GitHub Actions
-envsense --check facet:ci_id=github && echo "In GitHub Actions"
+envsense check facet:ci_id=github && echo "In GitHub Actions"
 
 # Trait: non-interactive
-if ! envsense --check trait:is_interactive; then
+if ! envsense check trait:is_interactive; then
   echo "Running non-interactive"
 fi
 ```
