@@ -46,7 +46,11 @@ struct InfoArgs {
 
 #[derive(Args, Clone)]
 struct CheckCmd {
-    #[arg(value_name = "PREDICATE", num_args = 1..)]
+    #[arg(
+        value_name = "PREDICATE",
+        num_args = 1..,
+        required_unless_present = "list_checks"
+    )]
     predicates: Vec<String>,
 
     /// Succeed if any predicate matches (default: all must match)
