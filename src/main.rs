@@ -1,6 +1,5 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use colored::Colorize;
-use envsense::agent::{StdEnv, detect_agent};
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
 use envsense::schema::{EnvSense, Evidence};
 use serde_json::{Map, Value, json};
@@ -20,18 +19,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    // Detect agent
-    Agent(AgentArgs),
     /// Show what envsense knows
     Info(InfoArgs),
     /// Evaluate predicates against the environment
     Check(CheckCmd),
-}
-
-#[derive(Args, Clone)]
-struct AgentArgs {
-    #[arg(long)]
-    json: bool,
 }
 
 #[derive(Args, Clone)]
@@ -55,12 +46,8 @@ struct InfoArgs {
 
 #[derive(Args, Clone)]
 struct CheckCmd {
-    #[arg(value_name = "PREDICATE", num_args = 0.., conflicts_with = "agent")]
+    #[arg(value_name = "PREDICATE", num_args = 0..)]
     predicates: Vec<String>,
-
-    // Check if running inside an agent
-    #[arg(long, action = clap::ArgAction::SetTrue)]
-    agent: bool,
 
     /// Succeed if any predicate matches (default: all must match)
     #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "all")]
@@ -418,56 +405,10 @@ fn evidence_to_signals(e: Option<&Evidence>) -> Option<BTreeMap<String, String>>
     })
 }
 
-fn run_agent(args: AgentArgs) -> i32 {
-    let det = detect_agent(&StdEnv);
-    if args.json {
-        match serde_json::to_string_pretty(&det) {
-            Ok(s) => println!("{}", s),
-            Err(_) => return 3,
-        }
-    } else {
-        if det.agent.is_agent {
-            let name = det
-                .agent
-                .vendor
-                .clone()
-                .or(det.agent.name.clone())
-                .unwrap_or_else(|| "unknown".into());
-            println!("Agent: {} (confidence {:.2})", name, det.agent.confidence);
-            if let Some(v) = det.agent.variant.as_ref() {
-                println!("Variant: {}", v);
-            }
-            if !det.agent.capabilities.is_empty() {
-                println!("Capabilities: {}", det.agent.capabilities.join(", "));
-            }
-        } else {
-            println!("Agent: none");
-        }
-        let editor = det
-            .facets
-            .editor
-            .clone()
-            .unwrap_or_else(|| "unknown".into());
-        let host = det.facets.host.clone().unwrap_or_else(|| "unknown".into());
-        println!(
-            "Editor: {} ({:.2})   Host: {}",
-            editor, det.facets.editor_confidence, host
-        );
-    }
-    0
-}
-
 fn run_check(args: &CheckCmd) -> i32 {
     if args.list_checks {
         list_checks();
         return 0;
-    }
-    if args.agent {
-        let det = detect_agent(&StdEnv);
-        if !args.quiet {
-            println!("{}", det.agent.is_agent);
-        }
-        return if det.agent.is_agent { 0 } else { 1 };
     }
     if args.predicates.is_empty() {
         eprintln!("missing predicate");
@@ -641,10 +582,6 @@ fn run_info(args: InfoArgs) -> Result<(), i32> {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Some(Commands::Agent(args)) => {
-            let code = run_agent(args);
-            std::process::exit(code);
-        }
         Some(Commands::Info(args)) => {
             if let Err(code) = run_info(args) {
                 std::process::exit(code);

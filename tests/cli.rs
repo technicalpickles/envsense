@@ -121,7 +121,7 @@ fn meta_field_selection() {
 #[test]
 fn check_unknown_context_fails() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.args(["check", "agent"])
+    cmd.args(["check", "bogus"])
         .assert()
         .failure()
         .stdout("false\n");
@@ -174,29 +174,18 @@ fn quiet_flag_suppresses_output() {
 }
 
 #[test]
-fn agent_json_output() {
+fn check_agent_context() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["agent", "--json"])
-        .assert()
-        .success()
-        .stdout(contains("\"cursor\""));
-}
-
-#[test]
-fn check_agent_flag() {
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--agent"])
+        .args(["check", "agent"])
         .assert()
         .success()
         .stdout("true\n");
 
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "--agent"])
+        .args(["check", "agent"])
         .assert()
         .failure()
         .stdout("false\n");

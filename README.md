@@ -17,12 +17,12 @@ These heuristics get duplicated across dotfiles and codebases. **envsense** cent
 ## Quick Start (Shell)
 
 ```bash
-# Detect and show agent details
-envsense agent
-envsense agent --json
+# Detect and show agent status
+envsense check agent
+envsense check --format json agent
 
 # Simple check for any coding agent
-envsense check --agent && echo "Running inside a coding agent"
+envsense check agent && echo "Running inside a coding agent"
 
 # Check if specifically running in Cursor
 envsense check facet:agent_id=cursor && echo "Cursor detected"
