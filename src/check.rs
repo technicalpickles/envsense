@@ -22,13 +22,14 @@ pub enum ParseError {
 pub fn parse(input: &str) -> Result<Check, ParseError> {
     if let Some(rest) = input.strip_prefix("facet:") {
         let mut parts = rest.splitn(2, '=');
-        if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-            if !key.is_empty() && !value.is_empty() {
-                return Ok(Check::Facet {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                });
-            }
+        if let (Some(key), Some(value)) = (parts.next(), parts.next())
+            && !key.is_empty()
+            && !value.is_empty()
+        {
+            return Ok(Check::Facet {
+                key: key.to_string(),
+                value: value.to_string(),
+            });
         }
         return Err(ParseError::Invalid);
     }

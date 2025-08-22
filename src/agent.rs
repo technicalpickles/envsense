@@ -280,21 +280,20 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
         }
     }
 
-    if let Some(name) = detection.agent.name.clone() {
-        if detection.agent.vendor.is_none()
+    if let Some(name) = detection.agent.name.clone()
+        && (detection.agent.vendor.is_none()
             || detection.agent.variant.is_none()
-            || detection.agent.capabilities.is_empty()
-        {
-            let (vendor, variant, caps) = descriptor(&name);
-            if detection.agent.vendor.is_none() {
-                detection.agent.vendor = vendor.map(str::to_string);
-            }
-            if detection.agent.variant.is_none() {
-                detection.agent.variant = variant.map(str::to_string);
-            }
-            if detection.agent.capabilities.is_empty() {
-                detection.agent.capabilities = caps;
-            }
+            || detection.agent.capabilities.is_empty())
+    {
+        let (vendor, variant, caps) = descriptor(&name);
+        if detection.agent.vendor.is_none() {
+            detection.agent.vendor = vendor.map(str::to_string);
+        }
+        if detection.agent.variant.is_none() {
+            detection.agent.variant = variant.map(str::to_string);
+        }
+        if detection.agent.capabilities.is_empty() {
+            detection.agent.capabilities = caps;
         }
     }
 

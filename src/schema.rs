@@ -96,41 +96,41 @@ pub const SCHEMA_VERSION: &str = "0.1.0";
 
 impl EnvSense {
     fn detect_ide(&mut self) {
-        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
-            if term_program == "vscode" {
-                self.contexts.ide = true;
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM")
+            && term_program == "vscode"
+        {
+            self.contexts.ide = true;
+            self.evidence.push(Evidence {
+                signal: Signal::Env,
+                key: "TERM_PROGRAM".into(),
+                value: Some(term_program),
+                supports: vec!["ide".into()],
+                confidence: 0.95,
+            });
+
+            if std::env::var("CURSOR_TRACE_ID").is_ok() {
+                self.facets.ide_id = Some("cursor".into());
                 self.evidence.push(Evidence {
                     signal: Signal::Env,
-                    key: "TERM_PROGRAM".into(),
-                    value: Some(term_program),
-                    supports: vec!["ide".into()],
+                    key: "CURSOR_TRACE_ID".into(),
+                    value: None,
+                    supports: vec!["ide_id".into()],
                     confidence: 0.95,
                 });
-
-                if std::env::var("CURSOR_TRACE_ID").is_ok() {
-                    self.facets.ide_id = Some("cursor".into());
-                    self.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: "CURSOR_TRACE_ID".into(),
-                        value: None,
-                        supports: vec!["ide_id".into()],
-                        confidence: 0.95,
-                    });
-                } else if let Ok(version) = std::env::var("TERM_PROGRAM_VERSION") {
-                    let ide_id = if version.to_lowercase().contains("insider") {
-                        "vscode-insiders"
-                    } else {
-                        "vscode"
-                    };
-                    self.facets.ide_id = Some(ide_id.into());
-                    self.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: "TERM_PROGRAM_VERSION".into(),
-                        value: Some(version),
-                        supports: vec!["ide_id".into()],
-                        confidence: 0.95,
-                    });
-                }
+            } else if let Ok(version) = std::env::var("TERM_PROGRAM_VERSION") {
+                let ide_id = if version.to_lowercase().contains("insider") {
+                    "vscode-insiders"
+                } else {
+                    "vscode"
+                };
+                self.facets.ide_id = Some(ide_id.into());
+                self.evidence.push(Evidence {
+                    signal: Signal::Env,
+                    key: "TERM_PROGRAM_VERSION".into(),
+                    value: Some(version),
+                    supports: vec!["ide_id".into()],
+                    confidence: 0.95,
+                });
             }
         }
     }
@@ -142,16 +142,16 @@ impl EnvSense {
             if let Some(id) = det.agent.name.clone() {
                 self.facets.agent_id = Some(id);
             }
-            if let Some(raw) = det.agent.session.get("raw").and_then(Value::as_object) {
-                if let Some((k, v)) = raw.iter().next() {
-                    self.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: k.clone(),
-                        value: v.as_str().map(|s| s.to_string()),
-                        supports: vec!["agent".into(), "agent_id".into()],
-                        confidence: det.agent.confidence,
-                    });
-                }
+            if let Some(raw) = det.agent.session.get("raw").and_then(Value::as_object)
+                && let Some((k, v)) = raw.iter().next()
+            {
+                self.evidence.push(Evidence {
+                    signal: Signal::Env,
+                    key: k.clone(),
+                    value: v.as_str().map(|s| s.to_string()),
+                    supports: vec!["agent".into(), "agent_id".into()],
+                    confidence: det.agent.confidence,
+                });
             }
         }
     }
