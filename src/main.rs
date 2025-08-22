@@ -5,6 +5,34 @@ use envsense::schema::{EnvSense, Evidence};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use std::io::{IsTerminal, stdout};
+use std::sync::OnceLock;
+
+fn check_predicate_long_help() -> &'static str {
+    static HELP: OnceLock<String> = OnceLock::new();
+    HELP.get_or_init(|| {
+        let mut s = String::from("Predicates to evaluate\n\n");
+        s.push_str("Contexts:\n");
+        for c in CONTEXTS {
+            s.push_str("    ");
+            s.push_str(c);
+            s.push('\n');
+        }
+        s.push_str("Facets:\n");
+        for f in FACETS {
+            s.push_str("    facet:");
+            s.push_str(f);
+            s.push_str("=<VALUE>\n");
+        }
+        s.push_str("Traits:\n");
+        for t in TRAITS {
+            s.push_str("    trait:");
+            s.push_str(t);
+            s.push('\n');
+        }
+        s
+    })
+    .as_str()
+}
 
 #[derive(Parser)]
 #[command(
@@ -46,7 +74,12 @@ struct InfoArgs {
 
 #[derive(Args, Clone)]
 struct CheckCmd {
-    #[arg(value_name = "PREDICATE", num_args = 1..)]
+    #[arg(
+        value_name = "PREDICATE",
+        num_args = 1..,
+        help = "Predicates to evaluate",
+        long_help = check_predicate_long_help()
+    )]
     predicates: Vec<String>,
 
     /// Succeed if any predicate matches (default: all must match)
