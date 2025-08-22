@@ -3,6 +3,34 @@ use assert_cmd::cargo::cargo_bin;
 use predicates::prelude::*;
 use predicates::str::contains;
 
+#[cfg(target_os = "macos")]
+fn script_cmd(envs: &[(&str, &str)]) -> Command {
+    let bin = cargo_bin("envsense");
+    let mut cmd = Command::new("script");
+    cmd.arg("-q")
+        .arg("/dev/null")
+        .arg(bin)
+        .arg("info")
+        .arg("--fields=traits");
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    cmd
+}
+
+#[cfg(not(target_os = "macos"))]
+fn script_cmd(envs: &[(&str, &str)]) -> Command {
+    let bin = cargo_bin("envsense");
+    let mut cmd = Command::new("script");
+    cmd.arg("-qec")
+        .arg(format!("{} info --fields=traits", bin.display()))
+        .arg("/dev/null");
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    cmd
+}
+
 #[test]
 fn prints_json_with_version() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
@@ -47,24 +75,13 @@ fn raw_contexts_without_headings_or_color() {
 
 #[test]
 fn color_output_honors_tty_and_no_color() {
-    let bin = cargo_bin("envsense");
-
-    let mut cmd = Command::new("script");
-    cmd.arg("-qec")
-        .arg(format!("{} info --fields=traits", bin.display()))
-        .arg("/dev/null")
-        .env("TERM", "xterm");
-    cmd.assert()
+    script_cmd(&[("TERM", "xterm")])
+        .assert()
         .success()
         .stdout(contains("\u{1b}[1;36m").and(contains("\u{1b}[31m")));
 
-    let mut cmd = Command::new("script");
-    cmd.arg("-qec")
-        .arg(format!("{} info --fields=traits", bin.display()))
-        .arg("/dev/null")
-        .env("TERM", "xterm")
-        .env("NO_COLOR", "1");
-    cmd.assert()
+    script_cmd(&[("TERM", "xterm"), ("NO_COLOR", "1")])
+        .assert()
         .success()
         .stdout(contains("\u{1b}[").not().and(contains("Traits:")));
 }
