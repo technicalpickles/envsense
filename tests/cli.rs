@@ -21,6 +21,18 @@ fn fields_limit_output() {
 }
 
 #[test]
+fn human_info_multiline() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["info", "--fields=traits", "--no-color"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "Traits:\n  color_level = none\n  is_interactive = false",
+        ));
+}
+
+#[test]
 fn check_unknown_context_fails() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.args(["check", "agent"])

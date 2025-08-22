@@ -155,6 +155,17 @@ fn value_to_string(v: &Value) -> String {
     }
 }
 
+fn colorize_value(v: &str, color: bool) -> String {
+    if !color {
+        return v.to_string();
+    }
+    match v {
+        "true" => v.green().to_string(),
+        "false" | "none" => v.red().to_string(),
+        _ => v.to_string(),
+    }
+}
+
 fn render_human(
     snapshot: &Snapshot,
     fields: Option<&str>,
@@ -181,19 +192,24 @@ fn render_human(
             "contexts" => {
                 let mut ctx = snapshot.contexts.clone();
                 ctx.sort();
-                let payload = ctx.join(", ");
                 if raw {
-                    out.push_str(&payload);
+                    for (j, c) in ctx.iter().enumerate() {
+                        if j > 0 {
+                            out.push('\n');
+                        }
+                        out.push_str(c);
+                    }
                 } else {
                     let heading = if color {
-                        "Contexts:".bold().to_string()
+                        "Contexts:".bold().cyan().to_string()
                     } else {
                         "Contexts:".to_string()
                     };
                     out.push_str(&heading);
-                    if !payload.is_empty() {
-                        out.push(' ');
-                        out.push_str(&payload);
+                    for c in ctx {
+                        out.push('\n');
+                        out.push_str("  ");
+                        out.push_str(&c);
                     }
                 }
             }
@@ -207,23 +223,26 @@ fn render_human(
                     Vec::new()
                 };
                 items.sort_by(|a, b| a.0.cmp(&b.0));
-                let payload = items
-                    .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 if raw {
-                    out.push_str(&payload);
+                    for (j, (k, v)) in items.into_iter().enumerate() {
+                        if j > 0 {
+                            out.push('\n');
+                        }
+                        out.push_str(&format!("{} = {}", k, v));
+                    }
                 } else {
                     let heading = if color {
-                        "Traits:".bold().to_string()
+                        "Traits:".bold().cyan().to_string()
                     } else {
                         "Traits:".to_string()
                     };
                     out.push_str(&heading);
-                    if !payload.is_empty() {
-                        out.push(' ');
-                        out.push_str(&payload);
+                    for (k, v) in items {
+                        out.push('\n');
+                        out.push_str("  ");
+                        out.push_str(&k);
+                        out.push_str(" = ");
+                        out.push_str(&colorize_value(&v, color));
                     }
                 }
             }
@@ -237,23 +256,26 @@ fn render_human(
                     Vec::new()
                 };
                 items.sort_by(|a, b| a.0.cmp(&b.0));
-                let payload = items
-                    .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 if raw {
-                    out.push_str(&payload);
+                    for (j, (k, v)) in items.into_iter().enumerate() {
+                        if j > 0 {
+                            out.push('\n');
+                        }
+                        out.push_str(&format!("{} = {}", k, v));
+                    }
                 } else {
                     let heading = if color {
-                        "Facets:".bold().to_string()
+                        "Facets:".bold().cyan().to_string()
                     } else {
                         "Facets:".to_string()
                     };
                     out.push_str(&heading);
-                    if !payload.is_empty() {
-                        out.push(' ');
-                        out.push_str(&payload);
+                    for (k, v) in items {
+                        out.push('\n');
+                        out.push_str("  ");
+                        out.push_str(&k);
+                        out.push_str(" = ");
+                        out.push_str(&colorize_value(&v, color));
                     }
                 }
             }
@@ -266,23 +288,26 @@ fn render_human(
                     Vec::new()
                 };
                 items.sort_by(|a, b| a.0.cmp(&b.0));
-                let payload = items
-                    .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 if raw {
-                    out.push_str(&payload);
+                    for (j, (k, v)) in items.into_iter().enumerate() {
+                        if j > 0 {
+                            out.push('\n');
+                        }
+                        out.push_str(&format!("{} = {}", k, v));
+                    }
                 } else {
                     let heading = if color {
-                        "Meta:".bold().to_string()
+                        "Meta:".bold().cyan().to_string()
                     } else {
                         "Meta:".to_string()
                     };
                     out.push_str(&heading);
-                    if !payload.is_empty() {
-                        out.push(' ');
-                        out.push_str(&payload);
+                    for (k, v) in items {
+                        out.push('\n');
+                        out.push_str("  ");
+                        out.push_str(&k);
+                        out.push_str(" = ");
+                        out.push_str(&colorize_value(&v, color));
                     }
                 }
             }
