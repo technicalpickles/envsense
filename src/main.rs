@@ -46,7 +46,11 @@ struct InfoArgs {
 
 #[derive(Args, Clone)]
 struct CheckCmd {
-    #[arg(value_name = "PREDICATE", num_args = 0..)]
+    #[arg(
+        value_name = "PREDICATE",
+        num_args = 1..,
+        required_unless_present = "list_checks"
+    )]
     predicates: Vec<String>,
 
     /// Succeed if any predicate matches (default: all must match)
@@ -409,10 +413,6 @@ fn run_check(args: &CheckCmd) -> i32 {
     if args.list_checks {
         list_checks();
         return 0;
-    }
-    if args.predicates.is_empty() {
-        eprintln!("missing predicate");
-        return 2;
     }
     let env = EnvSense::default();
     let mode_any = args.any;

@@ -154,19 +154,42 @@ fn detect_editor(vars: &HashMap<String, String>, facets: &mut ContextFacets) {
     }
 }
 
-fn detect_host(vars: &HashMap<String, String>, facets: &mut ContextFacets) {
-    if vars.contains_key("REPL_ID")
-        || vars.contains_key("REPLIT_USER")
+fn detect_replit(
+    vars: &HashMap<String, String>,
+    detection: &mut AgentDetection,
+    allow_agent: bool,
+) {
+    if let Some(v) = vars.get("REPL_ID") {
+        if allow_agent && detection.agent.name.is_none() {
+            detection.agent.name = Some("replit-agent".into());
+            detection.agent.confidence = 0.9;
+            detection.agent.is_agent = true;
+            add_raw(&mut detection.agent, "REPL_ID", v);
+        }
+        detection.facets.host = Some("replit".into());
+        detection.facets.host_confidence = 0.9;
+    } else if vars.contains_key("REPLIT_USER")
         || vars.contains_key("REPLIT_DEV_DOMAIN")
         || vars.contains_key("REPLIT_DEPLOYMENT")
     {
-        facets.host = Some("replit".into());
-        facets.host_confidence = if vars.contains_key("REPL_ID") {
-            0.9
-        } else {
-            0.6
-        };
-    } else if vars.contains_key("CODESPACES")
+        detection.facets.host = Some("replit".into());
+        detection.facets.host_confidence = 0.6;
+        if allow_agent
+            && detection.agent.name.is_none()
+            && vars.get("IS_CODE_AGENT").map(|v| v == "1").unwrap_or(false)
+        {
+            detection.agent.name = Some("replit-agent".into());
+            detection.agent.confidence = 0.8;
+            detection.agent.is_agent = true;
+        }
+    }
+}
+
+fn detect_host(vars: &HashMap<String, String>, facets: &mut ContextFacets) {
+    if facets.host.is_some() {
+        return;
+    }
+    if vars.contains_key("CODESPACES")
         || vars.contains_key("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
     {
         facets.host = Some("codespaces".into());
@@ -180,7 +203,7 @@ fn detect_host(vars: &HashMap<String, String>, facets: &mut ContextFacets) {
         facets.host = Some("ci".into());
         facets.host_confidence = 0.6;
     } else {
-        facets.host = Some("local".into());
+        facets.host = Some("unknown".into());
         facets.host_confidence = 0.5;
     }
 }
@@ -200,6 +223,7 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
             .unwrap_or(false)
     {
         detect_editor(&vars, &mut detection.facets);
+        detect_replit(&vars, &mut detection, false);
         detect_host(&vars, &mut detection.facets);
         return detection;
     }
@@ -215,6 +239,7 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
     }
 
     detect_editor(&vars, &mut detection.facets);
+    detect_replit(&vars, &mut detection, true);
     detect_host(&vars, &mut detection.facets);
 
     if detection.agent.name.is_none() {
@@ -233,13 +258,6 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
             detection.agent.confidence = 0.9;
             detection.agent.is_agent = true;
             add_raw(&mut detection.agent, "CLAUDECODE", v);
-        } else if let Some(v) = vars.get("REPL_ID") {
-            detection.agent.name = Some("replit-agent".into());
-            detection.agent.confidence = 0.9;
-            detection.agent.is_agent = true;
-            add_raw(&mut detection.agent, "REPL_ID", v);
-            detection.facets.host = Some("replit".into());
-            detection.facets.host_confidence = 0.9;
         } else if vars.keys().any(|k| k.starts_with("SANDBOX_")) {
             detection.agent.name = Some("openhands".into());
             detection.agent.confidence = 0.9;
@@ -259,19 +277,6 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
             detection.agent.name = Some("aider".into());
             detection.agent.confidence = 0.8;
             detection.agent.is_agent = true;
-        }
-
-        // replit weak + IS_CODE_AGENT
-        let replit_weak =
-            vars.contains_key("REPLIT_USER") || vars.contains_key("REPLIT_DEV_DOMAIN");
-        if replit_weak {
-            detection.facets.host = Some("replit".into());
-            detection.facets.host_confidence = 0.6;
-            if vars.get("IS_CODE_AGENT").map(|v| v == "1").unwrap_or(false) {
-                detection.agent.name = Some("replit-agent".into());
-                detection.agent.confidence = 0.8;
-                detection.agent.is_agent = true;
-            }
         }
     }
 
@@ -393,21 +398,21 @@ mod tests {
                 env: vec![("TERM_PROGRAM", "vscode")],
                 expected_agent: None,
                 expected_is_agent: false,
-                expected_host: Some("local"),
+                expected_host: Some("unknown"),
             },
             Case {
                 name: "override_force_human",
                 env: vec![("ENVSENSE_ASSUME_HUMAN", "1"), ("CURSOR_AGENT", "1")],
                 expected_agent: None,
                 expected_is_agent: false,
-                expected_host: Some("local"),
+                expected_host: Some("unknown"),
             },
             Case {
                 name: "override_force_agent",
                 env: vec![("ENVSENSE_AGENT", "cursor")],
                 expected_agent: Some("cursor"),
                 expected_is_agent: true,
-                expected_host: Some("local"),
+                expected_host: Some("unknown"),
             },
         ];
 
