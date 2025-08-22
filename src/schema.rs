@@ -94,8 +94,8 @@ pub const SCHEMA_VERSION: &str = "0.1.0";
 
 impl EnvSense {
     fn detect_ide(&mut self) {
-        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
-            if term_program == "vscode" {
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM")
+            && term_program == "vscode" {
                 self.contexts.ide = true;
                 self.evidence.push(Evidence {
                     signal: Signal::Env,
@@ -130,7 +130,6 @@ impl EnvSense {
                     });
                 }
             }
-        }
     }
 
     pub fn detect() -> Self {
