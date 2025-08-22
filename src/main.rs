@@ -110,4 +110,3 @@ fn output_json<T: serde::Serialize>(value: &T, pretty: bool) {
         println!("{}", serde_json::to_string(value).unwrap());
     }
 }
-

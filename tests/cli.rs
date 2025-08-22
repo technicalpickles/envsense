@@ -17,4 +17,3 @@ fn check_unknown_context_fails() {
         .assert()
         .failure();
 }
-
