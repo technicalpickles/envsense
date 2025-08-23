@@ -1,0 +1,26 @@
+{
+  "contexts": [
+    "ide"
+  ],
+  "facets": {
+    "ci": {
+      "is_ci": false
+    },
+    "ide_id": "vscode"
+  },
+  "meta": {
+    "rules_version": "",
+    "schema_version": "0.1.0"
+  },
+  "traits": {
+    "color_level": "none",
+    "is_ci": false,
+    "is_interactive": false,
+    "is_piped_stdin": true,
+    "is_piped_stdout": true,
+    "is_tty_stderr": false,
+    "is_tty_stdin": false,
+    "is_tty_stdout": false,
+    "supports_hyperlinks": false
+  }
+}
