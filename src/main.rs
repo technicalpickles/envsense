@@ -302,48 +302,44 @@ fn render_human(
                     Vec::new()
                 };
                 items.sort_by(|a, b| a.0.cmp(&b.0));
-                if !raw {
-                    if let Some(ci) = ci {
-                        let heading = if color {
-                            "CI:".bold().cyan().to_string()
-                        } else {
-                            "CI:".to_string()
-                        };
-                        out.push_str(&heading);
-                        out.push_str("\n  CI: ");
-                        let yes = if color {
-                            "Yes".green().to_string()
-                        } else {
-                            "Yes".to_string()
-                        };
-                        let no = if color {
-                            "No".red().to_string()
-                        } else {
-                            "No".to_string()
-                        };
-                        out.push_str(if ci.is_ci { &yes } else { &no });
-                        if ci.is_ci {
-                            if let (Some(name), Some(vendor)) =
-                                (ci.name.as_ref(), ci.vendor.as_ref())
-                            {
-                                out.push_str("\n  Vendor: ");
-                                out.push_str(name);
-                                out.push_str(" (");
-                                out.push_str(vendor);
-                                out.push(')');
-                            }
-                            if let Some(pr) = ci.pr {
-                                out.push_str("\n  Pull Request: ");
-                                out.push_str(if pr { &yes } else { &no });
-                            }
-                            if let Some(branch) = ci.branch {
-                                out.push_str("\n  Branch: ");
-                                out.push_str(&branch);
-                            }
+                if !raw && let Some(ci) = ci {
+                    let heading = if color {
+                        "CI:".bold().cyan().to_string()
+                    } else {
+                        "CI:".to_string()
+                    };
+                    out.push_str(&heading);
+                    out.push_str("\n  CI: ");
+                    let yes = if color {
+                        "Yes".green().to_string()
+                    } else {
+                        "Yes".to_string()
+                    };
+                    let no = if color {
+                        "No".red().to_string()
+                    } else {
+                        "No".to_string()
+                    };
+                    out.push_str(if ci.is_ci { &yes } else { &no });
+                    if ci.is_ci {
+                        if let (Some(name), Some(vendor)) = (ci.name.as_ref(), ci.vendor.as_ref()) {
+                            out.push_str("\n  Vendor: ");
+                            out.push_str(name);
+                            out.push_str(" (");
+                            out.push_str(vendor);
+                            out.push(')');
                         }
-                        if !items.is_empty() {
-                            out.push('\n');
+                        if let Some(pr) = ci.pr {
+                            out.push_str("\n  Pull Request: ");
+                            out.push_str(if pr { &yes } else { &no });
                         }
+                        if let Some(branch) = ci.branch {
+                            out.push_str("\n  Branch: ");
+                            out.push_str(&branch);
+                        }
+                    }
+                    if !items.is_empty() {
+                        out.push('\n');
                     }
                 }
                 if raw {

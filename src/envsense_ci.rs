@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
 pub struct CiFacet {
     pub is_ci: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -14,18 +14,6 @@ pub struct CiFacet {
     pub pr: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
-}
-
-impl Default for CiFacet {
-    fn default() -> Self {
-        Self {
-            is_ci: false,
-            vendor: None,
-            name: None,
-            pr: None,
-            branch: None,
-        }
-    }
 }
 
 fn to_snake_case(s: &str) -> String {
