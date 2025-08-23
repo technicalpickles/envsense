@@ -57,7 +57,7 @@ fn human_info_multiline() {
         .assert()
         .success()
         .stdout(contains(
-            "Traits:\n  color_level = none\n  is_interactive = false",
+            "Traits:\n  color_level = none\n  is_ci = false\n  is_interactive = false",
         ));
 }
 
@@ -189,4 +189,47 @@ fn check_agent_context() {
         .assert()
         .failure()
         .stdout("false\n");
+}
+
+#[test]
+fn json_output_contains_ci_keys() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("GITHUB_ACTIONS", "1")
+        .args(["info", "--json"])
+        .assert()
+        .success()
+        .stdout(contains("\"ci\"").and(contains("ci_vendor")));
+}
+
+#[test]
+fn check_ci_messages_and_exit_codes() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("GITHUB_ACTIONS", "1")
+        .arg("check")
+        .arg("ci")
+        .assert()
+        .success()
+        .stdout(contains("CI detected"));
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .arg("check")
+        .arg("ci")
+        .assert()
+        .failure()
+        .stdout(contains("No CI detected"));
+}
+
+#[test]
+fn check_ci_quiet_suppresses_output() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .arg("check")
+        .arg("-q")
+        .arg("ci")
+        .assert()
+        .failure()
+        .stdout(predicates::str::is_empty());
 }

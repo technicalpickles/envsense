@@ -64,6 +64,8 @@ pub const TRAITS: &[&str] = &[
     "is_piped_stdin",
     "is_piped_stdout",
     "supports_hyperlinks",
+    "is_ci",
+    "ci_pr",
 ];
 
 #[cfg(test)]
