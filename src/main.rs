@@ -573,7 +573,21 @@ fn list_checks() {
 }
 
 fn detect_color_choice() -> ColorChoice {
-    let flag = std::env::args_os().any(|a| a == "--no-color");
+    // Scan args before clap so help/errors honor `--no-color`.
+    // Mirror clap's parsing by stopping at `--` which terminates flags.
+    let mut args = std::env::args_os();
+    // Skip binary name
+    args.next();
+    let mut flag = false;
+    for arg in args {
+        if arg == "--" {
+            break;
+        }
+        if arg == "--no-color" {
+            flag = true;
+            break;
+        }
+    }
     if flag {
         ColorChoice::Never
     } else if std::env::var_os("NO_COLOR").map_or(false, |v| !v.is_empty()) {
