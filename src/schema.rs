@@ -1,4 +1,5 @@
 use crate::agent::{StdEnv, detect_agent};
+use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,8 @@ pub struct Facets {
     pub ci_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_id: Option<String>,
+    #[serde(default)]
+    pub ci: CiFacet,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
@@ -162,6 +165,17 @@ impl EnvSense {
         }
     }
 
+    fn detect_ci(&mut self) {
+        let ci = detect_ci_facet();
+        if ci.is_ci {
+            self.contexts.ci = true;
+            if let Some(v) = ci.vendor.clone() {
+                self.facets.ci_id = Some(v);
+            }
+        }
+        self.facets.ci = ci;
+    }
+
     fn detect_terminal(&mut self) {
         self.traits = TerminalTraits::detect().into();
     }
@@ -177,6 +191,7 @@ impl EnvSense {
         };
         env.detect_terminal();
         env.detect_agent();
+        env.detect_ci();
         env.detect_ide();
         env
     }

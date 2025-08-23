@@ -14,7 +14,10 @@ colored = "2"
 is-terminal = "0.4"
 supports-color = "3"
 supports-hyperlinks = "3"
+ci_info = "0.14"
 
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
+serial_test = "2"
+temp-env = "0.3"

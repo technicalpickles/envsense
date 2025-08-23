@@ -109,6 +109,47 @@ if ! envsense check trait:is_interactive; then
 fi
 ```
 
+### CI detection
+
+Detect if envsense is running in a CI environment and inspect details:
+
+```bash
+# Human-friendly summary
+envsense info --fields=facets --no-color
+
+# JSON output
+envsense info --json --fields=traits,facets
+
+# Simple check that exits 0 on CI, 1 otherwise
+envsense check ci
+```
+
+Sample `envsense info --fields=facets --no-color` output on GitHub Actions:
+
+```
+Facets:
+  ci = {"is_ci": true, "vendor": "github_actions", "name": "GitHub Actions"}
+```
+
+And the corresponding JSON fragment:
+
+```json
+{
+  "traits": {
+    "is_ci": true,
+    "ci_vendor": "github_actions",
+    "ci_name": "GitHub Actions"
+  },
+  "facets": {
+    "ci": {
+      "is_ci": true,
+      "vendor": "github_actions",
+      "name": "GitHub Actions"
+    }
+  }
+}
+```
+
 ---
 
 ## Language Bindings
