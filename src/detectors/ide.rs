@@ -1,5 +1,5 @@
-use crate::detectors::{Detector, EnvSnapshot, Detection};
-use crate::schema::{Signal, Evidence};
+use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::schema::{Evidence, Signal};
 use serde_json::json;
 
 pub struct IdeDetector;
@@ -14,14 +14,14 @@ impl Detector for IdeDetector {
     fn name(&self) -> &'static str {
         "ide"
     }
-    
+
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         if let Some(term_program) = snap.get_env("TERM_PROGRAM") {
             if term_program == "vscode" {
                 detection.contexts_add.push("ide".to_string());
-                
+
                 // Add evidence for IDE context
                 detection.evidence.push(Evidence {
                     signal: Signal::Env,
@@ -30,10 +30,12 @@ impl Detector for IdeDetector {
                     supports: vec!["ide".into()],
                     confidence: 0.95,
                 });
-                
+
                 // Detect specific IDE variant
                 if snap.get_env("CURSOR_TRACE_ID").is_some() {
-                    detection.facets_patch.insert("ide_id".to_string(), json!("cursor"));
+                    detection
+                        .facets_patch
+                        .insert("ide_id".to_string(), json!("cursor"));
                     detection.evidence.push(Evidence {
                         signal: Signal::Env,
                         key: "CURSOR_TRACE_ID".into(),
@@ -47,7 +49,9 @@ impl Detector for IdeDetector {
                     } else {
                         "vscode"
                     };
-                    detection.facets_patch.insert("ide_id".to_string(), json!(ide_id));
+                    detection
+                        .facets_patch
+                        .insert("ide_id".to_string(), json!(ide_id));
                     detection.evidence.push(Evidence {
                         signal: Signal::Env,
                         key: "TERM_PROGRAM_VERSION".into(),
@@ -56,11 +60,11 @@ impl Detector for IdeDetector {
                         confidence: 0.95,
                     });
                 }
-                
+
                 detection.confidence = 0.95;
             }
         }
-        
+
         detection
     }
 }
@@ -81,7 +85,7 @@ mod tests {
         for (k, v) in env_vars {
             env_map.insert(k.to_string(), v.to_string());
         }
-        
+
         EnvSnapshot {
             env_vars: env_map,
             is_tty_stdin: false,
@@ -97,11 +101,14 @@ mod tests {
             ("TERM_PROGRAM", "vscode"),
             ("TERM_PROGRAM_VERSION", "1.85.0"),
         ]);
-        
+
         let detection = detector.detect(&snapshot);
-        
+
         assert_eq!(detection.contexts_add, vec!["ide"]);
-        assert_eq!(detection.facets_patch.get("ide_id").unwrap(), &json!("vscode"));
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("vscode")
+        );
         assert_eq!(detection.evidence.len(), 2);
         assert_eq!(detection.confidence, 0.95);
     }
@@ -113,11 +120,14 @@ mod tests {
             ("TERM_PROGRAM", "vscode"),
             ("TERM_PROGRAM_VERSION", "1.86.0-insider"),
         ]);
-        
+
         let detection = detector.detect(&snapshot);
-        
+
         assert_eq!(detection.contexts_add, vec!["ide"]);
-        assert_eq!(detection.facets_patch.get("ide_id").unwrap(), &json!("vscode-insiders"));
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("vscode-insiders")
+        );
         assert_eq!(detection.evidence.len(), 2);
         assert_eq!(detection.confidence, 0.95);
     }
@@ -129,11 +139,14 @@ mod tests {
             ("TERM_PROGRAM", "vscode"),
             ("CURSOR_TRACE_ID", "abc123"),
         ]);
-        
+
         let detection = detector.detect(&snapshot);
-        
+
         assert_eq!(detection.contexts_add, vec!["ide"]);
-        assert_eq!(detection.facets_patch.get("ide_id").unwrap(), &json!("cursor"));
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("cursor")
+        );
         assert_eq!(detection.evidence.len(), 2);
         assert_eq!(detection.confidence, 0.95);
     }
@@ -142,9 +155,9 @@ mod tests {
     fn no_detection_without_vscode() {
         let detector = IdeDetector::new();
         let snapshot = create_env_snapshot(vec![]);
-        
+
         let detection = detector.detect(&snapshot);
-        
+
         assert!(detection.contexts_add.is_empty());
         assert!(detection.facets_patch.is_empty());
         assert!(detection.evidence.is_empty());
@@ -154,12 +167,10 @@ mod tests {
     #[test]
     fn no_detection_with_different_term_program() {
         let detector = IdeDetector::new();
-        let snapshot = create_env_snapshot(vec![
-            ("TERM_PROGRAM", "iTerm.app"),
-        ]);
-        
+        let snapshot = create_env_snapshot(vec![("TERM_PROGRAM", "iTerm.app")]);
+
         let detection = detector.detect(&snapshot);
-        
+
         assert!(detection.contexts_add.is_empty());
         assert!(detection.facets_patch.is_empty());
         assert!(detection.evidence.is_empty());

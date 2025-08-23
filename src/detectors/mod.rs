@@ -42,9 +42,9 @@ pub struct EnvSnapshot {
 impl EnvSnapshot {
     pub fn current() -> Self {
         use std::io::IsTerminal;
-        
+
         let env_vars: HashMap<String, String> = std::env::vars().collect();
-        
+
         Self {
             env_vars,
             is_tty_stdin: std::io::stdin().is_terminal(),
@@ -52,7 +52,7 @@ impl EnvSnapshot {
             is_tty_stderr: std::io::stderr().is_terminal(),
         }
     }
-    
+
     pub fn get_env(&self, key: &str) -> Option<&String> {
         self.env_vars.get(key)
     }

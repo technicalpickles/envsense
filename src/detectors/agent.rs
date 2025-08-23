@@ -1,7 +1,7 @@
-use crate::detectors::{Detector, EnvSnapshot, Detection};
-use crate::agent::{detect_agent, EnvReader};
-use crate::schema::{Signal, Evidence};
-use serde_json::{json, Value};
+use crate::agent::{EnvReader, detect_agent};
+use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::schema::{Evidence, Signal};
+use serde_json::{Value, json};
 
 pub struct AgentDetector;
 
@@ -20,9 +20,14 @@ impl<'a> EnvReader for EnvSnapshotReader<'a> {
     fn get(&self, key: &str) -> Option<String> {
         self.snapshot.env_vars.get(key).cloned()
     }
-    
+
     fn iter(&self) -> Box<dyn Iterator<Item = (String, String)> + '_> {
-        Box::new(self.snapshot.env_vars.iter().map(|(k, v)| (k.clone(), v.clone())))
+        Box::new(
+            self.snapshot
+                .env_vars
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        )
     }
 }
 
@@ -30,23 +35,30 @@ impl Detector for AgentDetector {
     fn name(&self) -> &'static str {
         "agent"
     }
-    
+
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         let env_reader = EnvSnapshotReader { snapshot: snap };
         let agent_detection = detect_agent(&env_reader);
-        
+
         if agent_detection.agent.is_agent {
             detection.contexts_add.push("agent".to_string());
             detection.confidence = agent_detection.agent.confidence;
-            
+
             if let Some(name) = agent_detection.agent.name.clone() {
-                detection.facets_patch.insert("agent_id".to_string(), json!(name));
+                detection
+                    .facets_patch
+                    .insert("agent_id".to_string(), json!(name));
             }
-            
+
             // Extract evidence from agent detection
-            if let Some(raw) = agent_detection.agent.session.get("raw").and_then(Value::as_object) {
+            if let Some(raw) = agent_detection
+                .agent
+                .session
+                .get("raw")
+                .and_then(Value::as_object)
+            {
                 if let Some((k, v)) = raw.iter().next() {
                     detection.evidence.push(Evidence {
                         signal: Signal::Env,
@@ -58,7 +70,7 @@ impl Detector for AgentDetector {
                 }
             }
         }
-        
+
         detection
     }
 }
@@ -80,7 +92,7 @@ mod tests {
         for (k, v) in env_vars {
             env_map.insert(k.to_string(), v.to_string());
         }
-        
+
         EnvSnapshot {
             env_vars: env_map,
             is_tty_stdin: false,
@@ -91,8 +103,8 @@ mod tests {
 
     // TODO: Fix these tests - they require clearing all potential agent environment variables
     // The core functionality works as evidenced by passing snapshot tests
-    
-    #[test]  
+
+    #[test]
     fn agent_detector_compiles() {
         let detector = AgentDetector::new();
         let snapshot = create_env_snapshot(vec![]);
@@ -106,9 +118,9 @@ mod tests {
         with_vars(Vec::<(&str, Option<&str>)>::new(), || {
             let detector = AgentDetector::new();
             let snapshot = create_env_snapshot(vec![]);
-            
+
             let detection = detector.detect(&snapshot);
-            
+
             // Note: This may still detect if we're actually in an agent environment
             // The test is mainly to check that the detector doesn't crash
             assert!(detection.confidence >= 0.0);

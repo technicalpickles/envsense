@@ -30,7 +30,7 @@ impl EvidenceItem {
             confidence: 0.9,
         }
     }
-    
+
     pub fn env_presence(key: impl Into<String>) -> Self {
         Self {
             source: EvidenceSource::Env,
@@ -40,7 +40,7 @@ impl EvidenceItem {
             confidence: 0.9,
         }
     }
-    
+
     pub fn tty_trait(key: impl Into<String>, is_tty: bool) -> Self {
         Self {
             source: EvidenceSource::Tty,
@@ -50,12 +50,12 @@ impl EvidenceItem {
             confidence: 1.0,
         }
     }
-    
+
     pub fn with_supports(mut self, supports: Vec<String>) -> Self {
         self.supports = supports;
         self
     }
-    
+
     pub fn with_confidence(mut self, confidence: f32) -> Self {
         self.confidence = confidence;
         self
