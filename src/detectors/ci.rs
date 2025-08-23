@@ -44,14 +44,14 @@ mod tests {
     use crate::detectors::TtyInfo;
     use temp_env::with_vars;
 
-    fn run(env: &[(&str, &str)]) -> Detection {
+    fn run(env: &[(&str, Option<&str>)]) -> Detection {
         with_vars(
-            env.iter().map(|(k, v)| (*k, Some(*v))).collect::<Vec<_>>(),
+            env.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
             || {
                 let snap = EnvSnapshot {
                     env: env
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .filter_map(|(k, v)| v.map(|v| (k.to_string(), v.to_string())))
                         .collect(),
                     tty: TtyInfo,
                     proc_hint: None,
@@ -63,14 +63,14 @@ mod tests {
 
     #[test]
     fn detects_github_actions() {
-        let det = run(&[("GITHUB_ACTIONS", "1")]);
+        let det = run(&[("GITHUB_ACTIONS", Some("1"))]);
         assert!(det.contexts_add.contains(&ContextKind::Ci));
         assert_eq!(det.facets_patch.unwrap().ci_id, Some(CiId::Github));
     }
 
     #[test]
     fn detects_generic_ci() {
-        let det = run(&[("CI", "true")]);
+        let det = run(&[("CI", Some("true")), ("GITHUB_ACTIONS", None)]);
         assert_eq!(det.facets_patch.unwrap().ci_id, Some(CiId::Generic));
     }
 }
