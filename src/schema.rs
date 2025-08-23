@@ -1,11 +1,11 @@
-use crate::agent::{StdEnv, detect_agent};
 use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
 use crate::detectors::{Detector, EnvSnapshot};
+use crate::detectors::agent::AgentDetector;
+use crate::detectors::ci::CiDetector;
 use crate::detectors::ide::IdeDetector;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -126,35 +126,51 @@ fn detect_ide(env: &mut EnvSense) {
 }
 
 fn detect_agent_env(env: &mut EnvSense) {
-    let det = detect_agent(&StdEnv);
-    if det.agent.is_agent {
-        env.contexts.agent = true;
-        if let Some(id) = det.agent.name.clone() {
-            env.facets.agent_id = Some(id);
-        }
-        if let Some(raw) = det.agent.session.get("raw").and_then(Value::as_object)
-            && let Some((k, v)) = raw.iter().next()
-        {
-            env.evidence.push(Evidence {
-                signal: Signal::Env,
-                key: k.clone(),
-                value: v.as_str().map(|s| s.to_string()),
-                supports: vec!["agent".into(), "agent_id".into()],
-                confidence: det.agent.confidence,
-            });
+    let detector = AgentDetector::new();
+    let snapshot = EnvSnapshot::current();
+    let detection = detector.detect(&snapshot);
+    
+    for context in detection.contexts_add {
+        if context == "agent" {
+            env.contexts.agent = true;
         }
     }
+    
+    if let Some(agent_id_value) = detection.facets_patch.get("agent_id") {
+        if let Some(agent_id) = agent_id_value.as_str() {
+            env.facets.agent_id = Some(agent_id.to_string());
+        }
+    }
+    
+    env.evidence.extend(detection.evidence);
 }
 
 fn detect_ci_env(env: &mut EnvSense) {
-    let ci = detect_ci_facet();
-    if ci.is_ci {
-        env.contexts.ci = true;
-        if let Some(v) = ci.vendor.clone() {
-            env.facets.ci_id = Some(v);
+    let detector = CiDetector::new();
+    let snapshot = EnvSnapshot::current();
+    let detection = detector.detect(&snapshot);
+    
+    for context in detection.contexts_add {
+        if context == "ci" {
+            env.contexts.ci = true;
         }
     }
-    env.facets.ci = ci;
+    
+    if let Some(ci_id_value) = detection.facets_patch.get("ci_id") {
+        if let Some(ci_id) = ci_id_value.as_str() {
+            env.facets.ci_id = Some(ci_id.to_string());
+        }
+    }
+    
+    // Extract the CI facet from detection if present
+    if let Some(ci_facet_value) = detection.facets_patch.get("ci") {
+        if let Ok(ci_facet) = serde_json::from_value::<CiFacet>(ci_facet_value.clone()) {
+            env.facets.ci = ci_facet;
+        }
+    } else {
+        // Fallback to legacy detection if detector doesn't provide CI facet
+        env.facets.ci = detect_ci_facet();
+    }
 }
 
 fn detect_terminal_env(env: &mut EnvSense) {

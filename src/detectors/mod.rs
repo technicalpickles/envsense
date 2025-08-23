@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub mod agent;
+pub mod ci;
 pub mod ide;
 
 pub trait Detector {
