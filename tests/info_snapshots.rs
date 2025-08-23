@@ -3,6 +3,14 @@ use assert_cmd::cargo::cargo_bin;
 use insta::assert_json_snapshot;
 use serde_json::Value;
 
+fn parse_json(bytes: &[u8]) -> Value {
+    let start = bytes
+        .iter()
+        .position(|&b| b == b'{')
+        .expect("json start not found");
+    serde_json::from_slice(&bytes[start..]).expect("invalid json")
+}
+
 fn run_info_json(envs: &[(&str, &str)]) -> Value {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear();
@@ -12,7 +20,7 @@ fn run_info_json(envs: &[(&str, &str)]) -> Value {
     }
     let output = cmd.output().expect("failed to run envsense");
     assert!(output.status.success());
-    serde_json::from_slice(&output.stdout).expect("invalid json")
+    parse_json(&output.stdout)
 }
 
 #[cfg(target_os = "macos")]
@@ -30,7 +38,7 @@ fn run_info_json_tty(envs: &[(&str, &str)]) -> Value {
     }
     let output = cmd.output().expect("failed to run script");
     assert!(output.status.success());
-    serde_json::from_slice(&output.stdout).expect("invalid json")
+    parse_json(&output.stdout)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -46,7 +54,7 @@ fn run_info_json_tty(envs: &[(&str, &str)]) -> Value {
     }
     let output = cmd.output().expect("failed to run script");
     assert!(output.status.success());
-    serde_json::from_slice(&output.stdout).expect("invalid json")
+    parse_json(&output.stdout)
 }
 
 #[test]
