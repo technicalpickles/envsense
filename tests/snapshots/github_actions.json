@@ -1,0 +1,32 @@
+{
+  "contexts": [
+    "ci"
+  ],
+  "facets": {
+    "ci": {
+      "is_ci": true,
+      "name": "GitHub Actions",
+      "pr": false,
+      "vendor": "github_actions"
+    },
+    "ci_id": "github_actions"
+  },
+  "meta": {
+    "rules_version": "",
+    "schema_version": "0.1.0"
+  },
+  "traits": {
+    "ci_name": "GitHub Actions",
+    "ci_pr": false,
+    "ci_vendor": "github_actions",
+    "color_level": "none",
+    "is_ci": true,
+    "is_interactive": false,
+    "is_piped_stdin": false,
+    "is_piped_stdout": true,
+    "is_tty_stderr": false,
+    "is_tty_stdin": true,
+    "is_tty_stdout": false,
+    "supports_hyperlinks": false
+  }
+}

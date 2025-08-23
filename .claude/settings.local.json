@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(cargo:*)",
+      "Bash(./scripts/compare-baseline.sh:*)",
+      "Bash(env:*)",
+      "Bash(cat:*)",
+      "Bash(PATH=/usr/bin:/bin ./scripts/compare-baseline.sh)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
