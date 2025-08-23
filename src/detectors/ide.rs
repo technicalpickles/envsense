@@ -18,8 +18,8 @@ impl Detector for IdeDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
 
-        if let Some(term_program) = snap.get_env("TERM_PROGRAM") {
-            if term_program == "vscode" {
+        if let Some(term_program) = snap.get_env("TERM_PROGRAM")
+            && term_program == "vscode" {
                 detection.contexts_add.push("ide".to_string());
 
                 // Add evidence for IDE context
@@ -63,7 +63,6 @@ impl Detector for IdeDetector {
 
                 detection.confidence = 0.95;
             }
-        }
 
         detection
     }

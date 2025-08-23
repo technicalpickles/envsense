@@ -118,11 +118,10 @@ impl DetectionEngine {
         }
 
         // Handle CI facet
-        if let Some(ci_facet_value) = all_facets.get("ci") {
-            if let Ok(ci_facet) = serde_json::from_value::<CiFacet>(ci_facet_value.clone()) {
+        if let Some(ci_facet_value) = all_facets.get("ci")
+            && let Ok(ci_facet) = serde_json::from_value::<CiFacet>(ci_facet_value.clone()) {
                 result.facets.ci = ci_facet;
             }
-        }
 
         result
     }

@@ -58,8 +58,7 @@ impl Detector for AgentDetector {
                 .session
                 .get("raw")
                 .and_then(Value::as_object)
-            {
-                if let Some((k, v)) = raw.iter().next() {
+                && let Some((k, v)) = raw.iter().next() {
                     detection.evidence.push(Evidence {
                         signal: Signal::Env,
                         key: k.clone(),
@@ -68,7 +67,6 @@ impl Detector for AgentDetector {
                         confidence: agent_detection.agent.confidence,
                     });
                 }
-            }
         }
 
         detection
