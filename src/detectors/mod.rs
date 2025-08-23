@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub mod ide;
+
 pub trait Detector {
     fn name(&self) -> &'static str;
     fn detect(&self, snap: &EnvSnapshot) -> Detection;

@@ -1,5 +1,7 @@
 use crate::agent::{StdEnv, detect_agent};
 use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
+use crate::detectors::{Detector, EnvSnapshot};
+use crate::detectors::ide::IdeDetector;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -104,43 +106,23 @@ pub struct EnvSense {
 pub const SCHEMA_VERSION: &str = "0.1.0";
 
 fn detect_ide(env: &mut EnvSense) {
-    if let Ok(term_program) = std::env::var("TERM_PROGRAM")
-        && term_program == "vscode"
-    {
-        env.contexts.ide = true;
-        env.evidence.push(Evidence {
-            signal: Signal::Env,
-            key: "TERM_PROGRAM".into(),
-            value: Some(term_program),
-            supports: vec!["ide".into()],
-            confidence: 0.95,
-        });
-
-        if std::env::var("CURSOR_TRACE_ID").is_ok() {
-            env.facets.ide_id = Some("cursor".into());
-            env.evidence.push(Evidence {
-                signal: Signal::Env,
-                key: "CURSOR_TRACE_ID".into(),
-                value: None,
-                supports: vec!["ide_id".into()],
-                confidence: 0.95,
-            });
-        } else if let Ok(version) = std::env::var("TERM_PROGRAM_VERSION") {
-            let ide_id = if version.to_lowercase().contains("insider") {
-                "vscode-insiders"
-            } else {
-                "vscode"
-            };
-            env.facets.ide_id = Some(ide_id.into());
-            env.evidence.push(Evidence {
-                signal: Signal::Env,
-                key: "TERM_PROGRAM_VERSION".into(),
-                value: Some(version),
-                supports: vec!["ide_id".into()],
-                confidence: 0.95,
-            });
+    let detector = IdeDetector::new();
+    let snapshot = EnvSnapshot::current();
+    let detection = detector.detect(&snapshot);
+    
+    for context in detection.contexts_add {
+        if context == "ide" {
+            env.contexts.ide = true;
         }
     }
+    
+    if let Some(ide_id_value) = detection.facets_patch.get("ide_id") {
+        if let Some(ide_id) = ide_id_value.as_str() {
+            env.facets.ide_id = Some(ide_id.to_string());
+        }
+    }
+    
+    env.evidence.extend(detection.evidence);
 }
 
 fn detect_agent_env(env: &mut EnvSense) {
