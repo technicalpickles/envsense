@@ -588,9 +588,7 @@ fn detect_color_choice() -> ColorChoice {
             break;
         }
     }
-    if flag {
-        ColorChoice::Never
-    } else if std::env::var_os("NO_COLOR").map_or(false, |v| !v.is_empty()) {
+    if flag || std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
         ColorChoice::Never
     } else {
         ColorChoice::Auto
