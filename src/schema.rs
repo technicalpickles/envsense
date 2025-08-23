@@ -1,9 +1,10 @@
-use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
-use crate::detectors::{Detector, EnvSnapshot};
+use crate::engine::DetectionEngine;
 use crate::detectors::agent::AgentDetector;
 use crate::detectors::ci::CiDetector;
 use crate::detectors::ide::IdeDetector;
+use crate::detectors::terminal::TerminalDetector;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
+use crate::ci::CiFacet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -105,92 +106,14 @@ pub struct EnvSense {
 
 pub const SCHEMA_VERSION: &str = "0.1.0";
 
-fn detect_ide(env: &mut EnvSense) {
-    let detector = IdeDetector::new();
-    let snapshot = EnvSnapshot::current();
-    let detection = detector.detect(&snapshot);
-    
-    for context in detection.contexts_add {
-        if context == "ide" {
-            env.contexts.ide = true;
-        }
-    }
-    
-    if let Some(ide_id_value) = detection.facets_patch.get("ide_id") {
-        if let Some(ide_id) = ide_id_value.as_str() {
-            env.facets.ide_id = Some(ide_id.to_string());
-        }
-    }
-    
-    env.evidence.extend(detection.evidence);
-}
-
-fn detect_agent_env(env: &mut EnvSense) {
-    let detector = AgentDetector::new();
-    let snapshot = EnvSnapshot::current();
-    let detection = detector.detect(&snapshot);
-    
-    for context in detection.contexts_add {
-        if context == "agent" {
-            env.contexts.agent = true;
-        }
-    }
-    
-    if let Some(agent_id_value) = detection.facets_patch.get("agent_id") {
-        if let Some(agent_id) = agent_id_value.as_str() {
-            env.facets.agent_id = Some(agent_id.to_string());
-        }
-    }
-    
-    env.evidence.extend(detection.evidence);
-}
-
-fn detect_ci_env(env: &mut EnvSense) {
-    let detector = CiDetector::new();
-    let snapshot = EnvSnapshot::current();
-    let detection = detector.detect(&snapshot);
-    
-    for context in detection.contexts_add {
-        if context == "ci" {
-            env.contexts.ci = true;
-        }
-    }
-    
-    if let Some(ci_id_value) = detection.facets_patch.get("ci_id") {
-        if let Some(ci_id) = ci_id_value.as_str() {
-            env.facets.ci_id = Some(ci_id.to_string());
-        }
-    }
-    
-    // Extract the CI facet from detection if present
-    if let Some(ci_facet_value) = detection.facets_patch.get("ci") {
-        if let Ok(ci_facet) = serde_json::from_value::<CiFacet>(ci_facet_value.clone()) {
-            env.facets.ci = ci_facet;
-        }
-    } else {
-        // Fallback to legacy detection if detector doesn't provide CI facet
-        env.facets.ci = detect_ci_facet();
-    }
-}
-
-fn detect_terminal_env(env: &mut EnvSense) {
-    env.traits = TerminalTraits::detect().into();
-}
-
 fn detect_environment() -> EnvSense {
-    let mut env = EnvSense {
-        contexts: Contexts::default(),
-        facets: Facets::default(),
-        traits: Traits::default(),
-        evidence: Vec::new(),
-        version: SCHEMA_VERSION.to_string(),
-        rules_version: String::new(),
-    };
-    detect_terminal_env(&mut env);
-    detect_agent_env(&mut env);
-    detect_ci_env(&mut env);
-    detect_ide(&mut env);
-    env
+    let engine = DetectionEngine::new()
+        .register(TerminalDetector::new())
+        .register(AgentDetector::new())
+        .register(CiDetector::new())
+        .register(IdeDetector::new());
+    
+    engine.detect()
 }
 
 impl EnvSense {

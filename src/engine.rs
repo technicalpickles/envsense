@@ -1,5 +1,7 @@
 use crate::detectors::{Detector, EnvSnapshot};
 use crate::schema::{EnvSense, Contexts, Facets, Traits, SCHEMA_VERSION};
+use crate::traits::terminal::ColorLevel;
+use crate::ci::CiFacet;
 use std::collections::HashMap;
 
 pub struct DetectionEngine {
@@ -50,6 +52,7 @@ impl DetectionEngine {
             result.evidence.extend(detection.evidence);
         }
         
+        // Set boolean contexts for internal consistency
         result.contexts.agent = all_contexts.contains("agent");
         result.contexts.ide = all_contexts.contains("ide");
         result.contexts.ci = all_contexts.contains("ci");
@@ -88,8 +91,35 @@ impl DetectionEngine {
             result.traits.is_tty_stderr = is_tty_stderr;
         }
         
-        result.traits.is_piped_stdin = !result.traits.is_tty_stdin;
-        result.traits.is_piped_stdout = !result.traits.is_tty_stdout;
+        if let Some(is_piped_stdin) = all_traits.get("is_piped_stdin").and_then(|v| v.as_bool()) {
+            result.traits.is_piped_stdin = is_piped_stdin;
+        }
+        
+        if let Some(is_piped_stdout) = all_traits.get("is_piped_stdout").and_then(|v| v.as_bool()) {
+            result.traits.is_piped_stdout = is_piped_stdout;
+        }
+        
+        if let Some(supports_hyperlinks) = all_traits.get("supports_hyperlinks").and_then(|v| v.as_bool()) {
+            result.traits.supports_hyperlinks = supports_hyperlinks;
+        }
+        
+        // Handle color level enum
+        if let Some(color_level_str) = all_traits.get("color_level").and_then(|v| v.as_str()) {
+            result.traits.color_level = match color_level_str {
+                "none" => ColorLevel::None,
+                "ansi16" => ColorLevel::Ansi16,
+                "ansi256" => ColorLevel::Ansi256,
+                "truecolor" => ColorLevel::Truecolor,
+                _ => ColorLevel::None,
+            };
+        }
+        
+        // Handle CI facet
+        if let Some(ci_facet_value) = all_facets.get("ci") {
+            if let Ok(ci_facet) = serde_json::from_value::<CiFacet>(ci_facet_value.clone()) {
+                result.facets.ci = ci_facet;
+            }
+        }
         
         result
     }

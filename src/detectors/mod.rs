@@ -3,6 +3,7 @@ use std::collections::HashMap;
 pub mod agent;
 pub mod ci;
 pub mod ide;
+pub mod terminal;
 
 pub trait Detector {
     fn name(&self) -> &'static str;
