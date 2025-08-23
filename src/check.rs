@@ -55,17 +55,15 @@ pub fn parse_predicate(input: &str) -> Result<ParsedCheck, ParseError> {
 }
 
 pub const CONTEXTS: &[&str] = &["agent", "ide", "ci", "container", "remote"];
-pub const FACETS: &[&str] = &["agent_id", "ide_id", "ci_id", "container_id"];
+pub const FACETS: &[&str] = &["agent_id", "ide_id", "ci_id"];
 pub const TRAITS: &[&str] = &[
     "is_interactive",
+    "supports_hyperlinks",
+    "is_piped_stdin",
+    "is_piped_stdout",
     "is_tty_stdin",
     "is_tty_stdout",
     "is_tty_stderr",
-    "is_piped_stdin",
-    "is_piped_stdout",
-    "supports_hyperlinks",
-    "is_ci",
-    "ci_pr",
 ];
 
 #[cfg(test)]
