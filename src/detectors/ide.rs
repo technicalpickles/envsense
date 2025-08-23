@@ -31,42 +31,42 @@ impl Detector for IdeDetector {
             return det;
         }
 
-        if let Some(hook) = env.get("VSCODE_IPC_HOOK_EXTHOST") {
-            if hook.contains("Code - Insiders") {
-                det.contexts_add.push(ContextKind::Ide);
-                det.facets_patch = Some(Facets {
-                    ide_id: Some(IdeId::VscodeInsiders),
-                    ..Default::default()
-                });
-                det.evidence.push(EvidenceItem {
-                    source: EvidenceSource::Env,
-                    key: "VSCODE_IPC_HOOK_EXTHOST".into(),
-                    value: Some(hook.clone()),
-                    weight: 90,
-                    note: None,
-                });
-                det.confidence = 90;
-                return det;
-            }
+        if let Some(hook) = env.get("VSCODE_IPC_HOOK_EXTHOST")
+            && hook.contains("Code - Insiders")
+        {
+            det.contexts_add.push(ContextKind::Ide);
+            det.facets_patch = Some(Facets {
+                ide_id: Some(IdeId::VscodeInsiders),
+                ..Default::default()
+            });
+            det.evidence.push(EvidenceItem {
+                source: EvidenceSource::Env,
+                key: "VSCODE_IPC_HOOK_EXTHOST".into(),
+                value: Some(hook.clone()),
+                weight: 90,
+                note: None,
+            });
+            det.confidence = 90;
+            return det;
         }
 
-        if let Some(ver) = env.get("TERM_PROGRAM_VERSION") {
-            if ver.to_lowercase().contains("insider") {
-                det.contexts_add.push(ContextKind::Ide);
-                det.facets_patch = Some(Facets {
-                    ide_id: Some(IdeId::VscodeInsiders),
-                    ..Default::default()
-                });
-                det.evidence.push(EvidenceItem {
-                    source: EvidenceSource::Env,
-                    key: "TERM_PROGRAM_VERSION".into(),
-                    value: Some(ver.clone()),
-                    weight: 85,
-                    note: None,
-                });
-                det.confidence = 85;
-                return det;
-            }
+        if let Some(ver) = env.get("TERM_PROGRAM_VERSION")
+            && ver.to_lowercase().contains("insider")
+        {
+            det.contexts_add.push(ContextKind::Ide);
+            det.facets_patch = Some(Facets {
+                ide_id: Some(IdeId::VscodeInsiders),
+                ..Default::default()
+            });
+            det.evidence.push(EvidenceItem {
+                source: EvidenceSource::Env,
+                key: "TERM_PROGRAM_VERSION".into(),
+                value: Some(ver.clone()),
+                weight: 85,
+                note: None,
+            });
+            det.confidence = 85;
+            return det;
         }
 
         if env.get("VSCODE_PID").is_some()
@@ -142,7 +142,7 @@ mod tests {
                 .iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
-            tty: TtyInfo::default(),
+            tty: TtyInfo,
             proc_hint: None,
         };
         IdeDetector.detect(&snap)

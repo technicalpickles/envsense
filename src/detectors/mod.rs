@@ -15,24 +15,13 @@ pub struct EnvSnapshot {
     pub proc_hint: Option<ProcHint>,
 }
 
+#[derive(Default)]
 pub struct Detection {
     pub contexts_add: Vec<ContextKind>,
     pub traits_patch: Option<Traits>,
     pub facets_patch: Option<Facets>,
     pub evidence: Vec<EvidenceItem>,
     pub confidence: u8,
-}
-
-impl Default for Detection {
-    fn default() -> Self {
-        Self {
-            contexts_add: Vec::new(),
-            traits_patch: None,
-            facets_patch: None,
-            evidence: Vec::new(),
-            confidence: 0,
-        }
-    }
 }
 
 pub trait Detector {

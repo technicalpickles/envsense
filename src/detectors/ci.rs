@@ -53,7 +53,7 @@ mod tests {
                         .iter()
                         .map(|(k, v)| (k.to_string(), v.to_string()))
                         .collect(),
-                    tty: TtyInfo::default(),
+                    tty: TtyInfo,
                     proc_hint: None,
                 };
                 CiDetector.detect(&snap)

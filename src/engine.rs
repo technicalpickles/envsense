@@ -9,7 +9,7 @@ const SCHEMA_VERSION: &str = "0.1.0";
 pub fn detect() -> Report {
     let snap = EnvSnapshot {
         env: std::env::vars().collect::<BTreeMap<_, _>>(),
-        tty: detectors::TtyInfo::default(),
+        tty: detectors::TtyInfo,
         proc_hint: None,
     };
     let mut report = Report {
@@ -32,23 +32,23 @@ pub fn detect() -> Report {
             report.contexts.insert(c);
         }
         if let Some(p) = d.facets_patch {
-            if let Some(id) = p.agent_id {
-                if d.confidence >= agent_conf {
-                    report.facets.agent_id = Some(id);
-                    agent_conf = d.confidence;
-                }
+            if let Some(id) = p.agent_id
+                && d.confidence >= agent_conf
+            {
+                report.facets.agent_id = Some(id);
+                agent_conf = d.confidence;
             }
-            if let Some(id) = p.ide_id {
-                if d.confidence >= ide_conf {
-                    report.facets.ide_id = Some(id);
-                    ide_conf = d.confidence;
-                }
+            if let Some(id) = p.ide_id
+                && d.confidence >= ide_conf
+            {
+                report.facets.ide_id = Some(id);
+                ide_conf = d.confidence;
             }
-            if let Some(id) = p.ci_id {
-                if d.confidence >= ci_conf {
-                    report.facets.ci_id = Some(id);
-                    ci_conf = d.confidence;
-                }
+            if let Some(id) = p.ci_id
+                && d.confidence >= ci_conf
+            {
+                report.facets.ci_id = Some(id);
+                ci_conf = d.confidence;
             }
         }
         if let Some(t) = d.traits_patch {
