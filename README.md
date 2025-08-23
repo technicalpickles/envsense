@@ -79,6 +79,14 @@ Example JSON output:
 }
 ```
 
+### Color output
+
+`envsense` colors help and error messages by default. Passing `--no-color` forces plain
+text. If the `NO_COLOR` environment variable is set and non-empty, color is also disabled.
+Precedence is: flag > env var > auto (TTY detection via
+[`ColorChoice`](https://docs.rs/clap/latest/clap/enum.ColorChoice.html)). See
+[no-color.org](https://no-color.org/) for the rationale behind `NO_COLOR`.
+
 ---
 
 ## Key Concepts
