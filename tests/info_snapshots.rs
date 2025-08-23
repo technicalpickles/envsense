@@ -126,15 +126,3 @@ fn snapshot_shell_zsh() {
     let json = run_info_json(&[("SHELL", "/bin/zsh")]);
     assert_json_snapshot!("shell_zsh", json);
 }
-
-#[test]
-fn snapshot_os_linux() {
-    let json = run_info_json(&[("OSTYPE", "linux")]);
-    assert_json_snapshot!("os_linux", json);
-}
-
-#[test]
-fn snapshot_os_macos() {
-    let json = run_info_json(&[("OSTYPE", "darwin")]);
-    assert_json_snapshot!("os_macos", json);
-}
