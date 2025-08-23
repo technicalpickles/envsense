@@ -102,6 +102,7 @@ pub fn ci_traits(f: &CiFacet) -> Vec<(String, Value)> {
 mod tests {
     use super::*;
     use serial_test::serial;
+    use temp_env::with_vars;
 
     #[test]
     fn normalize_known_vendors() {
@@ -132,31 +133,30 @@ mod tests {
     #[test]
     #[serial]
     fn generic_fallback_when_ci_true_but_no_vendor() {
-        unsafe {
-            std::env::set_var("CI", "1");
-            std::env::remove_var("GITHUB_ACTIONS");
-        }
-        let ci = detect_ci();
-        assert!(ci.is_ci);
-        assert_eq!(ci.vendor.as_deref(), Some("generic"));
-        assert_eq!(ci.name.as_deref(), Some("Generic CI"));
-        unsafe {
-            std::env::remove_var("CI");
-        }
+        with_vars(
+            [("CI", Some("1")), ("GITHUB_ACTIONS", None::<&str>)],
+            || {
+                let ci = detect_ci();
+                assert!(ci.is_ci);
+                assert_eq!(ci.vendor.as_deref(), Some("generic"));
+                assert_eq!(ci.name.as_deref(), Some("Generic CI"));
+            },
+        );
     }
 
     #[test]
     #[serial]
     fn non_ci_case() {
-        unsafe {
-            std::env::remove_var("CI");
-            std::env::remove_var("GITHUB_ACTIONS");
-        }
-        let ci = detect_ci();
-        assert!(!ci.is_ci);
-        assert!(ci.vendor.is_none());
-        assert!(ci.name.is_none());
-        assert!(ci.pr.is_none());
-        assert!(ci.branch.is_none());
+        with_vars(
+            [("CI", None::<&str>), ("GITHUB_ACTIONS", None::<&str>)],
+            || {
+                let ci = detect_ci();
+                assert!(!ci.is_ci);
+                assert!(ci.vendor.is_none());
+                assert!(ci.name.is_none());
+                assert!(ci.pr.is_none());
+                assert!(ci.branch.is_none());
+            },
+        );
     }
 }
