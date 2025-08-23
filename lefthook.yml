@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    format:
+      glob: "*.rs"
+      run: cargo fmt --all
+      stage_fixed: true
+      
+    clippy:
+      glob: "*.rs"
+      run: cargo clippy --all --locked --fix -D warnings --allow-dirty --allow-staged
+      stage_fixed: true
