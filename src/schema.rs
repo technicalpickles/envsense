@@ -1,17 +1,8 @@
 use crate::agent::{StdEnv, detect_agent};
+use crate::traits::terminal::{ColorLevel, TerminalTraits};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ColorLevel {
-    None,
-    Basic,
-    #[serde(rename = "256")]
-    C256,
-    Truecolor,
-}
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -77,6 +68,21 @@ impl Default for Traits {
             is_piped_stdout: false,
             color_level: ColorLevel::None,
             supports_hyperlinks: false,
+        }
+    }
+}
+
+impl From<TerminalTraits> for Traits {
+    fn from(t: TerminalTraits) -> Self {
+        Self {
+            is_interactive: t.is_interactive,
+            is_tty_stdin: t.is_tty_stdin,
+            is_tty_stdout: t.is_tty_stdout,
+            is_tty_stderr: t.is_tty_stderr,
+            is_piped_stdin: !t.is_tty_stdin,
+            is_piped_stdout: !t.is_tty_stdout,
+            color_level: t.color_level,
+            supports_hyperlinks: t.supports_hyperlinks,
         }
     }
 }
@@ -156,6 +162,10 @@ impl EnvSense {
         }
     }
 
+    fn detect_terminal(&mut self) {
+        self.traits = TerminalTraits::detect().into();
+    }
+
     pub fn detect() -> Self {
         let mut env = Self {
             contexts: Contexts::default(),
@@ -165,6 +175,7 @@ impl EnvSense {
             version: SCHEMA_VERSION.to_string(),
             rules_version: String::new(),
         };
+        env.detect_terminal();
         env.detect_agent();
         env.detect_ide();
         env

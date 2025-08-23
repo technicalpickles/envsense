@@ -11,6 +11,9 @@ thiserror = "1"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 colored = "2"
+is-terminal = "0.4"
+supports-color = "3"
+supports-hyperlinks = "3"
 
 [dev-dependencies]
 assert_cmd = "2"
