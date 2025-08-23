@@ -28,7 +28,10 @@ for envfile in "$ROOT_DIR/tests/snapshots"/*.env; do
 
   if [[ "$name" == "tmux" || "$name" == "plain_tty" ]]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
-      "${env_cmd[@]}" script -q /dev/null "$BIN_PATH" info --json 2>&1 | "$JQ_BIN" -S . > "$tmp_actual"
+      tmp_tty=$(mktemp)
+      ("${env_cmd[@]}" script -q "$tmp_tty" /bin/bash -lc "$BIN_PATH info --json" >/dev/null 2>&1 || true)
+      tr -d '\r' < "$tmp_tty" | "$JQ_BIN" -S . > "$tmp_actual"
+      rm -f "$tmp_tty"
     else
       "${env_cmd[@]}" script -qec "$BIN_PATH info --json" /dev/null 2>&1 | "$JQ_BIN" -S . > "$tmp_actual"
     fi
