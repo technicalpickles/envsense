@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
 use envsense::schema::{EnvSense, Evidence};
@@ -41,6 +41,10 @@ fn check_predicate_long_help() -> &'static str {
     arg_required_else_help = true
 )]
 struct Cli {
+    /// Disable color
+    #[arg(long = "no-color", global = true)]
+    no_color: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -66,10 +70,6 @@ struct InfoArgs {
     /// Comma-separated keys to include: contexts,traits,facets,meta
     #[arg(long, value_name = "list")]
     fields: Option<String>,
-
-    /// Disable color
-    #[arg(long = "no-color")]
-    no_color: bool,
 }
 
 #[derive(Args, Clone)]
@@ -572,7 +572,30 @@ fn list_checks() {
     }
 }
 
-fn run_info(args: InfoArgs) -> Result<(), i32> {
+fn detect_color_choice() -> ColorChoice {
+    // Scan args before clap so help/errors honor `--no-color`.
+    // Mirror clap's parsing by stopping at `--` which terminates flags.
+    let mut args = std::env::args_os();
+    // Skip binary name
+    args.next();
+    let mut flag = false;
+    for arg in args {
+        if arg == "--" {
+            break;
+        }
+        if arg == "--no-color" {
+            flag = true;
+            break;
+        }
+    }
+    if flag || std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
+        ColorChoice::Never
+    } else {
+        ColorChoice::Auto
+    }
+}
+
+fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
     let snapshot = collect_snapshot();
     if args.json {
         let mut v = json!({
@@ -595,8 +618,7 @@ fn run_info(args: InfoArgs) -> Result<(), i32> {
             Err(_) => return Err(3),
         }
     } else {
-        let want_color =
-            stdout().is_terminal() && !args.no_color && std::env::var_os("NO_COLOR").is_none();
+        let want_color = stdout().is_terminal() && !matches!(color, ColorChoice::Never);
         let rendered = match render_human(&snapshot, args.fields.as_deref(), want_color, args.raw) {
             Ok(r) => r,
             Err(e) => {
@@ -610,10 +632,12 @@ fn run_info(args: InfoArgs) -> Result<(), i32> {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let color = detect_color_choice();
+    let matches = Cli::command().color(color).get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match cli.command {
         Some(Commands::Info(args)) => {
-            if let Err(code) = run_info(args) {
+            if let Err(code) = run_info(args, color) {
                 std::process::exit(code);
             }
         }

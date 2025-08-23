@@ -79,8 +79,6 @@ Example JSON output:
 }
 ```
 
----
-
 ## Key Concepts
 
 * **Contexts** — broad categories of environment (`agent`, `ide`, `ci`, `container`, `remote`).
