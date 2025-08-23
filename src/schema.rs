@@ -1,5 +1,5 @@
 use crate::agent::{StdEnv, detect_agent};
-use crate::envsense_ci::{CiFacet, detect_ci as detect_ci_facet};
+use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

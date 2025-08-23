@@ -1,7 +1,7 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
-use envsense::envsense_ci::{CiFacet, ci_traits};
+use envsense::ci::ci_traits;
 use envsense::schema::{EnvSense, Evidence};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -288,60 +288,15 @@ fn render_human(
                 }
             }
             "facets" => {
-                let mut ci: Option<CiFacet> = None;
                 let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.facets
                 {
-                    ci = map
-                        .get("ci")
-                        .and_then(|v| serde_json::from_value::<CiFacet>(v.clone()).ok());
                     map.iter()
-                        .filter(|(k, _)| k.as_str() != "ci")
                         .map(|(k, v)| (k.clone(), value_to_string(v)))
                         .collect()
                 } else {
                     Vec::new()
                 };
                 items.sort_by(|a, b| a.0.cmp(&b.0));
-                if !raw && let Some(ci) = ci {
-                    let heading = if color {
-                        "CI:".bold().cyan().to_string()
-                    } else {
-                        "CI:".to_string()
-                    };
-                    out.push_str(&heading);
-                    out.push_str("\n  CI: ");
-                    let yes = if color {
-                        "Yes".green().to_string()
-                    } else {
-                        "Yes".to_string()
-                    };
-                    let no = if color {
-                        "No".red().to_string()
-                    } else {
-                        "No".to_string()
-                    };
-                    out.push_str(if ci.is_ci { &yes } else { &no });
-                    if ci.is_ci {
-                        if let (Some(name), Some(vendor)) = (ci.name.as_ref(), ci.vendor.as_ref()) {
-                            out.push_str("\n  Vendor: ");
-                            out.push_str(name);
-                            out.push_str(" (");
-                            out.push_str(vendor);
-                            out.push(')');
-                        }
-                        if let Some(pr) = ci.pr {
-                            out.push_str("\n  Pull Request: ");
-                            out.push_str(if pr { &yes } else { &no });
-                        }
-                        if let Some(branch) = ci.branch {
-                            out.push_str("\n  Branch: ");
-                            out.push_str(&branch);
-                        }
-                    }
-                    if !items.is_empty() {
-                        out.push('\n');
-                    }
-                }
                 if raw {
                     for (j, (k, v)) in items.into_iter().enumerate() {
                         if j > 0 {

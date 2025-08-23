@@ -1,6 +1,6 @@
 pub mod agent;
 pub mod check;
-pub mod envsense_ci;
+pub mod ci;
 pub mod schema;
 pub mod traits;
 

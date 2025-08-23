@@ -124,13 +124,11 @@ envsense info --json --fields=traits,facets
 envsense check ci
 ```
 
-Sample `envsense info` output on GitHub Actions:
+Sample `envsense info --fields=facets --no-color` output on GitHub Actions:
 
 ```
-CI:
-  CI: Yes
-  Vendor: GitHub Actions (github_actions)
-  Pull Request: No
+Facets:
+  ci = {"is_ci": true, "vendor": "github_actions", "name": "GitHub Actions"}
 ```
 
 And the corresponding JSON fragment:
