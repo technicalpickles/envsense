@@ -58,15 +58,16 @@ impl Detector for AgentDetector {
                 .session
                 .get("raw")
                 .and_then(Value::as_object)
-                && let Some((k, v)) = raw.iter().next() {
-                    detection.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: k.clone(),
-                        value: v.as_str().map(|s| s.to_string()),
-                        supports: vec!["agent".into(), "agent_id".into()],
-                        confidence: agent_detection.agent.confidence,
-                    });
-                }
+                && let Some((k, v)) = raw.iter().next()
+            {
+                detection.evidence.push(Evidence {
+                    signal: Signal::Env,
+                    key: k.clone(),
+                    value: v.as_str().map(|s| s.to_string()),
+                    supports: vec!["agent".into(), "agent_id".into()],
+                    confidence: agent_detection.agent.confidence,
+                });
+            }
         }
 
         detection

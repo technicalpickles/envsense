@@ -19,50 +19,51 @@ impl Detector for IdeDetector {
         let mut detection = Detection::default();
 
         if let Some(term_program) = snap.get_env("TERM_PROGRAM")
-            && term_program == "vscode" {
-                detection.contexts_add.push("ide".to_string());
+            && term_program == "vscode"
+        {
+            detection.contexts_add.push("ide".to_string());
 
-                // Add evidence for IDE context
+            // Add evidence for IDE context
+            detection.evidence.push(Evidence {
+                signal: Signal::Env,
+                key: "TERM_PROGRAM".into(),
+                value: Some(term_program.clone()),
+                supports: vec!["ide".into()],
+                confidence: 0.95,
+            });
+
+            // Detect specific IDE variant
+            if snap.get_env("CURSOR_TRACE_ID").is_some() {
+                detection
+                    .facets_patch
+                    .insert("ide_id".to_string(), json!("cursor"));
                 detection.evidence.push(Evidence {
                     signal: Signal::Env,
-                    key: "TERM_PROGRAM".into(),
-                    value: Some(term_program.clone()),
-                    supports: vec!["ide".into()],
+                    key: "CURSOR_TRACE_ID".into(),
+                    value: None,
+                    supports: vec!["ide_id".into()],
                     confidence: 0.95,
                 });
-
-                // Detect specific IDE variant
-                if snap.get_env("CURSOR_TRACE_ID").is_some() {
-                    detection
-                        .facets_patch
-                        .insert("ide_id".to_string(), json!("cursor"));
-                    detection.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: "CURSOR_TRACE_ID".into(),
-                        value: None,
-                        supports: vec!["ide_id".into()],
-                        confidence: 0.95,
-                    });
-                } else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
-                    let ide_id = if version.to_lowercase().contains("insider") {
-                        "vscode-insiders"
-                    } else {
-                        "vscode"
-                    };
-                    detection
-                        .facets_patch
-                        .insert("ide_id".to_string(), json!(ide_id));
-                    detection.evidence.push(Evidence {
-                        signal: Signal::Env,
-                        key: "TERM_PROGRAM_VERSION".into(),
-                        value: Some(version.clone()),
-                        supports: vec!["ide_id".into()],
-                        confidence: 0.95,
-                    });
-                }
-
-                detection.confidence = 0.95;
+            } else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
+                let ide_id = if version.to_lowercase().contains("insider") {
+                    "vscode-insiders"
+                } else {
+                    "vscode"
+                };
+                detection
+                    .facets_patch
+                    .insert("ide_id".to_string(), json!(ide_id));
+                detection.evidence.push(Evidence {
+                    signal: Signal::Env,
+                    key: "TERM_PROGRAM_VERSION".into(),
+                    value: Some(version.clone()),
+                    supports: vec!["ide_id".into()],
+                    confidence: 0.95,
+                });
             }
+
+            detection.confidence = 0.95;
+        }
 
         detection
     }
