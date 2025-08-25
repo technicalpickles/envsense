@@ -18,6 +18,7 @@ NC='\033[0m' # No Color
 # Options
 UPDATE_BASELINES=false
 VERBOSE=false
+DEBUG_BASELINE="${DEBUG_BASELINE:-true}"  # Default to true for CI debugging, but allow env override
 FAILED_SCENARIOS=()
 
 usage() {
@@ -26,12 +27,19 @@ usage() {
     echo "OPTIONS:"
     echo "  -u, --update      Update baseline JSON files with current output"
     echo "  -v, --verbose     Show detailed diff output"
+    echo "  -d, --debug       Show debug information (environment vars, etc.)"
+    echo "  -q, --quiet       Disable debug output (debug is on by default)"
     echo "  -h, --help        Show this help message"
     echo ""
     echo "EXAMPLES:"
     echo "  $0                # Compare all scenarios against baselines"
     echo "  $0 --update       # Update all baselines with current output"
     echo "  $0 --verbose      # Show detailed diffs for failures"
+    echo "  $0 --debug        # Show debug info for troubleshooting CI issues"
+    echo "  $0 --quiet        # Run without debug output"
+    echo ""
+    echo "ENVIRONMENT:"
+    echo "  DEBUG_BASELINE=false  # Disable debug mode via environment variable"
 }
 
 # Parse command line arguments
@@ -43,6 +51,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         -v|--verbose)
             VERBOSE=true
+            shift
+            ;;
+        -d|--debug)
+            DEBUG_BASELINE=true
+            shift
+            ;;
+        -q|--quiet)
+            DEBUG_BASELINE=false
             shift
             ;;
         -h|--help)
@@ -67,6 +83,13 @@ fi
 # Function to load environment from .env file
 load_env() {
     local env_file="$1"
+    local debug_mode="${DEBUG_BASELINE:-false}"
+    
+    if [[ "$debug_mode" == "true" ]]; then
+        echo "DEBUG: Loading environment from $env_file" >&2
+        echo "DEBUG: Original CI-related env vars:" >&2
+        env | grep -E "(GITHUB|CI|GITLAB)" | head -5 >&2 || echo "DEBUG: No CI vars found" >&2
+    fi
     
     # Preserve essential system variables but clear envsense-detectable ones
     env -i \
@@ -83,6 +106,14 @@ load_env() {
             fi
             export \"\$line\"
         done < '$env_file'
+        
+        # Debug output if requested
+        if [[ '$debug_mode' == 'true' ]]; then
+            echo 'DEBUG: Loaded environment variables:' >&2
+            env | grep -E '(ENVSENSE|TERM|CI|GITHUB|GITLAB)' | sort >&2 || echo 'DEBUG: No relevant env vars' >&2
+            echo 'DEBUG: Running envsense...' >&2
+        fi
+        
         # Run envsense with the loaded environment
         exec '$ENVSENSE_BIN' info --json
     "
@@ -106,10 +137,23 @@ compare_baseline() {
     fi
     
     # Generate current output
-    if ! load_env "$env_file" > "$temp_output" 2>/dev/null; then
-        echo -e "${RED}ERROR${NC} $scenario (failed to run envsense)"
-        FAILED_SCENARIOS+=("$scenario")
-        return 1
+    local debug_mode="${DEBUG_BASELINE:-false}"
+    if [[ "$debug_mode" == "true" ]]; then
+        echo "DEBUG: Generating output for $scenario..." >&2
+        if ! load_env "$env_file" > "$temp_output" 2>"$temp_output.stderr"; then
+            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense)"
+            echo "DEBUG: stderr output:" >&2
+            cat "$temp_output.stderr" >&2
+            FAILED_SCENARIOS+=("$scenario")
+            return 1
+        fi
+        echo "DEBUG: Generated output for $scenario" >&2
+    else
+        if ! load_env "$env_file" > "$temp_output" 2>/dev/null; then
+            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense)"
+            FAILED_SCENARIOS+=("$scenario")
+            return 1
+        fi
     fi
     
     # Compare with baseline
@@ -129,6 +173,8 @@ compare_baseline() {
                 local actual_contexts=$(jq -r '.contexts // [] | join(",")' "$temp_output" 2>/dev/null || echo "ERROR")
                 local expected_ide=$(jq -r '.facets.ide_id // "none"' "$baseline_file" 2>/dev/null || echo "ERROR")
                 local actual_ide=$(jq -r '.facets.ide_id // "none"' "$temp_output" 2>/dev/null || echo "ERROR")
+                local expected_ci=$(jq -r '.facets.ci_id // "none"' "$baseline_file" 2>/dev/null || echo "ERROR")
+                local actual_ci=$(jq -r '.facets.ci_id // "none"' "$temp_output" 2>/dev/null || echo "ERROR")
                 local expected_interactive=$(jq -r '.traits.is_interactive' "$baseline_file" 2>/dev/null || echo "ERROR")
                 local actual_interactive=$(jq -r '.traits.is_interactive' "$temp_output" 2>/dev/null || echo "ERROR")
                 local expected_tty_stdin=$(jq -r '.traits.is_tty_stdin' "$baseline_file" 2>/dev/null || echo "ERROR")
@@ -136,8 +182,20 @@ compare_baseline() {
                 local expected_tty_stdout=$(jq -r '.traits.is_tty_stdout' "$baseline_file" 2>/dev/null || echo "ERROR")
                 local actual_tty_stdout=$(jq -r '.traits.is_tty_stdout' "$temp_output" 2>/dev/null || echo "ERROR")
                 
-                echo -e "  Expected: contexts=[${expected_contexts}], ide_id=${expected_ide}"
-                echo -e "  Actual:   contexts=[${actual_contexts}], ide_id=${actual_ide}"
+                echo -e "  Expected: contexts=[${expected_contexts}], ide_id=${expected_ide}, ci_id=${expected_ci}"
+                echo -e "  Actual:   contexts=[${actual_contexts}], ide_id=${actual_ide}, ci_id=${actual_ci}"
+                
+                # Show CI differences if they exist
+                if [[ "$expected_ci" != "$actual_ci" ]]; then
+                    echo -e "  ${YELLOW}CI detection differences:${NC}"
+                    echo -e "    Expected CI: $expected_ci"
+                    echo -e "    Actual CI:   $actual_ci"
+                    if [[ "$DEBUG_BASELINE" == "true" ]]; then
+                        echo -e "    ${YELLOW}CI facet details:${NC}"
+                        echo -e "    Expected: $(jq -c '.facets.ci // {}' "$baseline_file" 2>/dev/null)"
+                        echo -e "    Actual:   $(jq -c '.facets.ci // {}' "$temp_output" 2>/dev/null)"
+                    fi
+                fi
                 
                 # Show TTY differences if they exist
                 if [[ "$expected_interactive" != "$actual_interactive" ]] || 
@@ -183,6 +241,12 @@ fi
 
 echo "Comparing baselines in $SNAPSHOTS_DIR..."
 echo ""
+if [[ "$DEBUG_BASELINE" == "true" ]]; then
+    echo "DEBUG: Running in debug mode"
+    echo "DEBUG: Current environment CI-related variables:"
+    env | grep -E "(GITHUB|CI|GITLAB)" | head -10 || echo "DEBUG: No CI variables found"
+    echo ""
+fi
 echo "NOTE: TTY detection may differ between environments due to how the script"
 echo "      runs commands. Use --update if TTY differences are expected."
 echo ""
