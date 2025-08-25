@@ -53,58 +53,25 @@ impl DetectionEngine {
         }
 
         // Set boolean contexts for internal consistency
-        result.contexts.agent = all_contexts.contains("agent");
-        result.contexts.ide = all_contexts.contains("ide");
-        result.contexts.ci = all_contexts.contains("ci");
-        result.contexts.container = all_contexts.contains("container");
-        result.contexts.remote = all_contexts.contains("remote");
+        Self::set_context_bool(&mut result.contexts, "agent", &all_contexts);
+        Self::set_context_bool(&mut result.contexts, "ide", &all_contexts);
+        Self::set_context_bool(&mut result.contexts, "ci", &all_contexts);
+        Self::set_context_bool(&mut result.contexts, "container", &all_contexts); // TODO: Implement container detector
+        Self::set_context_bool(&mut result.contexts, "remote", &all_contexts);
 
-        if let Some(agent_id) = all_facets.get("agent_id").and_then(|v| v.as_str()) {
-            result.facets.agent_id = Some(agent_id.to_string());
-        }
+        // Set facet IDs
+        Self::set_facet_id(&mut result.facets.agent_id, "agent_id", &all_facets);
+        Self::set_facet_id(&mut result.facets.ide_id, "ide_id", &all_facets);
+        Self::set_facet_id(&mut result.facets.ci_id, "ci_id", &all_facets);
 
-        if let Some(ide_id) = all_facets.get("ide_id").and_then(|v| v.as_str()) {
-            result.facets.ide_id = Some(ide_id.to_string());
-        }
-
-        if let Some(ci_id) = all_facets.get("ci_id").and_then(|v| v.as_str()) {
-            result.facets.ci_id = Some(ci_id.to_string());
-        }
-
-        if let Some(container_id) = all_facets.get("container_id").and_then(|v| v.as_str()) {
-            result.facets.container_id = Some(container_id.to_string());
-        }
-
-        if let Some(is_interactive) = all_traits.get("is_interactive").and_then(|v| v.as_bool()) {
-            result.traits.is_interactive = is_interactive;
-        }
-
-        if let Some(is_tty_stdin) = all_traits.get("is_tty_stdin").and_then(|v| v.as_bool()) {
-            result.traits.is_tty_stdin = is_tty_stdin;
-        }
-
-        if let Some(is_tty_stdout) = all_traits.get("is_tty_stdout").and_then(|v| v.as_bool()) {
-            result.traits.is_tty_stdout = is_tty_stdout;
-        }
-
-        if let Some(is_tty_stderr) = all_traits.get("is_tty_stderr").and_then(|v| v.as_bool()) {
-            result.traits.is_tty_stderr = is_tty_stderr;
-        }
-
-        if let Some(is_piped_stdin) = all_traits.get("is_piped_stdin").and_then(|v| v.as_bool()) {
-            result.traits.is_piped_stdin = is_piped_stdin;
-        }
-
-        if let Some(is_piped_stdout) = all_traits.get("is_piped_stdout").and_then(|v| v.as_bool()) {
-            result.traits.is_piped_stdout = is_piped_stdout;
-        }
-
-        if let Some(supports_hyperlinks) = all_traits
-            .get("supports_hyperlinks")
-            .and_then(|v| v.as_bool())
-        {
-            result.traits.supports_hyperlinks = supports_hyperlinks;
-        }
+        // Set boolean traits
+        Self::set_trait_bool(&mut result.traits.is_interactive, "is_interactive", &all_traits);
+        Self::set_trait_bool(&mut result.traits.is_tty_stdin, "is_tty_stdin", &all_traits);
+        Self::set_trait_bool(&mut result.traits.is_tty_stdout, "is_tty_stdout", &all_traits);
+        Self::set_trait_bool(&mut result.traits.is_tty_stderr, "is_tty_stderr", &all_traits);
+        Self::set_trait_bool(&mut result.traits.is_piped_stdin, "is_piped_stdin", &all_traits);
+        Self::set_trait_bool(&mut result.traits.is_piped_stdout, "is_piped_stdout", &all_traits);
+        Self::set_trait_bool(&mut result.traits.supports_hyperlinks, "supports_hyperlinks", &all_traits);
 
         // Handle color level enum
         if let Some(color_level_str) = all_traits.get("color_level").and_then(|v| v.as_str()) {
@@ -124,6 +91,29 @@ impl DetectionEngine {
             }
 
         result
+    }
+
+    fn set_context_bool(contexts: &mut Contexts, context_name: &str, all_contexts: &std::collections::HashSet<String>) {
+        match context_name {
+            "agent" => contexts.agent = all_contexts.contains("agent"),
+            "ide" => contexts.ide = all_contexts.contains("ide"),
+            "ci" => contexts.ci = all_contexts.contains("ci"),
+            "container" => contexts.container = all_contexts.contains("container"),
+            "remote" => contexts.remote = all_contexts.contains("remote"),
+            _ => {}
+        }
+    }
+
+    fn set_facet_id(facet_id: &mut Option<String>, facet_name: &str, all_facets: &HashMap<String, serde_json::Value>) {
+        if let Some(value) = all_facets.get(facet_name).and_then(|v| v.as_str()) {
+            *facet_id = Some(value.to_string());
+        }
+    }
+
+    fn set_trait_bool(trait_field: &mut bool, trait_name: &str, all_traits: &HashMap<String, serde_json::Value>) {
+        if let Some(value) = all_traits.get(trait_name).and_then(|v| v.as_bool()) {
+            *trait_field = value;
+        }
     }
 }
 
