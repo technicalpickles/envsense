@@ -20,22 +20,30 @@ UPDATE_BASELINES=false
 VERBOSE=false
 DEBUG_BASELINE="${DEBUG_BASELINE:-true}"  # Default to true for CI debugging, but allow env override
 FAILED_SCENARIOS=()
+SPECIFIC_SCENARIOS=()
 
 usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $0 [OPTIONS] [SCENARIO...]"
     echo ""
     echo "OPTIONS:"
     echo "  -u, --update      Update baseline JSON files with current output"
     echo "  -v, --verbose     Show detailed diff output"
     echo "  -d, --debug       Show debug information (environment vars, etc.)"
     echo "  -q, --quiet       Disable debug output (debug is on by default)"
+    echo "  -l, --list        List available scenarios and exit"
     echo "  -h, --help        Show this help message"
+    echo ""
+    echo "ARGUMENTS:"
+    echo "  SCENARIO          Run specific scenario(s) only (e.g., cursor, plain_tty)"
+    echo "                    If no scenarios specified, runs all scenarios"
     echo ""
     echo "EXAMPLES:"
     echo "  $0                # Compare all scenarios against baselines"
+    echo "  $0 cursor         # Compare only the cursor scenario"
+    echo "  $0 cursor plain_tty # Compare cursor and plain_tty scenarios"
     echo "  $0 --update       # Update all baselines with current output"
     echo "  $0 --verbose      # Show detailed diffs for failures"
-    echo "  $0 --debug        # Show debug info for troubleshooting CI issues"
+    echo "  $0 --debug cursor # Show debug info for cursor scenario only"
     echo "  $0 --quiet        # Run without debug output"
     echo ""
     echo "ENVIRONMENT:"
@@ -61,14 +69,29 @@ while [[ $# -gt 0 ]]; do
             DEBUG_BASELINE=false
             shift
             ;;
+        -l|--list)
+            echo "Available scenarios:"
+            for env_file in "$SNAPSHOTS_DIR"/*.env; do
+                if [[ -f "$env_file" ]]; then
+                    scenario=$(basename "$env_file" .env)
+                    echo "  $scenario"
+                fi
+            done
+            exit 0
+            ;;
         -h|--help)
             usage
             exit 0
             ;;
-        *)
+        -*)
             echo "Unknown option $1"
             usage
             exit 1
+            ;;
+        *)
+            # This is a scenario name
+            SPECIFIC_SCENARIOS+=("$1")
+            shift
             ;;
     esac
 done
@@ -111,7 +134,9 @@ load_env() {
         if [[ '$debug_mode' == 'true' ]]; then
             echo 'DEBUG: Loaded environment variables:' >&2
             env | grep -E '(ENVSENSE|TERM|CI|GITHUB|GITLAB)' | sort >&2 || echo 'DEBUG: No relevant env vars' >&2
-            echo 'DEBUG: Running envsense...' >&2
+            echo 'DEBUG: Running envsense binary: $ENVSENSE_BIN' >&2
+            echo 'DEBUG: Binary exists:' \$(test -f '$ENVSENSE_BIN' && echo 'yes' || echo 'no') >&2
+            echo 'DEBUG: Binary executable:' \$(test -x '$ENVSENSE_BIN' && echo 'yes' || echo 'no') >&2
         fi
         
         # Run envsense with the loaded environment
@@ -140,17 +165,38 @@ compare_baseline() {
     local debug_mode="${DEBUG_BASELINE:-false}"
     if [[ "$debug_mode" == "true" ]]; then
         echo "DEBUG: Generating output for $scenario..." >&2
-        if ! load_env "$env_file" > "$temp_output" 2>"$temp_output.stderr"; then
-            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense)"
-            echo "DEBUG: stderr output:" >&2
-            cat "$temp_output.stderr" >&2
+        
+        # Handle errors gracefully
+        set +e  # Temporarily disable exit on error
+        load_env "$env_file" > "$temp_output" 2>"$temp_output.stderr"
+        local exit_code=$?
+        set -e  # Re-enable exit on error
+        
+        if [[ $exit_code -ne 0 ]]; then
+            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense, exit code: $exit_code)"
+            if [[ $exit_code -eq 124 ]]; then
+                echo "DEBUG: Command timed out after 30 seconds" >&2
+            fi
+            if [[ -f "$temp_output.stderr" ]]; then
+                echo "DEBUG: stderr output:" >&2
+                cat "$temp_output.stderr" >&2
+            fi
+            if [[ -f "$temp_output" ]]; then
+                echo "DEBUG: partial stdout output:" >&2
+                head -10 "$temp_output" >&2
+            fi
             FAILED_SCENARIOS+=("$scenario")
             return 1
         fi
-        echo "DEBUG: Generated output for $scenario" >&2
+        echo "DEBUG: Generated output for $scenario ($(wc -l < "$temp_output" 2>/dev/null || echo "?") lines)" >&2
     else
-        if ! load_env "$env_file" > "$temp_output" 2>/dev/null; then
-            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense)"
+        set +e  # Temporarily disable exit on error
+        load_env "$env_file" > "$temp_output" 2>/dev/null
+        local exit_code=$?
+        set -e  # Re-enable exit on error
+        
+        if [[ $exit_code -ne 0 ]]; then
+            echo -e "${RED}ERROR${NC} $scenario (failed to run envsense, exit code: $exit_code)"
             FAILED_SCENARIOS+=("$scenario")
             return 1
         fi
@@ -251,13 +297,29 @@ echo "NOTE: TTY detection may differ between environments due to how the script"
 echo "      runs commands. Use --update if TTY differences are expected."
 echo ""
 
-# Find all .env files and run comparisons
-for env_file in "$SNAPSHOTS_DIR"/*.env; do
-    if [[ -f "$env_file" ]]; then
-        scenario=$(basename "$env_file" .env)
+# Find scenarios to run
+if [[ ${#SPECIFIC_SCENARIOS[@]} -eq 0 ]]; then
+    # No specific scenarios provided, run all
+    echo "Running all scenarios..."
+    for env_file in "$SNAPSHOTS_DIR"/*.env; do
+        if [[ -f "$env_file" ]]; then
+            scenario=$(basename "$env_file" .env)
+            compare_baseline "$scenario"
+        fi
+    done
+else
+    # Run specific scenarios
+    echo "Running specific scenarios: ${SPECIFIC_SCENARIOS[*]}"
+    for scenario in "${SPECIFIC_SCENARIOS[@]}"; do
+        env_file="$SNAPSHOTS_DIR/${scenario}.env"
+        if [[ ! -f "$env_file" ]]; then
+            echo -e "${RED}ERROR${NC}: Scenario '$scenario' not found (no $env_file)"
+            FAILED_SCENARIOS+=("$scenario")
+            continue
+        fi
         compare_baseline "$scenario"
-    fi
-done
+    done
+fi
 
 echo ""
 
