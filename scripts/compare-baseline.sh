@@ -155,17 +155,19 @@ compare_baseline() {
             
             if [[ "$VERBOSE" == "true" ]]; then
                 echo ""
-                echo "Full expected output ($baseline_file):"
-                cat "$baseline_file" | head -15
-                echo "..."
+                echo -e "${YELLOW}=== DETAILED DIFF for $scenario ===${NC}"
+                echo "Expected output ($baseline_file):"
+                cat "$baseline_file" | head -20
                 echo ""
-                echo "Full actual output ($temp_output):"
-                cat "$temp_output" | head -15
-                echo "..."
+                echo "Actual output ($temp_output):"
+                cat "$temp_output" | head -20
                 echo ""
-                echo "JSON diff:"
-                diff "$baseline_file" "$temp_output" || true
+                echo "Unified diff:"
+                diff -u "$baseline_file" "$temp_output" || true
+                echo -e "${YELLOW}=== END DIFF ===${NC}"
                 echo ""
+            else
+                echo -e "  ${YELLOW}Run with --verbose to see full diff${NC}"
             fi
         fi
     fi
@@ -200,9 +202,19 @@ if [[ ${#FAILED_SCENARIOS[@]} -eq 0 ]]; then
     echo -e "${GREEN}All baselines match!${NC}"
     exit 0
 else
-    echo -e "${RED}Failed scenarios: ${FAILED_SCENARIOS[*]}${NC}"
+    echo -e "${RED}${#FAILED_SCENARIOS[@]} scenario(s) failed:${NC}"
+    for scenario in "${FAILED_SCENARIOS[@]}"; do
+        echo -e "  - $scenario"
+    done
     echo ""
-    echo "To update baselines, run:"
-    echo "  $0 --update"
+    echo -e "${YELLOW}Common fixes:${NC}"
+    echo "  • If TTY differences are expected in CI, the overrides should handle this"
+    echo "  • If new functionality changed output, update baselines with: $0 --update"
+    echo "  • For detailed diffs, run: $0 --verbose"
+    echo ""
+    echo -e "${YELLOW}Debugging tips:${NC}"
+    echo "  • Check /tmp/envsense_*.json files for actual output"
+    echo "  • Compare with tests/snapshots/*.json for expected output"
+    echo "  • TTY detection is now controlled by ENVSENSE_TTY_* environment variables"
     exit 1
 fi

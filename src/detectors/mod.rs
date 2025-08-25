@@ -45,11 +45,27 @@ impl EnvSnapshot {
 
         let env_vars: HashMap<String, String> = std::env::vars().collect();
 
+        // Allow overriding TTY detection for testing
+        let is_tty_stdin = env_vars
+            .get("ENVSENSE_TTY_STDIN")
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or_else(|| std::io::stdin().is_terminal());
+
+        let is_tty_stdout = env_vars
+            .get("ENVSENSE_TTY_STDOUT")
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or_else(|| std::io::stdout().is_terminal());
+
+        let is_tty_stderr = env_vars
+            .get("ENVSENSE_TTY_STDERR")
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or_else(|| std::io::stderr().is_terminal());
+
         Self {
             env_vars,
-            is_tty_stdin: std::io::stdin().is_terminal(),
-            is_tty_stdout: std::io::stdout().is_terminal(),
-            is_tty_stderr: std::io::stderr().is_terminal(),
+            is_tty_stdin,
+            is_tty_stdout,
+            is_tty_stderr,
         }
     }
 

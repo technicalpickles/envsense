@@ -1,5 +1,5 @@
 use crate::detectors::{Detection, Detector, EnvSnapshot};
-use crate::traits::terminal::{ColorLevel, TerminalTraits};
+use crate::traits::terminal::ColorLevel;
 use serde_json::json;
 
 pub struct TerminalDetector;
@@ -18,14 +18,47 @@ impl Detector for TerminalDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
 
-        // Use existing terminal traits detection
-        let terminal_traits = TerminalTraits::detect();
+        // Use TTY values from snapshot (which can be overridden for testing)
+        let is_interactive = snap.is_tty_stdin && snap.is_tty_stdout;
+
+        // Detect color level and hyperlinks support, but allow override
+        let color_level = if let Some(override_color) = snap.env_vars.get("ENVSENSE_COLOR_LEVEL") {
+            match override_color.as_str() {
+                "none" => ColorLevel::None,
+                "ansi16" => ColorLevel::Ansi16,
+                "ansi256" => ColorLevel::Ansi256,
+                "truecolor" => ColorLevel::Truecolor,
+                _ => ColorLevel::None,
+            }
+        } else {
+            // Use runtime detection
+            let level = supports_color::on(supports_color::Stream::Stdout);
+            match level {
+                Some(l) => {
+                    if l.has_16m {
+                        ColorLevel::Truecolor
+                    } else if l.has_256 {
+                        ColorLevel::Ansi256
+                    } else if l.has_basic {
+                        ColorLevel::Ansi16
+                    } else {
+                        ColorLevel::None
+                    }
+                }
+                None => ColorLevel::None,
+            }
+        };
+
+        let supports_hyperlinks = snap
+            .env_vars
+            .get("ENVSENSE_SUPPORTS_HYPERLINKS")
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or_else(|| supports_hyperlinks::on(supports_hyperlinks::Stream::Stdout));
 
         // Convert to traits patches
-        detection.traits_patch.insert(
-            "is_interactive".to_string(),
-            json!(terminal_traits.is_interactive),
-        );
+        detection
+            .traits_patch
+            .insert("is_interactive".to_string(), json!(is_interactive));
         detection
             .traits_patch
             .insert("is_tty_stdin".to_string(), json!(snap.is_tty_stdin));
@@ -43,11 +76,11 @@ impl Detector for TerminalDetector {
             .insert("is_piped_stdout".to_string(), json!(!snap.is_tty_stdout));
         detection.traits_patch.insert(
             "supports_hyperlinks".to_string(),
-            json!(terminal_traits.supports_hyperlinks),
+            json!(supports_hyperlinks),
         );
 
         // Map color level enum to JSON
-        let color_level_str = match terminal_traits.color_level {
+        let color_level_str = match color_level {
             ColorLevel::None => "none",
             ColorLevel::Ansi16 => "ansi16",
             ColorLevel::Ansi256 => "ansi256",
