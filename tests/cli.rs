@@ -167,7 +167,8 @@ fn detects_cursor() {
 #[test]
 fn quiet_flag_suppresses_output() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.args(["check", "-q", "agent"])
+    cmd.env_clear()
+        .args(["check", "-q", "agent"])
         .assert()
         .failure()
         .stdout(predicates::str::is_empty());
