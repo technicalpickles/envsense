@@ -28,6 +28,48 @@ pub struct Evidence {
     pub confidence: f32,
 }
 
+impl Evidence {
+    pub fn env_var(key: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            signal: Signal::Env,
+            key: key.into(),
+            value: Some(value.into()),
+            supports: Vec::new(),
+            confidence: 0.9,
+        }
+    }
+
+    pub fn env_presence(key: impl Into<String>) -> Self {
+        Self {
+            signal: Signal::Env,
+            key: key.into(),
+            value: None,
+            supports: Vec::new(),
+            confidence: 0.9,
+        }
+    }
+
+    pub fn tty_trait(key: impl Into<String>, is_tty: bool) -> Self {
+        Self {
+            signal: Signal::Tty,
+            key: key.into(),
+            value: Some(is_tty.to_string()),
+            supports: Vec::new(),
+            confidence: 1.0,
+        }
+    }
+
+    pub fn with_supports(mut self, supports: Vec<String>) -> Self {
+        self.supports = supports;
+        self
+    }
+
+    pub fn with_confidence(mut self, confidence: f32) -> Self {
+        self.confidence = confidence;
+        self
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
 pub struct Contexts {
     pub agent: bool,
