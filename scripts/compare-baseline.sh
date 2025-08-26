@@ -118,8 +118,8 @@ load_env() {
     env -i \
         PATH="$PATH" \
         HOME="$HOME" \
-        TMPDIR="$TMPDIR" \
-        USER="$USER" \
+        TMPDIR="${TMPDIR:-/tmp}" \
+        USER="${USER:-root}" \
         bash -c "
         set -a
         # Load the env file, ignoring comments and empty lines
