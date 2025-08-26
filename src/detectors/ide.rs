@@ -1,4 +1,4 @@
-use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::HIGH};
 use crate::schema::Evidence;
 use serde_json::json;
 
@@ -22,12 +22,13 @@ impl Detector for IdeDetector {
             && term_program == "vscode"
         {
             detection.contexts_add.push("ide".to_string());
+            detection.confidence = HIGH; // Direct env var match
 
             // Add evidence for IDE context
             detection.evidence.push(
                 Evidence::env_var("TERM_PROGRAM", term_program)
                     .with_supports(vec!["ide".into()])
-                    .with_confidence(0.95)
+                    .with_confidence(HIGH)
             );
 
             // Detect specific IDE variant
@@ -38,7 +39,7 @@ impl Detector for IdeDetector {
                 detection.evidence.push(
                     Evidence::env_presence("CURSOR_TRACE_ID")
                         .with_supports(vec!["ide_id".into()])
-                        .with_confidence(0.95)
+                        .with_confidence(HIGH) // Direct env var presence
                 );
             } else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
                 let ide_id = if version.to_lowercase().contains("insider") {
@@ -52,11 +53,9 @@ impl Detector for IdeDetector {
                 detection.evidence.push(
                     Evidence::env_var("TERM_PROGRAM_VERSION", version)
                         .with_supports(vec!["ide_id".into()])
-                        .with_confidence(0.95)
+                        .with_confidence(HIGH) // Direct env var match
                 );
             }
-
-            detection.confidence = 0.95;
         }
 
         detection
@@ -104,7 +103,7 @@ mod tests {
             &json!("vscode")
         );
         assert_eq!(detection.evidence.len(), 2);
-        assert_eq!(detection.confidence, 0.95);
+        assert_eq!(detection.confidence, HIGH);
     }
 
     #[test]
@@ -123,7 +122,7 @@ mod tests {
             &json!("vscode-insiders")
         );
         assert_eq!(detection.evidence.len(), 2);
-        assert_eq!(detection.confidence, 0.95);
+        assert_eq!(detection.confidence, HIGH);
     }
 
     #[test]
@@ -142,7 +141,7 @@ mod tests {
             &json!("cursor")
         );
         assert_eq!(detection.evidence.len(), 2);
-        assert_eq!(detection.confidence, 0.95);
+        assert_eq!(detection.confidence, HIGH);
     }
 
     #[test]

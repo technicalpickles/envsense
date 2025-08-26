@@ -1,5 +1,5 @@
 use crate::ci::{CiFacet, ci_traits, normalize_vendor};
-use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::HIGH};
 use ci_info::types::Vendor;
 use serde_json::json;
 
@@ -129,7 +129,7 @@ impl Detector for CiDetector {
 
         if ci_facet.is_ci {
             detection.contexts_add.push("ci".to_string());
-            detection.confidence = 0.9; // High confidence for CI detection
+            detection.confidence = HIGH; // Direct env var match (CI=true, GITHUB_ACTIONS, etc.)
 
             if let Some(vendor) = ci_facet.vendor.clone() {
                 detection

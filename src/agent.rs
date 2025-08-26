@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
+// Import confidence constants
+use crate::detectors::confidence::{HIGH, MEDIUM, LOW};
+
 pub trait EnvReader {
     fn get(&self, key: &str) -> Option<String>;
     fn iter(&self) -> Box<dyn Iterator<Item = (String, String)> + '_>;
@@ -235,7 +238,7 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
         detection.agent.vendor = vendor.map(str::to_string);
         detection.agent.variant = variant.map(str::to_string);
         detection.agent.capabilities = caps;
-        detection.agent.confidence = 1.0;
+        detection.agent.confidence = HIGH; // Direct override
     }
 
     detect_editor(&vars, &mut detection.facets);
@@ -245,26 +248,26 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
     if detection.agent.name.is_none() {
         if let Some(v) = vars.get("CURSOR_AGENT") {
             detection.agent.name = Some("cursor".into());
-            detection.agent.confidence = 0.95;
+            detection.agent.confidence = HIGH; // Direct env var
             detection.agent.is_agent = true;
             add_raw(&mut detection.agent, "CURSOR_AGENT", v);
         } else if let Some(v) = vars.get("CLINE_ACTIVE") {
             detection.agent.name = Some("cline".into());
-            detection.agent.confidence = 0.95;
+            detection.agent.confidence = HIGH; // Direct env var
             detection.agent.is_agent = true;
             add_raw(&mut detection.agent, "CLINE_ACTIVE", v);
         } else if let Some(v) = vars.get("CLAUDECODE") {
             detection.agent.name = Some("claude-code".into());
-            detection.agent.confidence = 0.9;
+            detection.agent.confidence = HIGH; // Direct env var
             detection.agent.is_agent = true;
             add_raw(&mut detection.agent, "CLAUDECODE", v);
         } else if vars.keys().any(|k| k.starts_with("SANDBOX_")) {
             detection.agent.name = Some("openhands".into());
-            detection.agent.confidence = 0.9;
+            detection.agent.confidence = MEDIUM; // Inferred from context
             detection.agent.is_agent = true;
         } else if vars.get("IS_CODE_AGENT").map(|v| v == "1").unwrap_or(false) {
             detection.agent.name = Some("unknown".into());
-            detection.agent.confidence = 0.8;
+            detection.agent.confidence = LOW; // Heuristic
             detection.agent.is_agent = true;
         }
     }
@@ -275,7 +278,7 @@ pub fn detect_agent(env: &impl EnvReader) -> AgentDetection {
         let aider_detect = vars.contains_key("AIDER_MODEL") || aider_envs.len() >= 2;
         if aider_detect {
             detection.agent.name = Some("aider".into());
-            detection.agent.confidence = 0.8;
+            detection.agent.confidence = MEDIUM; // Inferred from context
             detection.agent.is_agent = true;
         }
     }

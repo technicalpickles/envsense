@@ -1,4 +1,5 @@
-use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::TERMINAL};
+use crate::schema::Evidence;
 use crate::traits::terminal::ColorLevel;
 use serde_json::json;
 
@@ -17,6 +18,9 @@ impl Detector for TerminalDetector {
 
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
+
+        // TTY detection is always reliable
+        detection.confidence = TERMINAL;
 
         // Use TTY values from snapshot (which can be overridden for testing)
         let is_interactive = snap.is_tty_stdin && snap.is_tty_stdout;
@@ -90,7 +94,22 @@ impl Detector for TerminalDetector {
             .traits_patch
             .insert("color_level".to_string(), json!(color_level_str));
 
-        detection.confidence = 1.0; // Terminal detection is always reliable
+        // Add evidence for TTY detection
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stdin", snap.is_tty_stdin)
+                .with_supports(vec!["is_tty_stdin".into()])
+                .with_confidence(TERMINAL)
+        );
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stdout", snap.is_tty_stdout)
+                .with_supports(vec!["is_tty_stdout".into()])
+                .with_confidence(TERMINAL)
+        );
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stderr", snap.is_tty_stderr)
+                .with_supports(vec!["is_tty_stderr".into()])
+                .with_confidence(TERMINAL)
+        );
 
         detection
     }
