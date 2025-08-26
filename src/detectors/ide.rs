@@ -1,5 +1,5 @@
 use crate::detectors::{Detection, Detector, EnvSnapshot};
-use crate::schema::{Evidence, Signal};
+use crate::schema::Evidence;
 use serde_json::json;
 
 pub struct IdeDetector;
@@ -24,26 +24,22 @@ impl Detector for IdeDetector {
             detection.contexts_add.push("ide".to_string());
 
             // Add evidence for IDE context
-            detection.evidence.push(Evidence {
-                signal: Signal::Env,
-                key: "TERM_PROGRAM".into(),
-                value: Some(term_program.clone()),
-                supports: vec!["ide".into()],
-                confidence: 0.95,
-            });
+            detection.evidence.push(
+                Evidence::env_var("TERM_PROGRAM", term_program)
+                    .with_supports(vec!["ide".into()])
+                    .with_confidence(0.95)
+            );
 
             // Detect specific IDE variant
             if snap.get_env("CURSOR_TRACE_ID").is_some() {
                 detection
                     .facets_patch
                     .insert("ide_id".to_string(), json!("cursor"));
-                detection.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: "CURSOR_TRACE_ID".into(),
-                    value: None,
-                    supports: vec!["ide_id".into()],
-                    confidence: 0.95,
-                });
+                detection.evidence.push(
+                    Evidence::env_presence("CURSOR_TRACE_ID")
+                        .with_supports(vec!["ide_id".into()])
+                        .with_confidence(0.95)
+                );
             } else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
                 let ide_id = if version.to_lowercase().contains("insider") {
                     "vscode-insiders"
@@ -53,13 +49,11 @@ impl Detector for IdeDetector {
                 detection
                     .facets_patch
                     .insert("ide_id".to_string(), json!(ide_id));
-                detection.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: "TERM_PROGRAM_VERSION".into(),
-                    value: Some(version.clone()),
-                    supports: vec!["ide_id".into()],
-                    confidence: 0.95,
-                });
+                detection.evidence.push(
+                    Evidence::env_var("TERM_PROGRAM_VERSION", version)
+                        .with_supports(vec!["ide_id".into()])
+                        .with_confidence(0.95)
+                );
             }
 
             detection.confidence = 0.95;

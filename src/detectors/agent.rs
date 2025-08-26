@@ -1,6 +1,6 @@
 use crate::agent::{EnvReader, detect_agent};
 use crate::detectors::{Detection, Detector, EnvSnapshot};
-use crate::schema::{Evidence, Signal};
+use crate::schema::Evidence;
 use serde_json::{Value, json};
 
 pub struct AgentDetector;
@@ -60,13 +60,17 @@ impl Detector for AgentDetector {
                 .and_then(Value::as_object)
                 && let Some((k, v)) = raw.iter().next()
             {
-                detection.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: k.clone(),
-                    value: v.as_str().map(|s| s.to_string()),
-                    supports: vec!["agent".into(), "agent_id".into()],
-                    confidence: agent_detection.agent.confidence,
-                });
+                let evidence = if let Some(value) = v.as_str() {
+                    Evidence::env_var(k, value)
+                } else {
+                    Evidence::env_presence(k)
+                };
+                
+                detection.evidence.push(
+                    evidence
+                        .with_supports(vec!["agent".into(), "agent_id".into()])
+                        .with_confidence(agent_detection.agent.confidence)
+                );
             }
         }
 
