@@ -1,0 +1,57 @@
+---
+source: tests/info_snapshots.rs
+assertion_line: 121
+expression: json
+---
+{
+  "contexts": [],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    }
+  ],
+  "facets": {
+    "ci": {
+      "is_ci": false
+    },
+    "host": "unknown"
+  },
+  "meta": {
+    "schema_version": "0.2.0"
+  },
+  "traits": {
+    "color_level": "none",
+    "is_ci": false,
+    "is_interactive": false,
+    "is_piped_stdin": true,
+    "is_piped_stdout": true,
+    "is_tty_stderr": false,
+    "is_tty_stdin": false,
+    "is_tty_stdout": false,
+    "supports_hyperlinks": false
+  }
+}

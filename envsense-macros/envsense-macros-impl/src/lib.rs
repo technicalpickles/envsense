@@ -184,6 +184,9 @@ fn generate_merge_impl(
                     if let Some(value) = all_facets.get("container_id").and_then(|v| v.as_str()) {
                         self.#field_name.container_id = Some(value.to_string());
                     }
+                    if let Some(value) = all_facets.get("host").and_then(|v| v.as_str()) {
+                        self.#field_name.host = Some(value.to_string());
+                    }
                     // Handle CI facet struct
                     if let Some(ci_facet_value) = all_facets.get("ci") {
                         if let Ok(ci_facet) = serde_json::from_value::<crate::ci::CiFacet>(ci_facet_value.clone()) {

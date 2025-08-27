@@ -108,6 +108,8 @@ pub struct Facets {
     pub ci_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
     #[serde(default)]
     pub ci: CiFacet,
 }
