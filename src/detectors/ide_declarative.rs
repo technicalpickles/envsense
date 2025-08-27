@@ -85,6 +85,7 @@ impl Default for DeclarativeIdeDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::detectors::confidence::HIGH;
     use std::collections::HashMap;
 
     fn create_env_snapshot(env_vars: Vec<(&str, &str)>) -> EnvSnapshot {
