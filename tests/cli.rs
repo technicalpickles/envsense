@@ -113,9 +113,7 @@ fn meta_field_selection() {
     cmd.args(["info", "--fields=meta", "--no-color"])
         .assert()
         .success()
-        .stdout(contains(
-            "Meta:\n  schema_version = 0.2.0",
-        ));
+        .stdout(contains("Meta:\n  schema_version = 0.2.0"));
 }
 
 #[test]
