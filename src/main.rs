@@ -1,4 +1,4 @@
-use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
+use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
 use envsense::ci::ci_traits;
@@ -96,24 +96,17 @@ struct CheckCmd {
     #[arg(short, long, alias = "silent", action = clap::ArgAction::SetTrue)]
     quiet: bool,
 
-    /// Output format
-    #[arg(long, value_enum, default_value_t = Format::Plain)]
-    format: Format,
+    /// Output JSON (stable schema)
+    #[arg(long)]
+    json: bool,
 
     /// Explain reasoning
     #[arg(long)]
     explain: bool,
 
-    /// List known predicates
-    #[arg(long = "list-checks", action = clap::ArgAction::SetTrue)]
+    /// List available predicates
+    #[arg(long = "list", action = clap::ArgAction::SetTrue)]
     list_checks: bool,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
-enum Format {
-    Plain,
-    Pretty,
-    Json,
 }
 
 #[derive(serde::Serialize)]
@@ -505,78 +498,44 @@ fn run_check(args: &CheckCmd) -> i32 {
     };
 
     if !args.quiet {
-        output_results(&results, overall, mode_any, args.format, args.explain);
+        output_results(&results, overall, mode_any, args.json, args.explain);
     }
 
     if overall { 0 } else { 1 }
 }
 
-fn output_results(
-    results: &[JsonCheck],
-    overall: bool,
-    mode_any: bool,
-    format: Format,
-    explain: bool,
-) {
-    match format {
-        Format::Plain => {
-            if results.len() == 1 {
-                let r = &results[0];
-                if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                    println!("{}  # reason: {}", r.result, reason);
-                } else {
-                    println!("{}", r.result);
-                }
-            } else {
-                println!("overall={}", overall);
-                for r in results {
-                    if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                        println!("{}={}  # reason: {}", r.predicate, r.result, reason);
-                    } else {
-                        println!("{}={}", r.predicate, r.result);
-                    }
-                }
-            }
+fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bool, explain: bool) {
+    if json {
+        #[derive(serde::Serialize)]
+        struct JsonOutput<'a> {
+            overall: bool,
+            mode: &'a str,
+            checks: &'a [JsonCheck],
         }
-        Format::Pretty => {
-            if results.len() == 1 {
-                let r = &results[0];
-                let mark = if r.result { '✓' } else { '✗' };
-                if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                    println!("{} {} ({})", mark, r.predicate, reason);
-                } else {
-                    println!("{} {}", mark, r.predicate);
-                }
-            } else {
-                for r in results {
-                    let mark = if r.result { '✓' } else { '✗' };
-                    if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                        println!("{} {} ({})", mark, r.predicate, reason);
-                    } else {
-                        println!("{} {}", mark, r.predicate);
-                    }
-                }
-                let mark = if overall { '✓' } else { '✗' };
-                let mode = if mode_any { "any" } else { "all" };
-                println!("overall: {} ({})", mark, mode);
-            }
+        let out = JsonOutput {
+            overall,
+            mode: if mode_any { "any" } else { "all" },
+            checks: results,
+        };
+        if explain {
+            println!("{}", serde_json::to_string_pretty(&out).unwrap());
+        } else {
+            println!("{}", serde_json::to_string(&out).unwrap());
         }
-        Format::Json => {
-            #[derive(serde::Serialize)]
-            struct JsonOutput<'a> {
-                overall: bool,
-                mode: &'a str,
-                checks: &'a [JsonCheck],
-            }
-            let out = JsonOutput {
-                overall,
-                mode: if mode_any { "any" } else { "all" },
-                checks: results,
-            };
-            if explain {
-                println!("{}", serde_json::to_string_pretty(&out).unwrap());
+    } else if results.len() == 1 {
+        let r = &results[0];
+        if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
+            println!("{}  # reason: {}", r.result, reason);
+        } else {
+            println!("{}", r.result);
+        }
+    } else {
+        println!("overall={}", overall);
+        for r in results {
+            if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
+                println!("{}={}  # reason: {}", r.predicate, r.result, reason);
             } else {
-                println!("{}", serde_json::to_string(&out).unwrap());
+                println!("{}={}", r.predicate, r.result);
             }
         }
     }
