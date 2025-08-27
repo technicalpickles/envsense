@@ -1,3 +1,4 @@
 [tools]
 rust = "1.89.0"
 "ubi:evilmartians/lefthook" = "latest"
+"ubi:rhysd/actionlint" = "1.7.7"
