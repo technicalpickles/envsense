@@ -221,26 +221,12 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
         EnvMapping {
             id: "replit-host".to_string(),
             confidence: LOW,
-            indicators: vec![
-                EnvIndicator {
-                    key: "REPLIT_USER".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "REPLIT_DEV_DOMAIN".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "REPLIT_DEPLOYMENT".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-            ],
+            indicators: vec![EnvIndicator {
+                key: "REPLIT_".to_string(),
+                value: None,
+                required: false,
+                prefix: true,
+            }],
             facets: HashMap::from([("host".to_string(), "replit".to_string())]),
             contexts: vec![],
         },
@@ -248,20 +234,12 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
         EnvMapping {
             id: "codespaces".to_string(),
             confidence: LOW,
-            indicators: vec![
-                EnvIndicator {
-                    key: "CODESPACES".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-            ],
+            indicators: vec![EnvIndicator {
+                key: "GITHUB_CODESPACES_".to_string(),
+                value: None,
+                required: false,
+                prefix: true,
+            }],
             facets: HashMap::from([("host".to_string(), "codespaces".to_string())]),
             contexts: vec![],
         },
