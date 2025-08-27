@@ -109,8 +109,6 @@ struct CheckCmd {
     list_checks: bool,
 }
 
-
-
 #[derive(serde::Serialize)]
 struct JsonCheck {
     predicate: String,
@@ -506,13 +504,7 @@ fn run_check(args: &CheckCmd) -> i32 {
     if overall { 0 } else { 1 }
 }
 
-fn output_results(
-    results: &[JsonCheck],
-    overall: bool,
-    mode_any: bool,
-    json: bool,
-    explain: bool,
-) {
+fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bool, explain: bool) {
     if json {
         #[derive(serde::Serialize)]
         struct JsonOutput<'a> {
@@ -530,22 +522,20 @@ fn output_results(
         } else {
             println!("{}", serde_json::to_string(&out).unwrap());
         }
-    } else {
-        if results.len() == 1 {
-            let r = &results[0];
-            if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                println!("{}  # reason: {}", r.result, reason);
-            } else {
-                println!("{}", r.result);
-            }
+    } else if results.len() == 1 {
+        let r = &results[0];
+        if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
+            println!("{}  # reason: {}", r.result, reason);
         } else {
-            println!("overall={}", overall);
-            for r in results {
-                if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                    println!("{}={}  # reason: {}", r.predicate, r.result, reason);
-                } else {
-                    println!("{}={}", r.predicate, r.result);
-                }
+            println!("{}", r.result);
+        }
+    } else {
+        println!("overall={}", overall);
+        for r in results {
+            if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
+                println!("{}={}  # reason: {}", r.predicate, r.result, reason);
+            } else {
+                println!("{}={}", r.predicate, r.result);
             }
         }
     }
