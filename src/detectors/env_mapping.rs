@@ -325,6 +325,382 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
             facets: HashMap::from([("host".to_string(), "ci".to_string())]),
             contexts: vec![],
         },
+        // GitHub Actions detection
+        EnvMapping {
+            id: "github-actions".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GITHUB_ACTIONS".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "github_actions".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // GitLab CI detection
+        EnvMapping {
+            id: "gitlab-ci".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GITLAB_CI".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "gitlab_ci".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // CircleCI detection
+        EnvMapping {
+            id: "circleci".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "CIRCLECI".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "circleci".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Buildkite detection
+        EnvMapping {
+            id: "buildkite".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BUILDKITE".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "buildkite".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Jenkins detection
+        EnvMapping {
+            id: "jenkins".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "JENKINS_URL".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "JENKINS_HOME".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ci_id".to_string(), "jenkins".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // TeamCity detection
+        EnvMapping {
+            id: "teamcity".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TEAMCITY_VERSION".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "teamcity".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Bitbucket Pipelines detection
+        EnvMapping {
+            id: "bitbucket-pipelines".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BITBUCKET_BUILD_NUMBER".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "bitbucket_pipelines".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Azure Pipelines detection
+        EnvMapping {
+            id: "azure-pipelines".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "AZURE_HTTP_USER_AGENT".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "TF_BUILD".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ci_id".to_string(), "azure_pipelines".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Google Cloud Build detection
+        EnvMapping {
+            id: "google-cloud-build".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GOOGLE_CLOUD_BUILD".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "google_cloud_build".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Vercel detection
+        EnvMapping {
+            id: "vercel".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "VERCEL".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "vercel".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // AWS CodeBuild detection
+        EnvMapping {
+            id: "aws-codebuild".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "CODEBUILD_BUILD_ID".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "aws_codebuild".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // SourceHut detection
+        EnvMapping {
+            id: "sourcehut".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BUILD_REASON".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "sourcehut".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // AppVeyor detection
+        EnvMapping {
+            id: "appveyor".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "APPVEYOR".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "appveyor".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+    ]
+}
+
+/// Predefined environment mappings for CI detection
+pub fn get_ci_mappings() -> Vec<EnvMapping> {
+    vec![
+        // GitHub Actions detection
+        EnvMapping {
+            id: "github-actions".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GITHUB_ACTIONS".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "github_actions".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // GitLab CI detection
+        EnvMapping {
+            id: "gitlab-ci".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GITLAB_CI".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "gitlab_ci".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // CircleCI detection
+        EnvMapping {
+            id: "circleci".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "CIRCLECI".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "circleci".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Buildkite detection
+        EnvMapping {
+            id: "buildkite".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BUILDKITE".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "buildkite".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Jenkins detection
+        EnvMapping {
+            id: "jenkins".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "JENKINS_URL".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "JENKINS_HOME".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ci_id".to_string(), "jenkins".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // TeamCity detection
+        EnvMapping {
+            id: "teamcity".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TEAMCITY_VERSION".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "teamcity".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Bitbucket Pipelines detection
+        EnvMapping {
+            id: "bitbucket-pipelines".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BITBUCKET_BUILD_NUMBER".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "bitbucket_pipelines".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Azure Pipelines detection
+        EnvMapping {
+            id: "azure-pipelines".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "AZURE_HTTP_USER_AGENT".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "TF_BUILD".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ci_id".to_string(), "azure_pipelines".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Google Cloud Build detection
+        EnvMapping {
+            id: "google-cloud-build".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "GOOGLE_CLOUD_BUILD".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "google_cloud_build".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // Vercel detection
+        EnvMapping {
+            id: "vercel".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "VERCEL".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "vercel".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // AWS CodeBuild detection
+        EnvMapping {
+            id: "aws-codebuild".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "CODEBUILD_BUILD_ID".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "aws_codebuild".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // SourceHut detection
+        EnvMapping {
+            id: "sourcehut".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "BUILD_REASON".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "sourcehut".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
+        // AppVeyor detection
+        EnvMapping {
+            id: "appveyor".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "APPVEYOR".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "appveyor".to_string())]),
+            contexts: vec!["ci".to_string()],
+        },
     ]
 }
 

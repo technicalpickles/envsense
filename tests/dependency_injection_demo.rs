@@ -10,8 +10,8 @@
 // showing the benefits over the old environment variable override approach.
 
 use envsense::detectors::DeclarativeAgentDetector;
+use envsense::detectors::DeclarativeCiDetector;
 use envsense::detectors::DeclarativeIdeDetector;
-use envsense::detectors::ci::CiDetector;
 use envsense::detectors::terminal::TerminalDetector;
 use envsense::detectors::{EnvSnapshot, TtyDetector};
 use envsense::engine::DetectionEngine;
@@ -59,7 +59,7 @@ fn demonstrate_dependency_injection_benefits() {
     let engine = DetectionEngine::new()
         .register(TerminalDetector::new())
         .register(DeclarativeAgentDetector::new())
-        .register(CiDetector::new())
+        .register(DeclarativeCiDetector::new())
         .register(DeclarativeIdeDetector::new());
     let result = engine.detect_from_snapshot(&piped_snapshot);
 
