@@ -1,5 +1,5 @@
-use crate::detectors::env_mapping::get_ide_mappings;
-use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::HIGH};
+use crate::detectors::env_mapping::{EnvMapping, get_ide_mappings};
+use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::schema::Evidence;
 use serde_json::json;
 
@@ -16,91 +16,36 @@ impl DeclarativeIdeDetector {
         let mut confidence = 0.0;
         let mut evidence = Vec::new();
 
-        // Special handling for VS Code variants
-        if let Some(term_program) = snap.get_env("TERM_PROGRAM")
-            && term_program == "vscode"
-        {
-            // Check for Cursor first (highest priority)
-            if snap.get_env("CURSOR_TRACE_ID").is_some() {
-                ide_id = Some("cursor".to_string());
-                confidence = HIGH;
-                evidence.push(
-                    Evidence::env_var("TERM_PROGRAM", term_program)
-                        .with_supports(vec!["ide".into(), "ide_id".into()])
-                        .with_confidence(HIGH),
-                );
-                evidence.push(
-                    Evidence::env_presence("CURSOR_TRACE_ID")
-                        .with_supports(vec!["ide".into(), "ide_id".into()])
-                        .with_confidence(HIGH),
-                );
-            }
-            // Check for VS Code Insiders
-            else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
-                if version.to_lowercase().contains("insider") {
-                    ide_id = Some("vscode-insiders".to_string());
-                    confidence = HIGH;
-                    evidence.push(
-                        Evidence::env_var("TERM_PROGRAM", term_program)
-                            .with_supports(vec!["ide".into(), "ide_id".into()])
-                            .with_confidence(HIGH),
-                    );
-                    evidence.push(
-                        Evidence::env_var("TERM_PROGRAM_VERSION", version)
-                            .with_supports(vec!["ide".into(), "ide_id".into()])
-                            .with_confidence(HIGH),
-                    );
-                } else {
-                    // Regular VS Code
-                    ide_id = Some("vscode".to_string());
-                    confidence = HIGH;
-                    evidence.push(
-                        Evidence::env_var("TERM_PROGRAM", term_program)
-                            .with_supports(vec!["ide".into(), "ide_id".into()])
-                            .with_confidence(HIGH),
-                    );
-                    if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
-                        evidence.push(
-                            Evidence::env_var("TERM_PROGRAM_VERSION", version)
-                                .with_supports(vec!["ide".into(), "ide_id".into()])
-                                .with_confidence(HIGH),
-                        );
-                    }
+        // Find the highest priority matching mapping
+        let mut best_mapping: Option<&EnvMapping> = None;
+        let mut best_priority = 0;
+
+        for mapping in &mappings {
+            if mapping.matches(&snap.env_vars) {
+                let mapping_priority = mapping.get_highest_priority();
+                if mapping_priority > best_priority {
+                    best_mapping = Some(mapping);
+                    best_priority = mapping_priority;
                 }
-            } else {
-                // Regular VS Code without version
-                ide_id = Some("vscode".to_string());
-                confidence = HIGH;
-                evidence.push(
-                    Evidence::env_var("TERM_PROGRAM", term_program)
-                        .with_supports(vec!["ide".into(), "ide_id".into()])
-                        .with_confidence(HIGH),
-                );
             }
         }
 
-        // If no VS Code variant detected, try other IDE mappings
-        if ide_id.is_none() {
-            for mapping in &mappings {
-                if mapping.matches(&snap.env_vars) && mapping.confidence > confidence {
-                    ide_id = mapping.facets.get("ide_id").cloned();
-                    confidence = mapping.confidence;
+        if let Some(mapping) = best_mapping {
+            ide_id = mapping.facets.get("ide_id").cloned();
+            confidence = mapping.confidence;
 
-                    // Add evidence for this detection
-                    for (key, value) in mapping.get_evidence(&snap.env_vars) {
-                        let evidence_item = if let Some(val) = value {
-                            Evidence::env_var(key, val)
-                        } else {
-                            Evidence::env_presence(key)
-                        };
-                        evidence.push(
-                            evidence_item
-                                .with_supports(vec!["ide".into(), "ide_id".into()])
-                                .with_confidence(mapping.confidence),
-                        );
-                    }
-                    break; // Take the first (highest confidence) match
-                }
+            // Add evidence for this detection
+            for (key, value) in mapping.get_evidence(&snap.env_vars) {
+                let evidence_item = if let Some(val) = value {
+                    Evidence::env_var(key, val)
+                } else {
+                    Evidence::env_presence(key)
+                };
+                evidence.push(
+                    evidence_item
+                        .with_supports(vec!["ide".into(), "ide_id".into()])
+                        .with_confidence(mapping.confidence),
+                );
             }
         }
 
@@ -166,7 +111,7 @@ mod tests {
             detection.facets_patch.get("ide_id").unwrap(),
             &json!("vscode")
         );
-        assert_eq!(detection.evidence.len(), 2);
+        assert_eq!(detection.evidence.len(), 1);
         assert_eq!(detection.confidence, HIGH);
     }
 

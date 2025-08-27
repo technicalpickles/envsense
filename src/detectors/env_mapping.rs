@@ -32,6 +32,12 @@ pub struct EnvIndicator {
     /// Whether to check if the key starts with this prefix
     #[serde(default)]
     pub prefix: bool,
+    /// Whether to check if the value contains this substring (case-insensitive)
+    #[serde(default)]
+    pub contains: Option<String>,
+    /// Priority for ordering matches (higher number = higher priority)
+    #[serde(default)]
+    pub priority: u8,
 }
 
 impl EnvMapping {
@@ -82,16 +88,36 @@ impl EnvMapping {
             match env_vars.get(&indicator.key) {
                 Some(value) => {
                     // If we expect a specific value, check it
-                    if let Some(expected_value) = &indicator.value {
-                        value == expected_value
-                    } else {
-                        // Just check for presence
-                        true
+                    if let Some(expected_value) = &indicator.value
+                        && value != expected_value
+                    {
+                        return false;
                     }
+
+                    // If we expect the value to contain a substring, check it
+                    if let Some(contains_value) = &indicator.contains
+                        && !value
+                            .to_lowercase()
+                            .contains(&contains_value.to_lowercase())
+                    {
+                        return false;
+                    }
+
+                    // All checks passed
+                    true
                 }
                 None => false,
             }
         }
+    }
+
+    /// Get the highest priority indicator for this mapping
+    pub fn get_highest_priority(&self) -> u8 {
+        self.indicators
+            .iter()
+            .map(|i| i.priority)
+            .max()
+            .unwrap_or(0)
     }
 
     /// Get the evidence key-value pairs that support this detection
@@ -130,6 +156,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("host".to_string(), "replit".to_string())]),
             contexts: vec!["agent".to_string()],
@@ -143,6 +171,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -156,6 +186,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -169,6 +201,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -182,6 +216,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: true,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -195,6 +231,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: true,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -208,6 +246,8 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
                 value: Some("1".to_string()),
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
@@ -218,41 +258,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
 /// Predefined environment mappings for IDE detection
 pub fn get_ide_mappings() -> Vec<EnvMapping> {
     vec![
-        // VS Code detection
-        EnvMapping {
-            id: "vscode".to_string(),
-            confidence: HIGH,
-            indicators: vec![EnvIndicator {
-                key: "TERM_PROGRAM".to_string(),
-                value: Some("vscode".to_string()),
-                required: false,
-                prefix: false,
-            }],
-            facets: HashMap::from([("ide_id".to_string(), "vscode".to_string())]),
-            contexts: vec!["ide".to_string()],
-        },
-        // VS Code Insiders detection
-        EnvMapping {
-            id: "vscode-insiders".to_string(),
-            confidence: HIGH,
-            indicators: vec![
-                EnvIndicator {
-                    key: "TERM_PROGRAM".to_string(),
-                    value: Some("vscode".to_string()),
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "TERM_PROGRAM_VERSION".to_string(),
-                    value: Some("insider".to_string()),
-                    required: false,
-                    prefix: false,
-                },
-            ],
-            facets: HashMap::from([("ide_id".to_string(), "vscode-insiders".to_string())]),
-            contexts: vec!["ide".to_string()],
-        },
-        // Cursor IDE detection
+        // Cursor IDE detection (highest priority)
         EnvMapping {
             id: "cursor-ide".to_string(),
             confidence: HIGH,
@@ -260,17 +266,61 @@ pub fn get_ide_mappings() -> Vec<EnvMapping> {
                 EnvIndicator {
                     key: "TERM_PROGRAM".to_string(),
                     value: Some("vscode".to_string()),
-                    required: false,
+                    required: true,
                     prefix: false,
+                    contains: None,
+                    priority: 3, // Highest priority
                 },
                 EnvIndicator {
                     key: "CURSOR_TRACE_ID".to_string(),
                     value: None,
-                    required: false,
+                    required: true,
                     prefix: false,
+                    contains: None,
+                    priority: 3,
                 },
             ],
             facets: HashMap::from([("ide_id".to_string(), "cursor".to_string())]),
+            contexts: vec!["ide".to_string()],
+        },
+        // VS Code Insiders detection (medium priority)
+        EnvMapping {
+            id: "vscode-insiders".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "TERM_PROGRAM".to_string(),
+                    value: Some("vscode".to_string()),
+                    required: true,
+                    prefix: false,
+                    contains: None,
+                    priority: 2,
+                },
+                EnvIndicator {
+                    key: "TERM_PROGRAM_VERSION".to_string(),
+                    value: None,
+                    required: true,
+                    prefix: false,
+                    contains: Some("insider".to_string()),
+                    priority: 2,
+                },
+            ],
+            facets: HashMap::from([("ide_id".to_string(), "vscode-insiders".to_string())]),
+            contexts: vec!["ide".to_string()],
+        },
+        // VS Code detection (lowest priority)
+        EnvMapping {
+            id: "vscode".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TERM_PROGRAM".to_string(),
+                value: Some("vscode".to_string()),
+                required: true,
+                prefix: false,
+                contains: None,
+                priority: 1,
+            }],
+            facets: HashMap::from([("ide_id".to_string(), "vscode".to_string())]),
             contexts: vec!["ide".to_string()],
         },
     ]
@@ -287,6 +337,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: true,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("host".to_string(), "replit".to_string())]),
             contexts: vec![],
@@ -300,6 +352,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: true,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("host".to_string(), "codespaces".to_string())]),
             contexts: vec![],
@@ -314,12 +368,16 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                     value: Some("1".to_string()),
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
                 EnvIndicator {
                     key: "CI".to_string(),
                     value: Some("1".to_string()),
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
             ],
             facets: HashMap::from([("host".to_string(), "ci".to_string())]),
@@ -334,6 +392,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "github_actions".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -347,6 +407,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "gitlab_ci".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -360,6 +422,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "circleci".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -373,6 +437,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "buildkite".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -387,12 +453,16 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
                 EnvIndicator {
                     key: "JENKINS_HOME".to_string(),
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
             ],
             facets: HashMap::from([("ci_id".to_string(), "jenkins".to_string())]),
@@ -407,6 +477,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "teamcity".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -420,6 +492,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "bitbucket_pipelines".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -434,12 +508,16 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
                 EnvIndicator {
                     key: "TF_BUILD".to_string(),
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
             ],
             facets: HashMap::from([("ci_id".to_string(), "azure_pipelines".to_string())]),
@@ -454,6 +532,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "google_cloud_build".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -467,6 +547,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "vercel".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -480,6 +562,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "aws_codebuild".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -493,6 +577,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "sourcehut".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -506,6 +592,8 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "appveyor".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -525,6 +613,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "github_actions".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -538,6 +628,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "gitlab_ci".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -551,6 +643,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "circleci".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -564,6 +658,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "buildkite".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -578,12 +674,16 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
                 EnvIndicator {
                     key: "JENKINS_HOME".to_string(),
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
             ],
             facets: HashMap::from([("ci_id".to_string(), "jenkins".to_string())]),
@@ -598,6 +698,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "teamcity".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -611,6 +713,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "bitbucket_pipelines".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -625,12 +729,16 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
                 EnvIndicator {
                     key: "TF_BUILD".to_string(),
                     value: None,
                     required: false,
                     prefix: false,
+                    contains: None,
+                    priority: 0,
                 },
             ],
             facets: HashMap::from([("ci_id".to_string(), "azure_pipelines".to_string())]),
@@ -645,6 +753,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "google_cloud_build".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -658,6 +768,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "vercel".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -671,6 +783,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "aws_codebuild".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -684,6 +798,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "sourcehut".to_string())]),
             contexts: vec!["ci".to_string()],
@@ -697,6 +813,8 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 value: None,
                 required: false,
                 prefix: false,
+                contains: None,
+                priority: 0,
             }],
             facets: HashMap::from([("ci_id".to_string(), "appveyor".to_string())]),
             contexts: vec!["ci".to_string()],

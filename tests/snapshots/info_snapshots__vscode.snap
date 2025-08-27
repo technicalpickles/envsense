@@ -43,16 +43,6 @@ expression: json
         "ide_id"
       ],
       "value": "vscode"
-    },
-    {
-      "confidence": 1.0,
-      "key": "TERM_PROGRAM_VERSION",
-      "signal": "env",
-      "supports": [
-        "ide",
-        "ide_id"
-      ],
-      "value": "1.75.0"
     }
   ],
   "facets": {

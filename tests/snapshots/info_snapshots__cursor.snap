@@ -51,7 +51,8 @@ expression: json
       "supports": [
         "ide",
         "ide_id"
-      ]
+      ],
+      "value": "xyz"
     }
   ],
   "facets": {
