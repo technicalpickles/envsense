@@ -215,6 +215,67 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
     ]
 }
 
+/// Predefined environment mappings for IDE detection
+pub fn get_ide_mappings() -> Vec<EnvMapping> {
+    vec![
+        // VS Code detection
+        EnvMapping {
+            id: "vscode".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TERM_PROGRAM".to_string(),
+                value: Some("vscode".to_string()),
+                required: false,
+                prefix: false,
+            }],
+            facets: HashMap::from([("ide_id".to_string(), "vscode".to_string())]),
+            contexts: vec!["ide".to_string()],
+        },
+        // VS Code Insiders detection
+        EnvMapping {
+            id: "vscode-insiders".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "TERM_PROGRAM".to_string(),
+                    value: Some("vscode".to_string()),
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "TERM_PROGRAM_VERSION".to_string(),
+                    value: Some("insider".to_string()),
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ide_id".to_string(), "vscode-insiders".to_string())]),
+            contexts: vec!["ide".to_string()],
+        },
+        // Cursor IDE detection
+        EnvMapping {
+            id: "cursor-ide".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "TERM_PROGRAM".to_string(),
+                    value: Some("vscode".to_string()),
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "CURSOR_TRACE_ID".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("ide_id".to_string(), "cursor".to_string())]),
+            contexts: vec!["ide".to_string()],
+        },
+    ]
+}
+
 pub fn get_host_mappings() -> Vec<EnvMapping> {
     vec![
         // Replit host detection

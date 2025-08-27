@@ -5,9 +5,11 @@ pub mod agent_declarative;
 pub mod ci;
 pub mod env_mapping;
 pub mod ide;
+pub mod ide_declarative;
 pub mod terminal;
 pub mod tty;
 pub use agent_declarative::DeclarativeAgentDetector;
+pub use ide_declarative::DeclarativeIdeDetector;
 pub use tty::TtyDetector;
 
 /// Confidence levels for detection results
