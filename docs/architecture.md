@@ -90,7 +90,7 @@ Detection precedence ensures consistent results:
 ## Schema Versioning
 
 * The schema is versioned via `SCHEMA_VERSION` (`0.1.0` currently).
-* Every detection result includes `version` (schema) and `rules_version` (ruleset hash/semver).
+* Every detection result includes `version` (schema).
 * Schema evolution requires bumping `version` and updating tests.
 
 ---

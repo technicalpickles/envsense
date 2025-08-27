@@ -162,10 +162,9 @@ pub struct EnvSense {
     #[serde(default)]
     pub evidence: Vec<Evidence>,
     pub version: String,
-    pub rules_version: String,
 }
 
-pub const SCHEMA_VERSION: &str = "0.1.0";
+pub const SCHEMA_VERSION: &str = "0.2.0";
 
 fn detect_environment() -> EnvSense {
     let engine = DetectionEngine::new()
@@ -191,7 +190,6 @@ impl Default for EnvSense {
             traits: Traits::default(),
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
-            rules_version: String::new(),
         }
     }
 }
@@ -204,7 +202,7 @@ mod tests {
     fn default_serializes_with_version() {
         let envsense = EnvSense::default();
         let json = serde_json::to_string(&envsense).unwrap();
-        assert!(json.contains("\"version\":\"0.1.0\""));
+        assert!(json.contains("\"version\":\"0.2.0\""));
     }
 
     #[test]

@@ -16,8 +16,8 @@ fn test_macro_integration_works() {
     assert_eq!(envsense.facets.agent_id, None);
     assert_eq!(envsense.facets.ide_id, None);
     assert_eq!(envsense.evidence.len(), 0);
-    assert_eq!(envsense.version, "0.1.0");
-    assert_eq!(envsense.rules_version, "");
+    assert_eq!(envsense.version, "0.2.0");
+    // rules_version field has been removed in schema version 0.2.0
 }
 
 #[test]
@@ -38,5 +38,5 @@ fn test_detection_engine_uses_macro() {
     // Evidence length is always >= 0
 
     // Version should be set
-    assert_eq!(result.version, "0.1.0");
+    assert_eq!(result.version, "0.2.0");
 }

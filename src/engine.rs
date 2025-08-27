@@ -30,7 +30,6 @@ impl DetectionEngine {
             traits: Traits::default(),
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
-            rules_version: String::new(),
         };
 
         // Collect all detections

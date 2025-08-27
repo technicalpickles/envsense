@@ -107,14 +107,14 @@ fn meta_field_selection() {
     cmd.args(["info", "--json", "--fields=meta"])
         .assert()
         .success()
-        .stdout(contains("\"schema_version\"").and(contains("\"rules_version\"")));
+        .stdout(contains("\"schema_version\""));
 
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.args(["info", "--fields=meta", "--no-color"])
         .assert()
         .success()
         .stdout(contains(
-            "Meta:\n  rules_version = \n  schema_version = 0.1.0",
+            "Meta:\n  schema_version = 0.2.0",
         ));
 }
 

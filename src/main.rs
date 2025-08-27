@@ -157,7 +157,6 @@ fn collect_snapshot() -> Snapshot {
         facets: serde_json::to_value(env.facets).unwrap(),
         meta: json!({
             "schema_version": env.version,
-            "rules_version": env.rules_version,
         }),
     }
 }

@@ -88,8 +88,7 @@ Example JSON output:
     "ide_id": "vscode"
   },
   "meta": {
-    "schema_version": "0.1.0",
-    "rules_version": ""
+    "schema_version": "0.2.0"
   }
 }
 ```
@@ -336,6 +335,39 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 * [ ] Rule engine for contexts/facets/traits
 * [ ] Node binding via napi-rs
 * [ ] Profiles for common cases (agent, CI, IDE)
+
+---
+
+## Development
+
+### Prerequisites
+
+- Rust 1.70+
+- `cargo-insta` for snapshot testing: `cargo install cargo-insta`
+
+### Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run snapshot tests
+cargo test --test info_snapshots
+
+# Update snapshots after schema changes
+cargo insta review
+```
+
+### Schema Changes
+
+When making breaking schema changes (like removing fields):
+
+1. Bump `SCHEMA_VERSION` in `src/schema.rs`
+2. Update tests to expect new version
+3. Run `cargo insta review` to update snapshots
+4. Verify all tests pass
+
+See `docs/testing.md` for detailed testing guidelines.
 
 ---
 
