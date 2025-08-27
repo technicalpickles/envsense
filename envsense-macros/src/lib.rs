@@ -9,19 +9,18 @@
 //!
 //! ```rust
 //! use envsense_macros::{DetectionMergerDerive, DetectionMerger, Detection};
+//! use std::collections::HashMap;
 //!
-//! #[derive(DetectionMergerDerive)]
-//! pub struct EnvSense {
-//!     pub contexts: Contexts,      // Maps to contexts_add
-//!     pub facets: Facets,         // Maps to facets_patch
-//!     pub traits: Traits,         // Maps to traits_patch
-//!     pub evidence: Vec<Evidence>, // Maps to evidence
-//!     pub version: String,        // Ignored (no mapping)
-//!     pub rules_version: String,  // Ignored (no mapping)
+//! // Simple example struct
+//! #[derive(DetectionMergerDerive, Default)]
+//! pub struct SimpleStruct {
+//!     pub contexts: bool,
+//!     pub facets: String,
+//!     pub traits: bool,
 //! }
 //!
 //! // The macro automatically implements DetectionMerger trait
-//! let mut envsense = EnvSense::default();
+//! let mut simple = SimpleStruct::default();
 //! let detections = vec![
 //!     Detection {
 //!         contexts_add: vec!["agent".to_string()],
@@ -32,7 +31,7 @@
 //!     }
 //! ];
 //!
-//! envsense.merge_detections(&detections);
+//! simple.merge_detections(&detections);
 //! ```
 //!
 //! # Field Mapping
