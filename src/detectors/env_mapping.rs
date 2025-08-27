@@ -1,3 +1,4 @@
+use crate::detectors::confidence::{HIGH, LOW, MEDIUM};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -123,7 +124,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Replit detection
         EnvMapping {
             id: "replit-agent".to_string(),
-            confidence: 0.9,
+            confidence: HIGH,
             indicators: vec![EnvIndicator {
                 key: "REPL_ID".to_string(),
                 value: None,
@@ -136,7 +137,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Cursor detection
         EnvMapping {
             id: "cursor".to_string(),
-            confidence: 1.0,
+            confidence: HIGH,
             indicators: vec![EnvIndicator {
                 key: "CURSOR_AGENT".to_string(),
                 value: None,
@@ -149,7 +150,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Claude Code detection
         EnvMapping {
             id: "claude-code".to_string(),
-            confidence: 1.0,
+            confidence: HIGH,
             indicators: vec![EnvIndicator {
                 key: "CLAUDECODE".to_string(),
                 value: None,
@@ -162,7 +163,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Cline detection
         EnvMapping {
             id: "cline".to_string(),
-            confidence: 1.0,
+            confidence: HIGH,
             indicators: vec![EnvIndicator {
                 key: "CLINE_ACTIVE".to_string(),
                 value: None,
@@ -175,7 +176,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // OpenHands detection
         EnvMapping {
             id: "openhands".to_string(),
-            confidence: 0.8,
+            confidence: MEDIUM,
             indicators: vec![EnvIndicator {
                 key: "SANDBOX_".to_string(),
                 value: None,
@@ -188,7 +189,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Aider detection
         EnvMapping {
             id: "aider".to_string(),
-            confidence: 0.8,
+            confidence: MEDIUM,
             indicators: vec![
                 EnvIndicator {
                     key: "AIDER_MODEL".to_string(),
@@ -209,7 +210,7 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         // Generic code agent detection
         EnvMapping {
             id: "unknown".to_string(),
-            confidence: 0.3,
+            confidence: LOW,
             indicators: vec![EnvIndicator {
                 key: "IS_CODE_AGENT".to_string(),
                 value: Some("1".to_string()),
@@ -227,7 +228,7 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
         // Replit host detection
         EnvMapping {
             id: "replit-host".to_string(),
-            confidence: 0.6,
+            confidence: LOW,
             indicators: vec![
                 EnvIndicator {
                     key: "REPLIT_USER".to_string(),
@@ -254,7 +255,7 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
         // Codespaces detection
         EnvMapping {
             id: "codespaces".to_string(),
-            confidence: 0.6,
+            confidence: LOW,
             indicators: vec![
                 EnvIndicator {
                     key: "CODESPACES".to_string(),
@@ -275,7 +276,7 @@ pub fn get_host_mappings() -> Vec<EnvMapping> {
         // CI detection
         EnvMapping {
             id: "ci".to_string(),
-            confidence: 0.6,
+            confidence: LOW,
             indicators: vec![
                 EnvIndicator {
                     key: "GITHUB_ACTIONS".to_string(),
@@ -308,7 +309,7 @@ mod tests {
         let env_vars = HashMap::from([("REPL_ID".to_string(), "abc123".to_string())]);
 
         assert!(replit_mapping.matches(&env_vars));
-        assert_eq!(replit_mapping.confidence, 0.9);
+        assert_eq!(replit_mapping.confidence, HIGH);
     }
 
     #[test]
@@ -319,7 +320,7 @@ mod tests {
         let env_vars = HashMap::from([("CURSOR_AGENT".to_string(), "1".to_string())]);
 
         assert!(cursor_mapping.matches(&env_vars));
-        assert_eq!(cursor_mapping.confidence, 1.0);
+        assert_eq!(cursor_mapping.confidence, HIGH);
     }
 
     #[test]

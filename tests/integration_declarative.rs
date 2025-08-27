@@ -42,7 +42,7 @@ fn test_declarative_agent_detector_with_replit() {
 
     // Verify it detected replit agent
     assert!(detection.contexts_add.contains(&"agent".to_string()));
-    assert_eq!(detection.confidence, 0.9);
+    assert_eq!(detection.confidence, 1.0);
 
     // Check that both agent_id and host facets were set
     assert!(detection.facets_patch.contains_key("agent_id"));

@@ -216,5 +216,5 @@ fn declarative_evidence_generation() {
     assert_eq!(replit_evidence.value.as_deref(), Some("abc123"));
     assert!(replit_evidence.supports.contains(&"agent".to_string()));
     assert!(replit_evidence.supports.contains(&"agent_id".to_string()));
-    assert_eq!(replit_evidence.confidence, 0.9);
+    assert_eq!(replit_evidence.confidence, 1.0);
 }

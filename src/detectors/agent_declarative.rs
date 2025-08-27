@@ -219,7 +219,7 @@ mod tests {
             detection.facets_patch.get("host").unwrap(),
             &json!("replit")
         );
-        assert_eq!(detection.confidence, 0.9);
+        assert_eq!(detection.confidence, 1.0);
     }
 
     #[test]
