@@ -135,7 +135,7 @@ struct Snapshot {
 }
 
 fn collect_snapshot() -> Snapshot {
-    let env = EnvSense::default();
+    let env = EnvSense::detect();
     let mut contexts = Vec::new();
     if env.contexts.agent {
         contexts.push("agent".to_string());
@@ -453,7 +453,7 @@ fn run_check(args: &CheckCmd) -> i32 {
         list_checks();
         return 0;
     }
-    let env = EnvSense::default();
+    let env = EnvSense::detect();
     if args.predicates.len() == 1 && args.predicates[0] == "ci" && !args.any && !args.all {
         let ci = env.facets.ci.clone();
         if ci.is_ci {

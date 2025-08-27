@@ -251,6 +251,7 @@ dependencies = [
  "ci_info",
  "clap",
  "colored",
+ "envsense-macros",
  "insta",
  "is-terminal",
  "predicates",
@@ -262,6 +263,26 @@ dependencies = [
  "supports-hyperlinks",
  "temp-env",
  "thiserror",
+]
+
+[[package]]
+name = "envsense-macros"
+version = "0.1.0"
+dependencies = [
+ "envsense-macros-impl",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn",
+]
+
+[[package]]
+name = "envsense-macros-impl"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

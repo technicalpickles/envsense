@@ -1,4 +1,5 @@
-use crate::detectors::{Detection, Detector, EnvSnapshot};
+use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::TERMINAL};
+use crate::schema::Evidence;
 use crate::traits::terminal::ColorLevel;
 use serde_json::json;
 
@@ -16,10 +17,13 @@ impl Detector for TerminalDetector {
     }
 
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
-        let mut detection = Detection::default();
+        let mut detection = Detection {
+            confidence: TERMINAL,
+            ..Default::default()
+        };
 
-        // Use TTY values from snapshot (which can be overridden for testing)
-        let is_interactive = snap.is_tty_stdin && snap.is_tty_stdout;
+        // Use TTY values from snapshot (now via dependency injection)
+        let is_interactive = snap.is_tty_stdin() && snap.is_tty_stdout();
 
         // Detect color level and hyperlinks support, but allow override
         let color_level = if let Some(override_color) = snap.env_vars.get("ENVSENSE_COLOR_LEVEL") {
@@ -61,19 +65,19 @@ impl Detector for TerminalDetector {
             .insert("is_interactive".to_string(), json!(is_interactive));
         detection
             .traits_patch
-            .insert("is_tty_stdin".to_string(), json!(snap.is_tty_stdin));
+            .insert("is_tty_stdin".to_string(), json!(snap.is_tty_stdin()));
         detection
             .traits_patch
-            .insert("is_tty_stdout".to_string(), json!(snap.is_tty_stdout));
+            .insert("is_tty_stdout".to_string(), json!(snap.is_tty_stdout()));
         detection
             .traits_patch
-            .insert("is_tty_stderr".to_string(), json!(snap.is_tty_stderr));
+            .insert("is_tty_stderr".to_string(), json!(snap.is_tty_stderr()));
         detection
             .traits_patch
-            .insert("is_piped_stdin".to_string(), json!(!snap.is_tty_stdin));
+            .insert("is_piped_stdin".to_string(), json!(!snap.is_tty_stdin()));
         detection
             .traits_patch
-            .insert("is_piped_stdout".to_string(), json!(!snap.is_tty_stdout));
+            .insert("is_piped_stdout".to_string(), json!(!snap.is_tty_stdout()));
         detection.traits_patch.insert(
             "supports_hyperlinks".to_string(),
             json!(supports_hyperlinks),
@@ -90,7 +94,22 @@ impl Detector for TerminalDetector {
             .traits_patch
             .insert("color_level".to_string(), json!(color_level_str));
 
-        detection.confidence = 1.0; // Terminal detection is always reliable
+        // Add evidence for TTY detection
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stdin", snap.is_tty_stdin())
+                .with_supports(vec!["is_tty_stdin".into()])
+                .with_confidence(TERMINAL),
+        );
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stdout", snap.is_tty_stdout())
+                .with_supports(vec!["is_tty_stdout".into()])
+                .with_confidence(TERMINAL),
+        );
+        detection.evidence.push(
+            Evidence::tty_trait("is_tty_stderr", snap.is_tty_stderr())
+                .with_supports(vec!["is_tty_stderr".into()])
+                .with_confidence(TERMINAL),
+        );
 
         detection
     }
@@ -112,12 +131,7 @@ mod tests {
         is_tty_stdout: bool,
         is_tty_stderr: bool,
     ) -> EnvSnapshot {
-        EnvSnapshot {
-            env_vars: HashMap::new(),
-            is_tty_stdin,
-            is_tty_stdout,
-            is_tty_stderr,
-        }
+        EnvSnapshot::with_mock_tty(HashMap::new(), is_tty_stdin, is_tty_stdout, is_tty_stderr)
     }
 
     #[test]
