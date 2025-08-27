@@ -26,7 +26,7 @@ jobs:
       - name: Configure LLD
         run: |
           if command -v ld.lld >/dev/null 2>&1; then
-            echo 'RUSTFLAGS="-C link-arg=-fuse-ld=lld"' >> $GITHUB_ENV
+            echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> $GITHUB_ENV
             echo "Using LLD linker"
           else
             echo "LLD not available, using default linker"
@@ -64,7 +64,7 @@ jobs:
       - name: Configure LLD
         run: |
           if command -v ld.lld >/dev/null 2>&1; then
-            echo 'RUSTFLAGS="-C link-arg=-fuse-ld=lld"' >> $GITHUB_ENV
+            echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> $GITHUB_ENV
             echo "Using LLD linker"
           else
             echo "LLD not available, using default linker"
