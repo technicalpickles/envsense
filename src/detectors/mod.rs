@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-pub mod agent;
 pub mod agent_declarative;
 pub mod ci;
 pub mod env_mapping;
