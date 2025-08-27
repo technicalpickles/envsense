@@ -483,19 +483,28 @@ This approach provides immediate benefits while minimizing risk and allowing for
 - No separate `src/evidence.rs` file exists
 - Evidence system is functional but could benefit from unification
 
-#### Phase 4: Macro-Based Engine Merging (NOT STARTED)
-**Status**: ⏳ **DEFERRED**
+#### Phase 4: Macro-Based Engine Merging (PLANNED)
+**Status**: 📋 **IMPLEMENTATION PLAN CREATED**
 
-**Reason for deferral:**
-- High complexity and risk
-- Current engine merging logic is working well
-- Phase 2 and 3 provided sufficient complexity reduction
-- Would require significant research and testing
+**Implementation Plan**: See `docs/planning/phase4-macro-merging-implementation.md` for detailed plan
+
+**Key Design Decisions:**
+- **Derive Macro Approach**: `#[derive(DetectionMerger)]` with field annotations
+- **Incremental Implementation**: 4-week phased approach with comprehensive testing
+- **Risk Mitigation**: Fallback strategies and feature flags
+- **Macro Crate**: Separate `envsense-macros` crate for clean separation
+
+**Expected Benefits:**
+- 60-80% reduction in engine merging logic (80+ lines → ~20 lines)
+- Compile-time validation of field mappings
+- Automatic handling of new fields
+- Improved maintainability and safety
 
 **Current state:**
 - Manual merging logic in `src/engine.rs` (lines 40-120)
-- Functional but could benefit from automation
-- 80+ lines of repetitive merging logic
+- Functional but repetitive and error-prone
+- 80+ lines of manual field mapping code
+- No compile-time validation of field mappings
 
 ### 📊 Progress Summary
 
@@ -504,10 +513,11 @@ This approach provides immediate benefits while minimizing risk and allowing for
 | Phase 1: Evidence Unification | ⏳ Deferred | Low | - |
 | Phase 2: Confidence Simplification | ✅ Complete | Low | Clear confidence reasoning, consistency |
 | Phase 3: Dependency Injection | ✅ Complete | Medium | Zero overhead, better testability, cleaner code |
-| Phase 4: Macro-Based Merging | ⏳ Deferred | High | - |
+| Phase 4: Macro-Based Merging | 📋 Planned | High | Implementation plan created |
 
 **Overall Progress**: 2/4 phases completed (50%)
 **Risk-Adjusted Progress**: 2/2 low-medium risk phases completed (100%)
+**Planning Progress**: 3/4 phases planned (75%)
 
 ### 🎯 Key Achievements
 
@@ -520,7 +530,7 @@ This approach provides immediate benefits while minimizing risk and allowing for
 ### 🔮 Future Considerations
 
 **Phase 1 (Evidence Unification)** - Consider if evidence system complexity becomes an issue
-**Phase 4 (Macro-Based Merging)** - Consider if engine merging logic becomes a maintenance burden
+**Phase 4 (Macro-Based Merging)** - Implementation plan created, ready for execution when needed
 
 ## Conclusion
 

@@ -6,6 +6,7 @@ use crate::detectors::terminal::TerminalDetector;
 use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
 use crate::engine::DetectionEngine;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
+use envsense_macros::{DetectionMergerDerive, DetectionMerger, Detection};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -153,7 +154,7 @@ impl From<TerminalTraits> for Traits {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, DetectionMergerDerive)]
 pub struct EnvSense {
     pub contexts: Contexts,
     pub facets: Facets,
@@ -184,7 +185,14 @@ impl EnvSense {
 
 impl Default for EnvSense {
     fn default() -> Self {
-        Self::detect()
+        Self {
+            contexts: Contexts::default(),
+            facets: Facets::default(),
+            traits: Traits::default(),
+            evidence: Vec::new(),
+            version: SCHEMA_VERSION.to_string(),
+            rules_version: String::new(),
+        }
     }
 }
 

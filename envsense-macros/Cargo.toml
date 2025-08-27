@@ -1,0 +1,11 @@
+[package]
+name = "envsense-macros"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+serde_json = "1"
+envsense-macros-impl = { path = "./envsense-macros-impl" }
