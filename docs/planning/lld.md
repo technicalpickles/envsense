@@ -68,7 +68,7 @@ chmod +x scratch/lld-benchmark.sh
 
 #### 1.3 Configure Cargo for LLD
 
-Create `~/.cargo/config.toml`:
+Create `.cargo/config.toml` in the project root:
 ```toml
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
