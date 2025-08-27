@@ -104,8 +104,8 @@ struct CheckCmd {
     #[arg(long)]
     explain: bool,
 
-    /// List known predicates
-    #[arg(long = "list-checks", action = clap::ArgAction::SetTrue)]
+    /// List available predicates
+    #[arg(long = "list", action = clap::ArgAction::SetTrue)]
     list_checks: bool,
 }
 

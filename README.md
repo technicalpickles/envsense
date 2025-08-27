@@ -46,7 +46,7 @@ envsense check --all agent trait:is_interactive && echo "Interactive agent sessi
 envsense check --explain facet:ide_id=cursor
 
 # List all available predicates
-envsense check --list-checks
+envsense check --list
 ```
 
 ---
@@ -110,7 +110,7 @@ The `check` command evaluates predicates against the environment and exits with 
 - `--all` - Require all predicates to match (default behavior)
 
 #### Discovery
-- `--list-checks` - List all available predicates
+- `--list` - List all available predicates
 
 #### Examples
 ```bash
@@ -129,7 +129,7 @@ envsense check --explain agent         # Shows why agent was/wasn't detected
 envsense check --json --explain agent  # JSON with reasoning included
 
 # List available predicates
-envsense check --list-checks           # Shows all contexts, facets, and traits
+envsense check --list                  # Shows all contexts, facets, and traits
 ```
 
 ### Info Command Options
