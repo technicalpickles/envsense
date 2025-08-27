@@ -39,7 +39,8 @@ expression: json
       "key": "TERM_PROGRAM",
       "signal": "env",
       "supports": [
-        "ide"
+        "ide",
+        "ide_id"
       ],
       "value": "vscode"
     },
@@ -48,6 +49,7 @@ expression: json
       "key": "CURSOR_TRACE_ID",
       "signal": "env",
       "supports": [
+        "ide",
         "ide_id"
       ]
     }

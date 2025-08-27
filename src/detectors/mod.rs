@@ -4,7 +4,6 @@ pub mod agent;
 pub mod agent_declarative;
 pub mod ci;
 pub mod env_mapping;
-pub mod ide;
 pub mod ide_declarative;
 pub mod terminal;
 pub mod tty;

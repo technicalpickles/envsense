@@ -1,8 +1,8 @@
 use crate::ci::CiFacet;
 use crate::detectors::DeclarativeAgentDetector;
+use crate::detectors::DeclarativeIdeDetector;
 use crate::detectors::ci::CiDetector;
 use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
-use crate::detectors::ide::IdeDetector;
 use crate::detectors::terminal::TerminalDetector;
 use crate::engine::DetectionEngine;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
@@ -173,7 +173,7 @@ fn detect_environment() -> EnvSense {
         .register(TerminalDetector::new())
         .register(DeclarativeAgentDetector::new())
         .register(CiDetector::new())
-        .register(IdeDetector::new());
+        .register(DeclarativeIdeDetector::new());
 
     engine.detect()
 }
