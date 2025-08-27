@@ -224,7 +224,7 @@ sudo apt install clang lld
 
 ### Configuration
 Create `~/.cargo/config.toml` with LLD settings (see docs/planning/lld.md)
-```
+
 
 **AGENTS.md updates:**
 - Add LLD setup to development workflow
@@ -239,10 +239,10 @@ Create `~/.cargo/config.toml` with LLD settings (see docs/planning/lld.md)
 
 ### Build Failures
 If builds fail with LLD, temporarily disable:
-```bash
+\`\`\`bash
 unset RUSTFLAGS
 cargo build
-```
+\`\`\`
 
 ### Performance Issues
 If LLD is slower than expected:

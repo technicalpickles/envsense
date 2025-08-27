@@ -16,13 +16,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      
+
       # Add LLD with fallback
       - name: Install LLD
         run: |
           sudo apt update
           sudo apt install -y clang lld || echo "LLD installation failed, using default linker"
-      
+
       - name: Configure LLD
         run: |
           if command -v ld.lld >/dev/null 2>&1; then
@@ -31,7 +31,7 @@ jobs:
           else
             echo "LLD not available, using default linker"
           fi
-      
+
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy
@@ -53,14 +53,14 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y clang lld || echo "LLD installation failed"
-      
+
       - name: Install LLD (macOS)
         if: matrix.os == 'macos-latest'
         run: |
           brew install llvm lld || echo "LLVM/LLD installation failed"
           echo "CC=clang" >> "$GITHUB_ENV"
           echo "CXX=clang++" >> "$GITHUB_ENV"
-      
+
       - name: Configure LLD
         run: |
           if command -v ld.lld >/dev/null 2>&1; then
@@ -69,7 +69,7 @@ jobs:
           else
             echo "LLD not available, using default linker"
           fi
-      
+
       - name: Run tests
         run: cargo test --all --locked
       - name: Validate baselines
