@@ -125,6 +125,7 @@ struct Snapshot {
     traits: Value,
     facets: Value,
     meta: Value,
+    evidence: Value,
 }
 
 fn collect_snapshot() -> Snapshot {
@@ -158,6 +159,7 @@ fn collect_snapshot() -> Snapshot {
         meta: json!({
             "schema_version": env.version,
         }),
+        evidence: serde_json::to_value(env.evidence).unwrap(),
     }
 }
 
@@ -586,6 +588,7 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
             "traits": snapshot.traits,
             "facets": snapshot.facets,
             "meta": snapshot.meta,
+            "evidence": snapshot.evidence,
         });
         if let Some(f) = args.fields.as_deref() {
             v = match filter_json_fields(v, f) {

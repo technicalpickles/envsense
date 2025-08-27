@@ -9,7 +9,7 @@
 // This test demonstrates how the new dependency injection system works,
 // showing the benefits over the old environment variable override approach.
 
-use envsense::detectors::agent::AgentDetector;
+use envsense::detectors::DeclarativeAgentDetector;
 use envsense::detectors::ci::CiDetector;
 use envsense::detectors::ide::IdeDetector;
 use envsense::detectors::terminal::TerminalDetector;
@@ -58,7 +58,7 @@ fn demonstrate_dependency_injection_benefits() {
     // Test 4: Full detection engine with mock TTY
     let engine = DetectionEngine::new()
         .register(TerminalDetector::new())
-        .register(AgentDetector::new())
+        .register(DeclarativeAgentDetector::new())
         .register(CiDetector::new())
         .register(IdeDetector::new());
     let result = engine.detect_from_snapshot(&piped_snapshot);

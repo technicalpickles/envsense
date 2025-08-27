@@ -133,32 +133,6 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
             facets: HashMap::from([("host".to_string(), "replit".to_string())]),
             contexts: vec!["agent".to_string()],
         },
-        EnvMapping {
-            id: "replit-host".to_string(),
-            confidence: 0.6,
-            indicators: vec![
-                EnvIndicator {
-                    key: "REPLIT_USER".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "REPLIT_DEV_DOMAIN".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "REPLIT_DEPLOYMENT".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-            ],
-            facets: HashMap::from([("host".to_string(), "replit".to_string())]),
-            contexts: vec![],
-        },
         // Cursor detection
         EnvMapping {
             id: "cursor".to_string(),
@@ -250,6 +224,33 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
 
 pub fn get_host_mappings() -> Vec<EnvMapping> {
     vec![
+        // Replit host detection
+        EnvMapping {
+            id: "replit-host".to_string(),
+            confidence: 0.6,
+            indicators: vec![
+                EnvIndicator {
+                    key: "REPLIT_USER".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "REPLIT_DEV_DOMAIN".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+                EnvIndicator {
+                    key: "REPLIT_DEPLOYMENT".to_string(),
+                    value: None,
+                    required: false,
+                    prefix: false,
+                },
+            ],
+            facets: HashMap::from([("host".to_string(), "replit".to_string())]),
+            contexts: vec![],
+        },
         // Codespaces detection
         EnvMapping {
             id: "codespaces".to_string(),

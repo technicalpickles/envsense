@@ -1,5 +1,5 @@
 use crate::ci::CiFacet;
-use crate::detectors::agent::AgentDetector;
+use crate::detectors::DeclarativeAgentDetector;
 use crate::detectors::ci::CiDetector;
 use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
 use crate::detectors::ide::IdeDetector;
@@ -169,7 +169,7 @@ pub const SCHEMA_VERSION: &str = "0.2.0";
 fn detect_environment() -> EnvSense {
     let engine = DetectionEngine::new()
         .register(TerminalDetector::new())
-        .register(AgentDetector::new())
+        .register(DeclarativeAgentDetector::new())
         .register(CiDetector::new())
         .register(IdeDetector::new());
 
