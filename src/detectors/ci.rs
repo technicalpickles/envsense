@@ -170,12 +170,7 @@ mod tests {
             env_map.insert(k.to_string(), v.to_string());
         }
 
-        EnvSnapshot {
-            env_vars: env_map,
-            is_tty_stdin: false,
-            is_tty_stdout: false,
-            is_tty_stderr: false,
-        }
+        EnvSnapshot::with_mock_tty(env_map, false, false, false)
     }
 
     #[test]
