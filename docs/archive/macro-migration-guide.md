@@ -60,7 +60,6 @@ pub struct EnvSense {
     pub traits: Traits,         // Automatically maps to traits_patch
     pub evidence: Vec<Evidence>, // Automatically maps to evidence
     pub version: String,        // Ignored (no mapping)
-    pub rules_version: String,  // Ignored (no mapping)
 }
 
 impl DetectionEngine {
@@ -96,7 +95,6 @@ pub struct EnvSense {
     pub traits: Traits,
     pub evidence: Vec<Evidence>,
     pub version: String,
-    pub rules_version: String,
 }
 
 // After
@@ -109,7 +107,6 @@ pub struct EnvSense {
     pub traits: Traits,
     pub evidence: Vec<Evidence>,
     pub version: String,
-    pub rules_version: String,
 }
 ```
 

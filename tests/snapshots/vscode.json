@@ -9,8 +9,7 @@
     "ide_id": "vscode"
   },
   "meta": {
-    "rules_version": "",
-    "schema_version": "0.1.0"
+    "schema_version": "0.2.0"
   },
   "traits": {
     "color_level": "none",

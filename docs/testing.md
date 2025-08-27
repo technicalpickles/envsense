@@ -56,7 +56,7 @@ Located in `tests/cli.rs` and `tests/cli_terminal.rs`.
   Validates that TTY detection and `NO_COLOR` override colorized output.
 
 * **Meta fields**
-  Ensures `meta` includes both `schema_version` and `rules_version`.
+  Ensures `meta` includes `schema_version`.
 
 * **Terminal traits**
   `tests/cli_terminal.rs` asserts correct piped/TTY trait reporting.
@@ -91,6 +91,37 @@ Windows support is expected but may require extra care around TTY detection and 
 * [`serial_test`](https://crates.io/crates/serial_test) – isolate env-var-sensitive tests.
 * [`temp-env`](https://crates.io/crates/temp-env) – temporary environment manipulation.
 * [`schemars`](https://crates.io/crates/schemars) – schema generation validation.
+* [`insta`](https://crates.io/crates/insta) – snapshot testing for JSON outputs.
+
+---
+
+### 4. Snapshot Tests
+
+Located in `tests/info_snapshots.rs`, these tests validate that the CLI produces consistent JSON output across different environments.
+
+* **Purpose**: Ensures detection output remains stable and predictable
+* **Coverage**: Tests various environments (VS Code, Cursor, CI systems, terminals, etc.)
+* **Files**: 
+  - `tests/snapshots/*.snap` - Insta snapshot files
+  - `tests/snapshots/*.json` - Golden JSON outputs
+
+* **Updating Snapshots**: When schema changes (like removing `rules_version`):
+  ```bash
+  # Run tests to see failures
+  cargo test --test info_snapshots
+  
+  # Install cargo-insta if not already installed
+  cargo install cargo-insta
+  
+  # Review and accept changes
+  cargo insta review
+  ```
+
+* **Schema Changes**: When making breaking schema changes:
+  1. Bump `SCHEMA_VERSION` in `src/schema.rs`
+  2. Update all snapshot tests to expect new version
+  3. Run `cargo insta review` to update snapshots
+  4. Verify all tests pass
 
 ---
 

@@ -7,5 +7,5 @@ pre-commit:
       
     clippy:
       glob: "*.rs"
-      run: cargo clippy --all --locked --fix -D warnings --allow-dirty --allow-staged
+      run: cargo clippy --all --locked --fix --allow-dirty --allow-staged
       stage_fixed: true

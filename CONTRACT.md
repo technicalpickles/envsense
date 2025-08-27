@@ -35,7 +35,6 @@ facets
 traits
 evidence
 version
-rules_version
 ```
 
 ### contexts

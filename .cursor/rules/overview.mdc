@@ -1,0 +1,86 @@
+---
+globs:
+alwaysApply: true
+---
+
+
+# envsense Development Guidelines
+
+## Quick Reference
+
+**envsense** is a Rust library and CLI for detecting runtime environments. This overview provides essential development commands and references to detailed documentation.
+
+## Essential Commands
+
+```bash
+# Code quality (enforced by pre-commit hooks)
+cargo fmt --all                    # Format all code
+cargo clippy --all --fix -D warnings  # Lint and fix issues
+cargo test --all                   # Run all tests
+
+# Development workflow
+cargo build --release             # Build release version
+cargo run -- check agent          # Test CLI functionality
+cargo run -- info --json          # Inspect environment data
+
+# Testing specific components
+cargo test --package envsense     # Test main crate only
+cargo test --package envsense-macros  # Test macro crate only
+cargo test --test cli             # Run CLI integration tests
+```
+
+## Project Structure
+
+- **`src/`**: Core library and CLI (`detectors/`, `traits/`, `schema.rs`, `engine.rs`)
+- **`envsense-macros/`**: Procedural macros for environment detection
+- **`tests/`**: Integration tests and snapshots
+- **`docs/`**: Detailed documentation (see below)
+
+## Key Development Rules
+
+1. **Always run `cargo fmt --all` before committing** (enforced by lefthook)
+2. **Run `cargo test --all` to ensure all tests pass**
+3. **Keep `Cargo.lock` up to date** and commit when dependencies change
+4. **Schema changes require version bump** and test updates
+5. **CLI commands must match examples in `README.md`**
+
+## Detailed Documentation
+
+For comprehensive information, see:
+
+- **[Architecture](docs/architecture.md)** - System design and core concepts
+- **[Testing](docs/testing.md)** - Testing strategy and guidelines  
+- **[Extending](docs/extending.md)** - Adding new detectors
+- **[Script Integration](docs/script-integration.md)** - External script integration
+- **[Debugging CI](docs/debugging-ci.md)** - CI/CD troubleshooting
+
+## Schema & API
+
+- **Schema versioning**: Defined in `src/schema.rs`, contract for all consumers
+- **Detection precedence**: Overrides > explicit > channel > ancestry > heuristics
+- **Evidence model**: Each claim backed by signals, confidence scores, and audit trail
+- **Macro system**: Automatic field mapping with zero runtime overhead
+
+## Development Workflow
+
+1. **Pre-commit**: lefthook runs `cargo fmt` and `cargo clippy --fix`
+2. **CI**: GitHub Actions runs `cargo test --all --locked`
+3. **Testing**: Unit tests, integration tests, snapshot tests with `insta`
+4. **Documentation**: Keep `README.md` updated, use doc comments for APIs
+
+## Quick Debugging
+
+```bash
+# Test specific detection
+cargo run -- check facet:agent_id=cursor
+
+# View full environment data
+cargo run -- info --json
+
+# List available predicates
+cargo run -- check --list
+
+# Generate documentation
+cargo doc --open
+```
+
