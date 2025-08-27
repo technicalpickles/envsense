@@ -91,10 +91,29 @@ pub struct EnvSnapshot {
 
 impl EnvSnapshot {
     /// Create snapshot with real TTY detection for production use
+    /// Respects ENVSENSE_TTY_* environment variable overrides
     pub fn current() -> Self {
+        let env_vars: HashMap<String, String> = std::env::vars().collect();
+        
+        // Check for TTY environment variable overrides
+        let tty_detector = if let (Some(stdin), Some(stdout), Some(stderr)) = (
+            env_vars.get("ENVSENSE_TTY_STDIN"),
+            env_vars.get("ENVSENSE_TTY_STDOUT"),
+            env_vars.get("ENVSENSE_TTY_STDERR"),
+        ) {
+            // Parse boolean values from environment variables
+            let stdin_tty = stdin.parse::<bool>().unwrap_or(false);
+            let stdout_tty = stdout.parse::<bool>().unwrap_or(false);
+            let stderr_tty = stderr.parse::<bool>().unwrap_or(false);
+            
+            TtyDetector::mock(stdin_tty, stdout_tty, stderr_tty)
+        } else {
+            TtyDetector::real()
+        };
+        
         Self {
-            env_vars: std::env::vars().collect(),
-            tty_detector: TtyDetector::real(),
+            env_vars,
+            tty_detector,
         }
     }
 
