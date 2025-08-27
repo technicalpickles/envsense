@@ -1,9 +1,14 @@
-use crate::agent::{StdEnv, detect_agent};
-use crate::ci::{CiFacet, detect_ci as detect_ci_facet};
+use crate::ci::CiFacet;
+use crate::detectors::agent::AgentDetector;
+use crate::detectors::ci::CiDetector;
+use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
+use crate::detectors::ide::IdeDetector;
+use crate::detectors::terminal::TerminalDetector;
+use crate::engine::DetectionEngine;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
+use envsense_macros::{Detection, DetectionMerger, DetectionMergerDerive};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -23,6 +28,65 @@ pub struct Evidence {
     #[serde(default)]
     pub supports: Vec<String>,
     pub confidence: f32,
+}
+
+impl Evidence {
+    /// Create evidence from environment variable with value
+    ///
+    /// Used when we have a direct environment variable match.
+    /// Confidence: HIGH (1.0) - Direct env var match
+    pub fn env_var(key: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            signal: Signal::Env,
+            key: key.into(),
+            value: Some(value.into()),
+            supports: Vec::new(),
+            confidence: HIGH,
+        }
+    }
+
+    /// Create evidence from environment variable presence
+    ///
+    /// Used when we know an environment variable exists but don't capture its value.
+    /// Confidence: MEDIUM (0.8) - Inferred from presence
+    pub fn env_presence(key: impl Into<String>) -> Self {
+        Self {
+            signal: Signal::Env,
+            key: key.into(),
+            value: None,
+            supports: Vec::new(),
+            confidence: MEDIUM,
+        }
+    }
+
+    /// Create evidence from TTY trait detection
+    ///
+    /// Used for terminal capability detection which is always reliable.
+    /// Confidence: TERMINAL (1.0) - Always reliable
+    pub fn tty_trait(key: impl Into<String>, is_tty: bool) -> Self {
+        Self {
+            signal: Signal::Tty,
+            key: key.into(),
+            value: Some(is_tty.to_string()),
+            supports: Vec::new(),
+            confidence: TERMINAL,
+        }
+    }
+
+    /// Add support contexts to evidence
+    pub fn with_supports(mut self, supports: Vec<String>) -> Self {
+        self.supports = supports;
+        self
+    }
+
+    /// Override confidence level
+    ///
+    /// Use this sparingly - prefer the default confidence levels
+    /// from the evidence constructors.
+    pub fn with_confidence(mut self, confidence: f32) -> Self {
+        self.confidence = confidence;
+        self
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq)]
@@ -90,7 +154,7 @@ impl From<TerminalTraits> for Traits {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, DetectionMergerDerive)]
 pub struct EnvSense {
     pub contexts: Contexts,
     pub facets: Facets,
@@ -103,103 +167,32 @@ pub struct EnvSense {
 
 pub const SCHEMA_VERSION: &str = "0.1.0";
 
+fn detect_environment() -> EnvSense {
+    let engine = DetectionEngine::new()
+        .register(TerminalDetector::new())
+        .register(AgentDetector::new())
+        .register(CiDetector::new())
+        .register(IdeDetector::new());
+
+    engine.detect()
+}
+
 impl EnvSense {
-    fn detect_ide(&mut self) {
-        if let Ok(term_program) = std::env::var("TERM_PROGRAM")
-            && term_program == "vscode"
-        {
-            self.contexts.ide = true;
-            self.evidence.push(Evidence {
-                signal: Signal::Env,
-                key: "TERM_PROGRAM".into(),
-                value: Some(term_program),
-                supports: vec!["ide".into()],
-                confidence: 0.95,
-            });
-
-            if std::env::var("CURSOR_TRACE_ID").is_ok() {
-                self.facets.ide_id = Some("cursor".into());
-                self.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: "CURSOR_TRACE_ID".into(),
-                    value: None,
-                    supports: vec!["ide_id".into()],
-                    confidence: 0.95,
-                });
-            } else if let Ok(version) = std::env::var("TERM_PROGRAM_VERSION") {
-                let ide_id = if version.to_lowercase().contains("insider") {
-                    "vscode-insiders"
-                } else {
-                    "vscode"
-                };
-                self.facets.ide_id = Some(ide_id.into());
-                self.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: "TERM_PROGRAM_VERSION".into(),
-                    value: Some(version),
-                    supports: vec!["ide_id".into()],
-                    confidence: 0.95,
-                });
-            }
-        }
-    }
-
-    fn detect_agent(&mut self) {
-        let det = detect_agent(&StdEnv);
-        if det.agent.is_agent {
-            self.contexts.agent = true;
-            if let Some(id) = det.agent.name.clone() {
-                self.facets.agent_id = Some(id);
-            }
-            if let Some(raw) = det.agent.session.get("raw").and_then(Value::as_object)
-                && let Some((k, v)) = raw.iter().next()
-            {
-                self.evidence.push(Evidence {
-                    signal: Signal::Env,
-                    key: k.clone(),
-                    value: v.as_str().map(|s| s.to_string()),
-                    supports: vec!["agent".into(), "agent_id".into()],
-                    confidence: det.agent.confidence,
-                });
-            }
-        }
-    }
-
-    fn detect_ci(&mut self) {
-        let ci = detect_ci_facet();
-        if ci.is_ci {
-            self.contexts.ci = true;
-            if let Some(v) = ci.vendor.clone() {
-                self.facets.ci_id = Some(v);
-            }
-        }
-        self.facets.ci = ci;
-    }
-
-    fn detect_terminal(&mut self) {
-        self.traits = TerminalTraits::detect().into();
-    }
-
     pub fn detect() -> Self {
-        let mut env = Self {
+        detect_environment()
+    }
+}
+
+impl Default for EnvSense {
+    fn default() -> Self {
+        Self {
             contexts: Contexts::default(),
             facets: Facets::default(),
             traits: Traits::default(),
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
             rules_version: String::new(),
-        };
-        env.detect_terminal();
-        env.detect_agent();
-        env.detect_ci();
-        env.detect_ide();
-        env
-    }
-}
-
-impl Default for EnvSense {
-    fn default() -> Self {
-        Self::detect()
+        }
     }
 }
 

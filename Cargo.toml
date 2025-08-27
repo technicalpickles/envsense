@@ -1,3 +1,10 @@
+[workspace]
+members = [
+    ".",                    # Main crate (current directory)
+    "envsense-macros",      # Macro crate
+    "envsense-macros/envsense-macros-impl"  # Proc-macro implementation
+]
+
 [package]
 name = "envsense"
 version = "0.1.0"
@@ -15,6 +22,7 @@ is-terminal = "0.4"
 supports-color = "3"
 supports-hyperlinks = "3"
 ci_info = "0.14"
+envsense-macros = { path = "./envsense-macros" }
 
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }

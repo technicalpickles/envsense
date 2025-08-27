@@ -1,6 +1,8 @@
 pub mod agent;
 pub mod check;
 pub mod ci;
+pub mod detectors;
+pub mod engine;
 pub mod schema;
 pub mod traits;
 
