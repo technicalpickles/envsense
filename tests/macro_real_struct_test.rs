@@ -6,13 +6,13 @@ use envsense::schema::EnvSense;
 fn test_macro_integration_works() {
     // Test that the macro integration works by using the main crate's EnvSense
     let envsense = EnvSense::default();
-    
+
     // Verify the struct has the expected fields
-    assert_eq!(envsense.contexts.agent, false);
-    assert_eq!(envsense.contexts.ide, false);
-    assert_eq!(envsense.contexts.ci, false);
-    assert_eq!(envsense.traits.is_interactive, false);
-    assert_eq!(envsense.traits.is_tty_stdout, false);
+    assert!(!envsense.contexts.agent);
+    assert!(!envsense.contexts.ide);
+    assert!(!envsense.contexts.ci);
+    assert!(!envsense.traits.is_interactive);
+    assert!(!envsense.traits.is_tty_stdout);
     assert_eq!(envsense.facets.agent_id, None);
     assert_eq!(envsense.facets.ide_id, None);
     assert_eq!(envsense.evidence.len(), 0);
@@ -23,25 +23,20 @@ fn test_macro_integration_works() {
 #[test]
 fn test_detection_engine_uses_macro() {
     // Test that the detection engine works with the macro-generated merging
-    use envsense::engine::DetectionEngine;
     use envsense::detectors::terminal::TerminalDetector;
-    
-    let engine = DetectionEngine::new()
-        .register(TerminalDetector::new());
-    
+    use envsense::engine::DetectionEngine;
+
+    let engine = DetectionEngine::new().register(TerminalDetector::new());
+
     let result = engine.detect();
-    
+
     // Verify that the macro-generated merging worked
     // The terminal detector should have set some traits
-    assert!(result.traits.is_tty_stdin || !result.traits.is_tty_stdin); // Boolean logic
-    assert!(result.traits.is_tty_stdout || !result.traits.is_tty_stdout);
-    assert!(result.traits.is_tty_stderr || !result.traits.is_tty_stderr);
-    assert!(result.traits.is_piped_stdin || !result.traits.is_piped_stdin);
-    assert!(result.traits.is_piped_stdout || !result.traits.is_piped_stdout);
-    
+    // Boolean traits can be either true or false
+
     // Evidence should be collected
-    assert!(result.evidence.len() >= 0);
-    
+    // Evidence length is always >= 0
+
     // Version should be set
     assert_eq!(result.version, "0.1.0");
 }

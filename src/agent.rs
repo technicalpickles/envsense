@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 
 // Import confidence constants
-use crate::detectors::confidence::{HIGH, MEDIUM, LOW};
+use crate::detectors::confidence::{HIGH, LOW, MEDIUM};
 
 pub trait EnvReader {
     fn get(&self, key: &str) -> Option<String>;

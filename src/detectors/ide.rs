@@ -28,7 +28,7 @@ impl Detector for IdeDetector {
             detection.evidence.push(
                 Evidence::env_var("TERM_PROGRAM", term_program)
                     .with_supports(vec!["ide".into()])
-                    .with_confidence(HIGH)
+                    .with_confidence(HIGH),
             );
 
             // Detect specific IDE variant
@@ -39,7 +39,7 @@ impl Detector for IdeDetector {
                 detection.evidence.push(
                     Evidence::env_presence("CURSOR_TRACE_ID")
                         .with_supports(vec!["ide_id".into()])
-                        .with_confidence(HIGH) // Direct env var presence
+                        .with_confidence(HIGH), // Direct env var presence
                 );
             } else if let Some(version) = snap.get_env("TERM_PROGRAM_VERSION") {
                 let ide_id = if version.to_lowercase().contains("insider") {
@@ -53,7 +53,7 @@ impl Detector for IdeDetector {
                 detection.evidence.push(
                     Evidence::env_var("TERM_PROGRAM_VERSION", version)
                         .with_supports(vec!["ide_id".into()])
-                        .with_confidence(HIGH) // Direct env var match
+                        .with_confidence(HIGH), // Direct env var match
                 );
             }
         }

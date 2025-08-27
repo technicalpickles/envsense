@@ -65,11 +65,11 @@ impl Detector for AgentDetector {
                 } else {
                     Evidence::env_presence(k)
                 };
-                
+
                 detection.evidence.push(
                     evidence
                         .with_supports(vec!["agent".into(), "agent_id".into()])
-                        .with_confidence(agent_detection.agent.confidence)
+                        .with_confidence(agent_detection.agent.confidence),
                 );
             }
         }

@@ -34,7 +34,8 @@ impl DetectionEngine {
         };
 
         // Collect all detections
-        let detections: Vec<envsense_macros::Detection> = self.detectors
+        let detections: Vec<envsense_macros::Detection> = self
+            .detectors
             .iter()
             .map(|detector| {
                 let detection = detector.detect(snapshot);
@@ -42,7 +43,11 @@ impl DetectionEngine {
                     contexts_add: detection.contexts_add,
                     traits_patch: detection.traits_patch,
                     facets_patch: detection.facets_patch,
-                    evidence: detection.evidence.into_iter().map(|e| serde_json::to_value(e).unwrap()).collect(),
+                    evidence: detection
+                        .evidence
+                        .into_iter()
+                        .map(|e| serde_json::to_value(e).unwrap())
+                        .collect(),
                     confidence: detection.confidence,
                 }
             })

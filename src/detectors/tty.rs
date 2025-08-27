@@ -14,27 +14,43 @@ impl TtyDetector {
     pub fn real() -> Self {
         Self::Real
     }
-    
+
     /// Create a mock TTY detector with specified values
     pub fn mock(stdin: bool, stdout: bool, stderr: bool) -> Self {
-        Self::Mock { stdin, stdout, stderr }
+        Self::Mock {
+            stdin,
+            stdout,
+            stderr,
+        }
     }
-    
+
     /// Create a mock TTY detector for all TTY streams
     pub fn mock_all_tty() -> Self {
-        Self::Mock { stdin: true, stdout: true, stderr: true }
+        Self::Mock {
+            stdin: true,
+            stdout: true,
+            stderr: true,
+        }
     }
-    
+
     /// Create a mock TTY detector for no TTY streams
     pub fn mock_no_tty() -> Self {
-        Self::Mock { stdin: false, stdout: false, stderr: false }
+        Self::Mock {
+            stdin: false,
+            stdout: false,
+            stderr: false,
+        }
     }
-    
+
     /// Create a mock TTY detector for piped I/O (stdin TTY, stdout/stderr not)
     pub fn mock_piped_io() -> Self {
-        Self::Mock { stdin: true, stdout: false, stderr: false }
+        Self::Mock {
+            stdin: true,
+            stdout: false,
+            stderr: false,
+        }
     }
-    
+
     /// Check if stdin is a TTY
     pub fn is_tty_stdin(&self) -> bool {
         match self {
@@ -45,7 +61,7 @@ impl TtyDetector {
             Self::Mock { stdin, .. } => *stdin,
         }
     }
-    
+
     /// Check if stdout is a TTY
     pub fn is_tty_stdout(&self) -> bool {
         match self {
@@ -56,7 +72,7 @@ impl TtyDetector {
             Self::Mock { stdout, .. } => *stdout,
         }
     }
-    
+
     /// Check if stderr is a TTY
     pub fn is_tty_stderr(&self) -> bool {
         match self {

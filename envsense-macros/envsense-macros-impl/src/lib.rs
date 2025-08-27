@@ -5,18 +5,18 @@ use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed};
 
 /// Derive macro for automatic detection merging
-/// 
+///
 /// This macro generates a `DetectionMerger` implementation that automatically
 /// merges detection results based on field names.
 #[proc_macro_derive(DetectionMerger)]
 pub fn derive_detection_merger(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    
+
     let struct_name = input.ident;
     let fields = parse_fields(&input.data);
-    
+
     let merge_impl = generate_merge_impl(&struct_name, &fields);
-    
+
     TokenStream::from(quote! {
         impl DetectionMerger for #struct_name {
             #merge_impl
@@ -25,7 +25,7 @@ pub fn derive_detection_merger(input: TokenStream) -> TokenStream {
 }
 
 /// Custom attribute macro for detection_merge
-/// 
+///
 /// This attribute can be used on struct fields to specify how they should be merged.
 #[proc_macro_attribute]
 pub fn detection_merge(_attr: TokenStream, _item: TokenStream) -> TokenStream {
@@ -81,10 +81,10 @@ fn parse_unnamed_fields(_fields: &FieldsUnnamed) -> Vec<FieldMapping> {
 
 fn parse_field(field: &Field) -> Option<FieldMapping> {
     let field_name = field.ident.as_ref()?.to_string();
-    
+
     // Determine field type based on the type path
     let field_type = detect_field_type(field);
-    
+
     // Map based on field name
     match field_name.as_str() {
         "contexts" => Some(FieldMapping {
@@ -134,9 +134,12 @@ fn detect_field_type(field: &Field) -> FieldType {
     }
 }
 
-fn generate_merge_impl(_struct_name: &syn::Ident, fields: &[FieldMapping]) -> proc_macro2::TokenStream {
+fn generate_merge_impl(
+    _struct_name: &syn::Ident,
+    fields: &[FieldMapping],
+) -> proc_macro2::TokenStream {
     let mut merge_statements = Vec::new();
-    
+
     // Generate data collection
     merge_statements.push(quote! {
         let mut all_contexts = std::collections::HashSet::new();
@@ -150,11 +153,11 @@ fn generate_merge_impl(_struct_name: &syn::Ident, fields: &[FieldMapping]) -> pr
             all_facets.extend(detection.facets_patch.clone());
         }
     });
-    
+
     // Generate field-specific merging logic
     for field in fields {
         let field_name = syn::Ident::new(&field.field_name, proc_macro2::Span::call_site());
-        
+
         match (&field.mapping_type, &field.field_type) {
             (MappingType::Contexts, FieldType::Contexts) => {
                 merge_statements.push(quote! {
@@ -242,7 +245,7 @@ fn generate_merge_impl(_struct_name: &syn::Ident, fields: &[FieldMapping]) -> pr
             }
         }
     }
-    
+
     quote! {
         fn merge_detections(&mut self, detections: &[Detection]) {
             #(#merge_statements)*

@@ -64,7 +64,7 @@
 
 mod detection_merger; // Contains DetectionMerger trait and Detection struct
 
-pub use detection_merger::{DetectionMerger, Detection};
+pub use detection_merger::{Detection, DetectionMerger};
 
 // Re-export the derive macro
 pub use envsense_macros_impl::DetectionMerger as DetectionMergerDerive;

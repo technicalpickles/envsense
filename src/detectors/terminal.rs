@@ -17,10 +17,10 @@ impl Detector for TerminalDetector {
     }
 
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
-        let mut detection = Detection::default();
-
-        // TTY detection is always reliable
-        detection.confidence = TERMINAL;
+        let mut detection = Detection {
+            confidence: TERMINAL,
+            ..Default::default()
+        };
 
         // Use TTY values from snapshot (now via dependency injection)
         let is_interactive = snap.is_tty_stdin() && snap.is_tty_stdout();
@@ -98,17 +98,17 @@ impl Detector for TerminalDetector {
         detection.evidence.push(
             Evidence::tty_trait("is_tty_stdin", snap.is_tty_stdin())
                 .with_supports(vec!["is_tty_stdin".into()])
-                .with_confidence(TERMINAL)
+                .with_confidence(TERMINAL),
         );
         detection.evidence.push(
             Evidence::tty_trait("is_tty_stdout", snap.is_tty_stdout())
                 .with_supports(vec!["is_tty_stdout".into()])
-                .with_confidence(TERMINAL)
+                .with_confidence(TERMINAL),
         );
         detection.evidence.push(
             Evidence::tty_trait("is_tty_stderr", snap.is_tty_stderr())
                 .with_supports(vec!["is_tty_stderr".into()])
-                .with_confidence(TERMINAL)
+                .with_confidence(TERMINAL),
         );
 
         detection
