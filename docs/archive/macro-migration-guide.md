@@ -60,7 +60,6 @@ pub struct EnvSense {
     pub traits: Traits,         // Automatically maps to traits_patch
     pub evidence: Vec<Evidence>, // Automatically maps to evidence
     pub version: String,        // Ignored (no mapping)
-    // rules_version field has been removed in schema version 0.2.0
 }
 
 impl DetectionEngine {
@@ -96,7 +95,6 @@ pub struct EnvSense {
     pub traits: Traits,
     pub evidence: Vec<Evidence>,
     pub version: String,
-    // rules_version field has been removed in schema version 0.2.0
 }
 
 // After
@@ -109,7 +107,6 @@ pub struct EnvSense {
     pub traits: Traits,
     pub evidence: Vec<Evidence>,
     pub version: String,
-    // rules_version field has been removed in schema version 0.2.0
 }
 ```
 
