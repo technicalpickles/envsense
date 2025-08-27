@@ -190,20 +190,12 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
         EnvMapping {
             id: "aider".to_string(),
             confidence: MEDIUM,
-            indicators: vec![
-                EnvIndicator {
-                    key: "AIDER_MODEL".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: false,
-                },
-                EnvIndicator {
-                    key: "AIDER_".to_string(),
-                    value: None,
-                    required: false,
-                    prefix: true,
-                },
-            ],
+            indicators: vec![EnvIndicator {
+                key: "AIDER_".to_string(),
+                value: None,
+                required: false,
+                prefix: true,
+            }],
             facets: HashMap::new(),
             contexts: vec!["agent".to_string()],
         },
