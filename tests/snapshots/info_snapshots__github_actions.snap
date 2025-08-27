@@ -6,6 +6,44 @@ expression: json
   "contexts": [
     "ci"
   ],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 0.6000000238418579,
+      "key": "GITHUB_ACTIONS",
+      "signal": "env",
+      "supports": [
+        "host"
+      ],
+      "value": "1"
+    }
+  ],
   "facets": {
     "ci": {
       "is_ci": true,
@@ -13,7 +51,8 @@ expression: json
       "pr": false,
       "vendor": "github_actions"
     },
-    "ci_id": "github_actions"
+    "ci_id": "github_actions",
+    "host": "ci"
   },
   "meta": {
     "schema_version": "0.2.0"

@@ -6,6 +6,35 @@ expression: json
   "contexts": [
     "ci"
   ],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    }
+  ],
   "facets": {
     "ci": {
       "is_ci": true,
@@ -13,7 +42,8 @@ expression: json
       "pr": false,
       "vendor": "gitlab_ci"
     },
-    "ci_id": "gitlab_ci"
+    "ci_id": "gitlab_ci",
+    "host": "unknown"
   },
   "meta": {
     "schema_version": "0.2.0"
