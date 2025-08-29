@@ -44,6 +44,60 @@ pub struct EnvIndicator {
     pub priority: u8,
 }
 
+/// Condition for conditional value mapping
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Condition {
+    /// Check if a previously extracted value equals a specific value
+    Equals(String, serde_json::Value),
+    /// Check if a previously extracted value is not equal to a specific value
+    NotEquals(String, serde_json::Value),
+    /// Check if a previously extracted value contains a substring
+    Contains(String, String),
+    /// Check if a previously extracted value is truthy (non-empty, non-false, non-zero)
+    IsTruthy(String),
+    /// Check if a previously extracted value is falsy (empty, false, zero)
+    IsFalsy(String),
+    /// Check if a previously extracted value exists
+    Exists(String),
+    /// Check if a previously extracted value does not exist
+    NotExists(String),
+}
+
+impl Condition {
+    /// Evaluate the condition against previously extracted values
+    pub fn evaluate(&self, extracted_values: &HashMap<String, serde_json::Value>) -> bool {
+        match self {
+            Condition::Equals(key, expected_value) => {
+                extracted_values.get(key) == Some(expected_value)
+            }
+            Condition::NotEquals(key, expected_value) => {
+                extracted_values.get(key) != Some(expected_value)
+            }
+            Condition::Contains(key, substring) => extracted_values.get(key).is_some_and(|value| {
+                value
+                    .as_str()
+                    .is_some_and(|s| s.to_lowercase().contains(&substring.to_lowercase()))
+            }),
+            Condition::IsTruthy(key) => {
+                extracted_values.get(key).is_some_and(|value| match value {
+                    serde_json::Value::String(s) => !s.is_empty(),
+                    serde_json::Value::Bool(b) => *b,
+                    serde_json::Value::Number(n) => n.as_i64().is_some_and(|i| i != 0),
+                    _ => false,
+                })
+            }
+            Condition::IsFalsy(key) => extracted_values.get(key).is_none_or(|value| match value {
+                serde_json::Value::String(s) => s.is_empty(),
+                serde_json::Value::Bool(b) => !*b,
+                serde_json::Value::Number(n) => n.as_i64().is_none_or(|i| i == 0),
+                _ => true,
+            }),
+            Condition::Exists(key) => extracted_values.contains_key(key),
+            Condition::NotExists(key) => !extracted_values.contains_key(key),
+        }
+    }
+}
+
 /// Value mapping for extracting specific values from environment variables
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValueMapping {
@@ -57,6 +111,9 @@ pub struct ValueMapping {
     /// Transformation to apply to the value
     #[serde(default)]
     pub transform: Option<ValueTransform>,
+    /// Condition that must be met for this mapping to be applied
+    #[serde(default)]
+    pub condition: Option<Condition>,
 }
 
 /// Value transformation operations
@@ -233,32 +290,60 @@ impl EnvMapping {
     ) -> HashMap<String, serde_json::Value> {
         let mut extracted = HashMap::new();
 
-        for mapping in &self.value_mappings {
-            if let Some(value) = env_vars.get(&mapping.source_key) {
-                match mapping.transform.as_ref() {
-                    Some(transform) => {
-                        match transform.apply(value) {
-                            Ok(transformed) => {
-                                extracted.insert(mapping.target_key.clone(), transformed);
-                            }
-                            Err(e) => {
-                                // Log error but continue with other mappings
-                                eprintln!(
-                                    "Warning: Failed to transform {}: {}",
-                                    mapping.source_key, e
-                                );
+        // Process mappings in dependency order (no conditions first, then conditional ones)
+        let mappings_to_process: Vec<&ValueMapping> = self.value_mappings.iter().collect();
+        let mut processed_count = 0;
+
+        while processed_count < mappings_to_process.len() {
+            let initial_count = processed_count;
+
+            for mapping in &mappings_to_process {
+                // Skip if already processed
+                if extracted.contains_key(&mapping.target_key) {
+                    continue;
+                }
+
+                // Check if condition is met (if any)
+                if let Some(condition) = &mapping.condition
+                    && !condition.evaluate(&extracted)
+                {
+                    continue; // Skip this mapping if condition not met
+                }
+
+                // Process the mapping
+                if let Some(value) = env_vars.get(&mapping.source_key) {
+                    match mapping.transform.as_ref() {
+                        Some(transform) => {
+                            match transform.apply(value) {
+                                Ok(transformed) => {
+                                    extracted.insert(mapping.target_key.clone(), transformed);
+                                    processed_count += 1;
+                                }
+                                Err(e) => {
+                                    // Log error but continue with other mappings
+                                    eprintln!(
+                                        "Warning: Failed to transform {}: {}",
+                                        mapping.source_key, e
+                                    );
+                                }
                             }
                         }
+                        None => {
+                            extracted.insert(mapping.target_key.clone(), json!(value));
+                            processed_count += 1;
+                        }
                     }
-                    None => {
-                        extracted.insert(mapping.target_key.clone(), json!(value));
-                    }
+                } else if mapping.required {
+                    eprintln!(
+                        "Warning: Required value mapping missing: {}",
+                        mapping.source_key
+                    );
                 }
-            } else if mapping.required {
-                eprintln!(
-                    "Warning: Required value mapping missing: {}",
-                    mapping.source_key
-                );
+            }
+
+            // If no new mappings were processed in this iteration, we're done
+            if processed_count == initial_count {
+                break;
             }
         }
 
@@ -772,30 +857,35 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     source_key: "GITHUB_REF_NAME".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
                     source_key: "GITHUB_EVENT_NAME".to_string(),
                     required: false,
                     transform: Some(ValueTransform::Equals("pull_request".to_string())),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "pr_number".to_string(),
                     source_key: "GITHUB_EVENT_NUMBER".to_string(),
                     required: false,
                     transform: Some(ValueTransform::ToInt),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "repository".to_string(),
                     source_key: "GITHUB_REPOSITORY".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "workflow".to_string(),
                     source_key: "GITHUB_WORKFLOW".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
             ],
         },
@@ -819,24 +909,28 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     source_key: "CI_COMMIT_REF_NAME".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
                     source_key: "CI_MERGE_REQUEST_ID".to_string(),
                     required: false,
                     transform: Some(ValueTransform::ToBool),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "pipeline_id".to_string(),
                     source_key: "CI_PIPELINE_ID".to_string(),
                     required: false,
                     transform: Some(ValueTransform::ToInt),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "project_path".to_string(),
                     source_key: "CI_PROJECT_PATH".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
             ],
         },
@@ -860,24 +954,28 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     source_key: "CIRCLE_BRANCH".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
                     source_key: "CIRCLE_PR_NUMBER".to_string(),
                     required: false,
                     transform: Some(ValueTransform::ToBool),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "build_number".to_string(),
                     source_key: "CIRCLE_BUILD_NUM".to_string(),
                     required: false,
                     transform: Some(ValueTransform::ToInt),
+                    condition: None,
                 },
                 ValueMapping {
                     target_key: "project_name".to_string(),
                     source_key: "CIRCLE_PROJECT_REPONAME".to_string(),
                     required: false,
                     transform: None,
+                    condition: None,
                 },
             ],
         },
@@ -1283,5 +1381,175 @@ mod tests {
         assert_eq!(extracted.get("is_pr").unwrap(), &json!(true)); // Non-empty string = true
         assert_eq!(extracted.get("build_number").unwrap(), &json!(1001));
         assert_eq!(extracted.get("project_name").unwrap(), &json!("my-project"));
+    }
+
+    #[test]
+    fn test_condition_equals() {
+        let mut extracted = HashMap::new();
+        extracted.insert("is_pr".to_string(), json!(true));
+        extracted.insert("branch".to_string(), json!("main"));
+
+        let condition = Condition::Equals("is_pr".to_string(), json!(true));
+        assert!(condition.evaluate(&extracted));
+
+        let condition = Condition::Equals("is_pr".to_string(), json!(false));
+        assert!(!condition.evaluate(&extracted));
+
+        let condition = Condition::Equals("missing_key".to_string(), json!(true));
+        assert!(!condition.evaluate(&extracted));
+    }
+
+    #[test]
+    fn test_condition_not_equals() {
+        let mut extracted = HashMap::new();
+        extracted.insert("is_pr".to_string(), json!(true));
+
+        let condition = Condition::NotEquals("is_pr".to_string(), json!(false));
+        assert!(condition.evaluate(&extracted));
+
+        let condition = Condition::NotEquals("is_pr".to_string(), json!(true));
+        assert!(!condition.evaluate(&extracted));
+
+        let condition = Condition::NotEquals("missing_key".to_string(), json!(true));
+        assert!(condition.evaluate(&extracted)); // NotEquals returns true for missing keys
+    }
+
+    #[test]
+    fn test_condition_contains() {
+        let mut extracted = HashMap::new();
+        extracted.insert("branch".to_string(), json!("feature/new-feature"));
+
+        let condition = Condition::Contains("branch".to_string(), "feature".to_string());
+        assert!(condition.evaluate(&extracted));
+
+        let condition = Condition::Contains("branch".to_string(), "main".to_string());
+        assert!(!condition.evaluate(&extracted));
+
+        let condition = Condition::Contains("missing_key".to_string(), "feature".to_string());
+        assert!(!condition.evaluate(&extracted));
+    }
+
+    #[test]
+    fn test_condition_is_truthy() {
+        let mut extracted = HashMap::new();
+        extracted.insert("bool_true".to_string(), json!(true));
+        extracted.insert("bool_false".to_string(), json!(false));
+        extracted.insert("string_value".to_string(), json!("hello"));
+        extracted.insert("empty_string".to_string(), json!(""));
+        extracted.insert("number_positive".to_string(), json!(42));
+        extracted.insert("number_zero".to_string(), json!(0));
+
+        assert!(Condition::IsTruthy("bool_true".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsTruthy("bool_false".to_string()).evaluate(&extracted));
+        assert!(Condition::IsTruthy("string_value".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsTruthy("empty_string".to_string()).evaluate(&extracted));
+        assert!(Condition::IsTruthy("number_positive".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsTruthy("number_zero".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsTruthy("missing_key".to_string()).evaluate(&extracted));
+    }
+
+    #[test]
+    fn test_condition_is_falsy() {
+        let mut extracted = HashMap::new();
+        extracted.insert("bool_true".to_string(), json!(true));
+        extracted.insert("bool_false".to_string(), json!(false));
+        extracted.insert("string_value".to_string(), json!("hello"));
+        extracted.insert("empty_string".to_string(), json!(""));
+        extracted.insert("number_positive".to_string(), json!(42));
+        extracted.insert("number_zero".to_string(), json!(0));
+
+        assert!(!Condition::IsFalsy("bool_true".to_string()).evaluate(&extracted));
+        assert!(Condition::IsFalsy("bool_false".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsFalsy("string_value".to_string()).evaluate(&extracted));
+        assert!(Condition::IsFalsy("empty_string".to_string()).evaluate(&extracted));
+        assert!(!Condition::IsFalsy("number_positive".to_string()).evaluate(&extracted));
+        assert!(Condition::IsFalsy("number_zero".to_string()).evaluate(&extracted));
+        assert!(Condition::IsFalsy("missing_key".to_string()).evaluate(&extracted)); // Missing keys are falsy
+    }
+
+    #[test]
+    fn test_condition_exists() {
+        let mut extracted = HashMap::new();
+        extracted.insert("exists".to_string(), json!("value"));
+
+        assert!(Condition::Exists("exists".to_string()).evaluate(&extracted));
+        assert!(!Condition::Exists("missing".to_string()).evaluate(&extracted));
+    }
+
+    #[test]
+    fn test_condition_not_exists() {
+        let mut extracted = HashMap::new();
+        extracted.insert("exists".to_string(), json!("value"));
+
+        assert!(!Condition::NotExists("exists".to_string()).evaluate(&extracted));
+        assert!(Condition::NotExists("missing".to_string()).evaluate(&extracted));
+    }
+
+    #[test]
+    fn test_conditional_value_mapping() {
+        let mapping = EnvMapping {
+            id: "test-conditional".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TEST_ENV".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+                contains: None,
+                priority: 0,
+            }],
+            facets: HashMap::new(),
+            contexts: vec!["test".to_string()],
+            value_mappings: vec![
+                // First, extract is_pr
+                ValueMapping {
+                    target_key: "is_pr".to_string(),
+                    source_key: "GITHUB_EVENT_NAME".to_string(),
+                    required: false,
+                    transform: Some(ValueTransform::Equals("pull_request".to_string())),
+                    condition: None,
+                },
+                // Then, extract pr_number only if is_pr is true
+                ValueMapping {
+                    target_key: "pr_number".to_string(),
+                    source_key: "GITHUB_EVENT_NUMBER".to_string(),
+                    required: false,
+                    transform: Some(ValueTransform::ToInt),
+                    condition: Some(Condition::IsTruthy("is_pr".to_string())),
+                },
+                // Extract branch name regardless
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "GITHUB_REF_NAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                },
+            ],
+        };
+
+        // Test with PR environment
+        let pr_env = HashMap::from([
+            ("GITHUB_EVENT_NAME".to_string(), "pull_request".to_string()),
+            ("GITHUB_EVENT_NUMBER".to_string(), "42".to_string()),
+            ("GITHUB_REF_NAME".to_string(), "feature-branch".to_string()),
+        ]);
+
+        let extracted = mapping.extract_values(&pr_env);
+        assert_eq!(extracted.get("is_pr"), Some(&json!(true)));
+        assert_eq!(extracted.get("pr_number"), Some(&json!(42)));
+        assert_eq!(extracted.get("branch"), Some(&json!("feature-branch")));
+
+        // Test with push environment (no PR)
+        let push_env = HashMap::from([
+            ("GITHUB_EVENT_NAME".to_string(), "push".to_string()),
+            ("GITHUB_EVENT_NUMBER".to_string(), "42".to_string()),
+            ("GITHUB_REF_NAME".to_string(), "main".to_string()),
+        ]);
+
+        let extracted = mapping.extract_values(&push_env);
+        assert_eq!(extracted.get("is_pr"), Some(&json!(false)));
+        assert_eq!(extracted.get("pr_number"), None); // Should not be extracted
+        assert_eq!(extracted.get("branch"), Some(&json!("main")));
     }
 }
