@@ -1,9 +1,7 @@
+use crate::detectors::declarative::DeclarativeDetector;
 use crate::detectors::env_mapping::get_ci_mappings;
-use crate::detectors::utils::{
-    DetectionConfig, SelectionStrategy, basic_declarative_detection, check_generic_overrides,
-};
+use crate::detectors::utils::SelectionStrategy;
 use crate::detectors::{Detection, Detector, EnvSnapshot};
-use crate::schema::Evidence;
 use serde_json::json;
 
 pub struct DeclarativeCiDetector;
@@ -12,30 +10,35 @@ impl DeclarativeCiDetector {
     pub fn new() -> Self {
         Self
     }
+}
 
-    fn detect_ci(&self, snap: &EnvSnapshot) -> (Option<String>, f32, Vec<Evidence>) {
-        // Check for overrides first
-        if let Some(override_result) = check_generic_overrides(snap, "ci") {
-            return override_result;
-        }
-
-        let mappings = get_ci_mappings();
-
-        let config = DetectionConfig {
-            context_name: "ci".to_string(),
-            facet_key: "ci_id".to_string(),
-            should_generate_evidence: false, // CI detector doesn't generate evidence for compatibility
-            supports: vec!["ci".into(), "ci_id".into()],
-        };
-
-        basic_declarative_detection(
-            &mappings,
-            &snap.env_vars,
-            &config,
-            SelectionStrategy::Confidence,
-        )
+impl DeclarativeDetector for DeclarativeCiDetector {
+    fn get_mappings() -> Vec<crate::detectors::env_mapping::EnvMapping> {
+        get_ci_mappings()
     }
 
+    fn get_detector_type() -> &'static str {
+        "ci"
+    }
+
+    fn get_context_name() -> &'static str {
+        "ci"
+    }
+
+    fn get_facet_key() -> &'static str {
+        "ci_id"
+    }
+
+    fn should_generate_evidence() -> bool {
+        false // CI detector doesn't generate evidence for compatibility
+    }
+
+    fn get_selection_strategy() -> SelectionStrategy {
+        SelectionStrategy::Confidence
+    }
+}
+
+impl DeclarativeCiDetector {
     fn detect_pr_status(&self, snap: &EnvSnapshot) -> Option<bool> {
         // GitHub Actions
         if let Some(event_name) = snap.get_env("GITHUB_EVENT_NAME") {
@@ -77,17 +80,13 @@ impl Detector for DeclarativeCiDetector {
     }
 
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
-        let mut detection = Detection::default();
+        let mut detection = self.create_detection(snap);
 
-        let (ci_id, confidence, _evidence) = self.detect_ci(snap);
-
-        if let Some(id) = ci_id {
-            detection.contexts_add.push("ci".to_string());
-            detection
-                .facets_patch
-                .insert("ci_id".to_string(), json!(id));
-            detection.confidence = confidence;
-
+        if let Some(id) = detection
+            .facets_patch
+            .get("ci_id")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+        {
             // Set is_ci trait to true
             detection
                 .traits_patch

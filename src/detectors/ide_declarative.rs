@@ -1,10 +1,7 @@
+use crate::detectors::declarative::DeclarativeDetector;
 use crate::detectors::env_mapping::get_ide_mappings;
-use crate::detectors::utils::{
-    DetectionConfig, SelectionStrategy, basic_declarative_detection, check_generic_overrides,
-};
+use crate::detectors::utils::SelectionStrategy;
 use crate::detectors::{Detection, Detector, EnvSnapshot};
-use crate::schema::Evidence;
-use serde_json::json;
 
 pub struct DeclarativeIdeDetector;
 
@@ -12,28 +9,27 @@ impl DeclarativeIdeDetector {
     pub fn new() -> Self {
         Self
     }
+}
 
-    fn detect_ide(&self, snap: &EnvSnapshot) -> (Option<String>, f32, Vec<Evidence>) {
-        // Check for overrides first
-        if let Some(override_result) = check_generic_overrides(snap, "ide") {
-            return override_result;
-        }
+impl DeclarativeDetector for DeclarativeIdeDetector {
+    fn get_mappings() -> Vec<crate::detectors::env_mapping::EnvMapping> {
+        get_ide_mappings()
+    }
 
-        let mappings = get_ide_mappings();
+    fn get_detector_type() -> &'static str {
+        "ide"
+    }
 
-        let config = DetectionConfig {
-            context_name: "ide".to_string(),
-            facet_key: "ide_id".to_string(),
-            should_generate_evidence: true,
-            supports: vec!["ide".into(), "ide_id".into()],
-        };
+    fn get_context_name() -> &'static str {
+        "ide"
+    }
 
-        basic_declarative_detection(
-            &mappings,
-            &snap.env_vars,
-            &config,
-            SelectionStrategy::Priority,
-        )
+    fn get_facet_key() -> &'static str {
+        "ide_id"
+    }
+
+    fn get_selection_strategy() -> SelectionStrategy {
+        SelectionStrategy::Priority
     }
 }
 
@@ -43,20 +39,7 @@ impl Detector for DeclarativeIdeDetector {
     }
 
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
-        let mut detection = Detection::default();
-
-        let (ide_id, confidence, evidence) = self.detect_ide(snap);
-
-        if let Some(id) = ide_id {
-            detection.contexts_add.push("ide".to_string());
-            detection
-                .facets_patch
-                .insert("ide_id".to_string(), json!(id));
-            detection.confidence = confidence;
-            detection.evidence = evidence;
-        }
-
-        detection
+        self.create_detection(snap)
     }
 }
 

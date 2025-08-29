@@ -120,7 +120,7 @@ pub fn check_generic_overrides(
             "agent" => "HUMAN",
             "ide" => "TERMINAL",
             "ci" => "LOCAL",
-            _ => return None,
+            _ => "UNKNOWN", // Default for unknown detector types
         }
     );
 

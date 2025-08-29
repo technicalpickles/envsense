@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 pub mod agent_declarative;
 pub mod ci_declarative;
+pub mod declarative;
 pub mod env_mapping;
 pub mod ide_declarative;
 pub mod terminal;
