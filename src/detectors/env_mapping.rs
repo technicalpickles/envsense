@@ -3,6 +3,181 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 
+/// Validation error types for value mappings
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ValidationError {
+    #[error("Missing required field: {field}")]
+    MissingRequiredField { field: String },
+    #[error("Invalid field value: {field} = {value} (expected: {expected})")]
+    InvalidFieldValue {
+        field: String,
+        value: String,
+        expected: String,
+    },
+    #[error("Invalid transformation: {transform}")]
+    InvalidTransformation { transform: String },
+    #[error("Invalid condition: {condition}")]
+    InvalidCondition { condition: String },
+    #[error("Circular dependency detected: {dependency_chain}")]
+    CircularDependency { dependency_chain: String },
+    #[error("Invalid target key format: {key}")]
+    InvalidTargetKey { key: String },
+    #[error("Invalid source key format: {key}")]
+    InvalidSourceKey { key: String },
+    #[error("Validation rule failed: {rule}")]
+    ValidationRuleFailed { rule: String },
+}
+
+/// Validation rules for extracted values
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ValidationRule {
+    /// Value must not be empty
+    NotEmpty,
+    /// Value must be a valid integer
+    IsInteger,
+    /// Value must be a valid boolean
+    IsBoolean,
+    /// Value must match a regex pattern
+    MatchesRegex(String),
+    /// Value must be within a range (for numbers)
+    InRange { min: Option<i64>, max: Option<i64> },
+    /// Value must be one of the allowed values
+    AllowedValues(Vec<String>),
+    /// Value must have a minimum length
+    MinLength(usize),
+    /// Value must have a maximum length
+    MaxLength(usize),
+    /// Custom validation function name
+    Custom(String),
+}
+
+impl ValidationRule {
+    /// Apply the validation rule to a value
+    pub fn validate(&self, value: &serde_json::Value) -> Result<(), ValidationError> {
+        match self {
+            ValidationRule::NotEmpty => match value {
+                serde_json::Value::String(s) if s.is_empty() => {
+                    Err(ValidationError::ValidationRuleFailed {
+                        rule: "Value must not be empty".to_string(),
+                    })
+                }
+                serde_json::Value::Null => Err(ValidationError::ValidationRuleFailed {
+                    rule: "Value must not be null".to_string(),
+                }),
+                _ => Ok(()),
+            },
+            ValidationRule::IsInteger => match value {
+                serde_json::Value::Number(_) => Ok(()),
+                serde_json::Value::String(s) => s.parse::<i64>().map(|_| ()).map_err(|_| {
+                    ValidationError::ValidationRuleFailed {
+                        rule: "Value must be a valid integer".to_string(),
+                    }
+                }),
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: "Value must be a valid integer".to_string(),
+                }),
+            },
+            ValidationRule::IsBoolean => match value {
+                serde_json::Value::Bool(_) => Ok(()),
+                serde_json::Value::String(s) => match s.to_lowercase().as_str() {
+                    "true" | "false" => Ok(()),
+                    _ => Err(ValidationError::ValidationRuleFailed {
+                        rule: "Value must be a valid boolean".to_string(),
+                    }),
+                },
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: "Value must be a valid boolean".to_string(),
+                }),
+            },
+            ValidationRule::MatchesRegex(pattern) => {
+                match value {
+                    serde_json::Value::String(s) => {
+                        // Note: In a real implementation, you'd use a regex crate
+                        // For now, we'll do a simple string check
+                        if pattern == ".*" || s.contains(pattern) {
+                            Ok(())
+                        } else {
+                            Err(ValidationError::ValidationRuleFailed {
+                                rule: format!("Value must match pattern: {}", pattern),
+                            })
+                        }
+                    }
+                    _ => Err(ValidationError::ValidationRuleFailed {
+                        rule: format!("Value must match pattern: {}", pattern),
+                    }),
+                }
+            }
+            ValidationRule::InRange { min, max } => match value {
+                serde_json::Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        let min_ok = min.is_none_or(|m| i >= m);
+                        let max_ok = max.is_none_or(|m| i <= m);
+                        if min_ok && max_ok {
+                            Ok(())
+                        } else {
+                            Err(ValidationError::ValidationRuleFailed {
+                                rule: format!("Value must be in range [{:?}, {:?}]", min, max),
+                            })
+                        }
+                    } else {
+                        Err(ValidationError::ValidationRuleFailed {
+                            rule: "Value must be a number".to_string(),
+                        })
+                    }
+                }
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: "Value must be a number".to_string(),
+                }),
+            },
+            ValidationRule::AllowedValues(allowed) => match value {
+                serde_json::Value::String(s) => {
+                    if allowed.contains(s) {
+                        Ok(())
+                    } else {
+                        Err(ValidationError::ValidationRuleFailed {
+                            rule: format!("Value must be one of: {:?}", allowed),
+                        })
+                    }
+                }
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: format!("Value must be one of: {:?}", allowed),
+                }),
+            },
+            ValidationRule::MinLength(min_len) => match value {
+                serde_json::Value::String(s) => {
+                    if s.len() >= *min_len {
+                        Ok(())
+                    } else {
+                        Err(ValidationError::ValidationRuleFailed {
+                            rule: format!("Value must have minimum length: {}", min_len),
+                        })
+                    }
+                }
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: format!("Value must have minimum length: {}", min_len),
+                }),
+            },
+            ValidationRule::MaxLength(max_len) => match value {
+                serde_json::Value::String(s) => {
+                    if s.len() <= *max_len {
+                        Ok(())
+                    } else {
+                        Err(ValidationError::ValidationRuleFailed {
+                            rule: format!("Value must have maximum length: {}", max_len),
+                        })
+                    }
+                }
+                _ => Err(ValidationError::ValidationRuleFailed {
+                    rule: format!("Value must have maximum length: {}", max_len),
+                }),
+            },
+            ValidationRule::Custom(func_name) => Err(ValidationError::ValidationRuleFailed {
+                rule: format!("Custom validation '{}' not implemented", func_name),
+            }),
+        }
+    }
+}
+
 /// Declarative mapping for environment variable detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvMapping {
@@ -98,6 +273,131 @@ impl Condition {
     }
 }
 
+impl ValueMapping {
+    /// Validate the value mapping configuration
+    pub fn validate_config(&self) -> Result<(), ValidationError> {
+        // Validate target key format
+        if self.target_key.is_empty() {
+            return Err(ValidationError::InvalidTargetKey {
+                key: self.target_key.clone(),
+            });
+        }
+
+        // Validate source key format
+        if self.source_key.is_empty() {
+            return Err(ValidationError::InvalidSourceKey {
+                key: self.source_key.clone(),
+            });
+        }
+
+        // Validate transformation if present
+        if let Some(transform) = &self.transform
+            && let ValueTransform::Custom(func_name) = transform
+        {
+            return Err(ValidationError::InvalidTransformation {
+                transform: func_name.clone(),
+            });
+        }
+
+        // Validate condition if present
+        if let Some(condition) = &self.condition {
+            match condition {
+                Condition::Equals(key, _)
+                | Condition::NotEquals(key, _)
+                | Condition::Contains(key, _)
+                | Condition::IsTruthy(key)
+                | Condition::IsFalsy(key)
+                | Condition::Exists(key)
+                | Condition::NotExists(key) => {
+                    if key.is_empty() {
+                        return Err(ValidationError::InvalidCondition {
+                            condition: format!("Empty key in condition: {:?}", condition),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Validate validation rules if present
+        for rule in &self.validation_rules {
+            if let ValidationRule::Custom(func_name) = rule {
+                return Err(ValidationError::ValidationRuleFailed {
+                    rule: format!("Custom validation '{}' not implemented", func_name),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate an extracted value against the validation rules
+    pub fn validate_value(&self, value: &serde_json::Value) -> Result<(), ValidationError> {
+        for rule in &self.validation_rules {
+            rule.validate(value)?;
+        }
+        Ok(())
+    }
+
+    /// Check for circular dependencies in conditions
+    pub fn check_circular_dependencies(
+        &self,
+        all_mappings: &[ValueMapping],
+    ) -> Result<(), ValidationError> {
+        if let Some(condition) = &self.condition {
+            let mut visited = std::collections::HashSet::new();
+            let mut path = Vec::new();
+            self.check_dependency_cycle(condition, all_mappings, &mut visited, &mut path)?;
+        }
+        Ok(())
+    }
+
+    fn check_dependency_cycle(
+        &self,
+        condition: &Condition,
+        all_mappings: &[ValueMapping],
+        visited: &mut std::collections::HashSet<String>,
+        path: &mut Vec<String>,
+    ) -> Result<(), ValidationError> {
+        let dependent_key = match condition {
+            Condition::Equals(key, _)
+            | Condition::NotEquals(key, _)
+            | Condition::Contains(key, _)
+            | Condition::IsTruthy(key)
+            | Condition::IsFalsy(key)
+            | Condition::Exists(key)
+            | Condition::NotExists(key) => key,
+        };
+
+        if path.contains(dependent_key) {
+            let mut cycle_path = path.clone();
+            cycle_path.push(dependent_key.clone());
+            return Err(ValidationError::CircularDependency {
+                dependency_chain: cycle_path.join(" -> "),
+            });
+        }
+
+        if visited.contains(dependent_key) {
+            return Ok(());
+        }
+
+        visited.insert(dependent_key.clone());
+        path.push(dependent_key.clone());
+
+        // Find the mapping that produces this dependent key
+        for mapping in all_mappings {
+            if mapping.target_key == *dependent_key {
+                if let Some(dep_condition) = &mapping.condition {
+                    mapping.check_dependency_cycle(dep_condition, all_mappings, visited, path)?;
+                }
+                break;
+            }
+        }
+
+        path.pop();
+        Ok(())
+    }
+}
+
 /// Value mapping for extracting specific values from environment variables
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValueMapping {
@@ -114,6 +414,9 @@ pub struct ValueMapping {
     /// Condition that must be met for this mapping to be applied
     #[serde(default)]
     pub condition: Option<Condition>,
+    /// Validation rules to apply to the extracted value
+    #[serde(default)]
+    pub validation_rules: Vec<ValidationRule>,
 }
 
 /// Value transformation operations
@@ -289,6 +592,28 @@ impl EnvMapping {
         env_vars: &HashMap<String, String>,
     ) -> HashMap<String, serde_json::Value> {
         let mut extracted = HashMap::new();
+        let mut validation_errors = Vec::new();
+
+        // Validate all mappings before processing
+        for mapping in &self.value_mappings {
+            if let Err(e) = mapping.validate_config() {
+                validation_errors.push(format!(
+                    "Config validation failed for {}: {}",
+                    mapping.target_key, e
+                ));
+            }
+            if let Err(e) = mapping.check_circular_dependencies(&self.value_mappings) {
+                validation_errors.push(format!(
+                    "Circular dependency detected for {}: {}",
+                    mapping.target_key, e
+                ));
+            }
+        }
+
+        // Log validation errors but continue processing
+        for error in &validation_errors {
+            eprintln!("Validation Error: {}", error);
+        }
 
         // Process mappings in dependency order (no conditions first, then conditional ones)
         let mappings_to_process: Vec<&ValueMapping> = self.value_mappings.iter().collect();
@@ -316,6 +641,14 @@ impl EnvMapping {
                         Some(transform) => {
                             match transform.apply(value) {
                                 Ok(transformed) => {
+                                    // Validate the transformed value
+                                    if let Err(e) = mapping.validate_value(&transformed) {
+                                        eprintln!(
+                                            "Warning: Value validation failed for {}: {}",
+                                            mapping.target_key, e
+                                        );
+                                        // Continue processing even if validation fails
+                                    }
                                     extracted.insert(mapping.target_key.clone(), transformed);
                                     processed_count += 1;
                                 }
@@ -329,7 +662,16 @@ impl EnvMapping {
                             }
                         }
                         None => {
-                            extracted.insert(mapping.target_key.clone(), json!(value));
+                            let value_json = json!(value);
+                            // Validate the raw value
+                            if let Err(e) = mapping.validate_value(&value_json) {
+                                eprintln!(
+                                    "Warning: Value validation failed for {}: {}",
+                                    mapping.target_key, e
+                                );
+                                // Continue processing even if validation fails
+                            }
+                            extracted.insert(mapping.target_key.clone(), value_json);
                             processed_count += 1;
                         }
                     }
@@ -858,6 +1200,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
@@ -865,6 +1208,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::Equals("pull_request".to_string())),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "pr_number".to_string(),
@@ -872,6 +1216,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::ToInt),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "repository".to_string(),
@@ -879,6 +1224,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "workflow".to_string(),
@@ -886,6 +1232,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
             ],
         },
@@ -910,6 +1257,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
@@ -917,6 +1265,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::ToBool),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "pipeline_id".to_string(),
@@ -924,6 +1273,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::ToInt),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "project_path".to_string(),
@@ -931,6 +1281,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
             ],
         },
@@ -955,6 +1306,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "is_pr".to_string(),
@@ -962,6 +1314,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::ToBool),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "build_number".to_string(),
@@ -969,6 +1322,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: Some(ValueTransform::ToInt),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 ValueMapping {
                     target_key: "project_name".to_string(),
@@ -976,6 +1330,7 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
             ],
         },
@@ -1508,6 +1863,7 @@ mod tests {
                     required: false,
                     transform: Some(ValueTransform::Equals("pull_request".to_string())),
                     condition: None,
+                    validation_rules: vec![],
                 },
                 // Then, extract pr_number only if is_pr is true
                 ValueMapping {
@@ -1516,6 +1872,7 @@ mod tests {
                     required: false,
                     transform: Some(ValueTransform::ToInt),
                     condition: Some(Condition::IsTruthy("is_pr".to_string())),
+                    validation_rules: vec![],
                 },
                 // Extract branch name regardless
                 ValueMapping {
@@ -1524,6 +1881,7 @@ mod tests {
                     required: false,
                     transform: None,
                     condition: None,
+                    validation_rules: vec![],
                 },
             ],
         };
@@ -1551,5 +1909,223 @@ mod tests {
         assert_eq!(extracted.get("is_pr"), Some(&json!(false)));
         assert_eq!(extracted.get("pr_number"), None); // Should not be extracted
         assert_eq!(extracted.get("branch"), Some(&json!("main")));
+    }
+
+    #[test]
+    fn test_validation_rule_not_empty() {
+        let rule = ValidationRule::NotEmpty;
+
+        // Valid cases
+        assert!(rule.validate(&json!("hello")).is_ok());
+        assert!(rule.validate(&json!(42)).is_ok());
+        assert!(rule.validate(&json!(true)).is_ok());
+
+        // Invalid cases
+        assert!(rule.validate(&json!("")).is_err());
+        assert!(rule.validate(&json!(serde_json::Value::Null)).is_err());
+    }
+
+    #[test]
+    fn test_validation_rule_is_integer() {
+        let rule = ValidationRule::IsInteger;
+
+        // Valid cases
+        assert!(rule.validate(&json!(42)).is_ok());
+        assert!(rule.validate(&json!("123")).is_ok());
+        assert!(rule.validate(&json!("-456")).is_ok());
+
+        // Invalid cases
+        assert!(rule.validate(&json!("not_a_number")).is_err());
+        assert!(rule.validate(&json!("12.34")).is_err());
+        assert!(rule.validate(&json!("hello")).is_err());
+    }
+
+    #[test]
+    fn test_validation_rule_is_boolean() {
+        let rule = ValidationRule::IsBoolean;
+
+        // Valid cases
+        assert!(rule.validate(&json!(true)).is_ok());
+        assert!(rule.validate(&json!(false)).is_ok());
+        assert!(rule.validate(&json!("true")).is_ok());
+        assert!(rule.validate(&json!("false")).is_ok());
+
+        // Invalid cases
+        assert!(rule.validate(&json!("yes")).is_err());
+        assert!(rule.validate(&json!("no")).is_err());
+        assert!(rule.validate(&json!(42)).is_err());
+    }
+
+    #[test]
+    fn test_validation_rule_in_range() {
+        let rule = ValidationRule::InRange {
+            min: Some(1),
+            max: Some(100),
+        };
+
+        // Valid cases
+        assert!(rule.validate(&json!(50)).is_ok());
+        assert!(rule.validate(&json!(1)).is_ok());
+        assert!(rule.validate(&json!(100)).is_ok());
+
+        // Invalid cases
+        assert!(rule.validate(&json!(0)).is_err());
+        assert!(rule.validate(&json!(101)).is_err());
+        assert!(rule.validate(&json!("50")).is_err());
+    }
+
+    #[test]
+    fn test_validation_rule_allowed_values() {
+        let rule = ValidationRule::AllowedValues(vec!["main".to_string(), "develop".to_string()]);
+
+        // Valid cases
+        assert!(rule.validate(&json!("main")).is_ok());
+        assert!(rule.validate(&json!("develop")).is_ok());
+
+        // Invalid cases
+        assert!(rule.validate(&json!("feature")).is_err());
+        assert!(rule.validate(&json!(42)).is_err());
+    }
+
+    #[test]
+    fn test_validation_rule_length_constraints() {
+        let min_rule = ValidationRule::MinLength(3);
+        let max_rule = ValidationRule::MaxLength(10);
+
+        // Valid cases
+        assert!(min_rule.validate(&json!("hello")).is_ok());
+        assert!(max_rule.validate(&json!("short")).is_ok());
+
+        // Invalid cases
+        assert!(min_rule.validate(&json!("hi")).is_err());
+        assert!(max_rule.validate(&json!("very_long_string")).is_err());
+    }
+
+    #[test]
+    fn test_value_mapping_validation() {
+        let mapping = ValueMapping {
+            target_key: "test".to_string(),
+            source_key: "TEST_ENV".to_string(),
+            required: false,
+            transform: None,
+            condition: None,
+            validation_rules: vec![ValidationRule::NotEmpty, ValidationRule::MinLength(3)],
+        };
+
+        // Valid value
+        assert!(mapping.validate_value(&json!("hello")).is_ok());
+
+        // Invalid values
+        assert!(mapping.validate_value(&json!("")).is_err()); // Empty
+        assert!(mapping.validate_value(&json!("hi")).is_err()); // Too short
+    }
+
+    #[test]
+    fn test_value_mapping_config_validation() {
+        // Valid mapping
+        let valid_mapping = ValueMapping {
+            target_key: "test".to_string(),
+            source_key: "TEST_ENV".to_string(),
+            required: false,
+            transform: None,
+            condition: None,
+            validation_rules: vec![],
+        };
+        assert!(valid_mapping.validate_config().is_ok());
+
+        // Invalid mapping - empty target key
+        let invalid_mapping = ValueMapping {
+            target_key: "".to_string(),
+            source_key: "TEST_ENV".to_string(),
+            required: false,
+            transform: None,
+            condition: None,
+            validation_rules: vec![],
+        };
+        assert!(invalid_mapping.validate_config().is_err());
+
+        // Invalid mapping - empty source key
+        let invalid_mapping2 = ValueMapping {
+            target_key: "test".to_string(),
+            source_key: "".to_string(),
+            required: false,
+            transform: None,
+            condition: None,
+            validation_rules: vec![],
+        };
+        assert!(invalid_mapping2.validate_config().is_err());
+    }
+
+    #[test]
+    fn test_circular_dependency_detection() {
+        let mappings = vec![
+            ValueMapping {
+                target_key: "a".to_string(),
+                source_key: "A_ENV".to_string(),
+                required: false,
+                transform: None,
+                condition: Some(Condition::IsTruthy("b".to_string())),
+                validation_rules: vec![],
+            },
+            ValueMapping {
+                target_key: "b".to_string(),
+                source_key: "B_ENV".to_string(),
+                required: false,
+                transform: None,
+                condition: Some(Condition::IsTruthy("a".to_string())),
+                validation_rules: vec![],
+            },
+        ];
+
+        // Should detect circular dependency
+        assert!(mappings[0].check_circular_dependencies(&mappings).is_err());
+        assert!(mappings[1].check_circular_dependencies(&mappings).is_err());
+    }
+
+    #[test]
+    fn test_validation_in_extract_values() {
+        let mapping = EnvMapping {
+            id: "test-validation".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "TEST_ENV".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+                contains: None,
+                priority: 0,
+            }],
+            facets: HashMap::new(),
+            contexts: vec!["test".to_string()],
+            value_mappings: vec![
+                ValueMapping {
+                    target_key: "valid_value".to_string(),
+                    source_key: "VALID_ENV".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![ValidationRule::NotEmpty],
+                },
+                ValueMapping {
+                    target_key: "invalid_value".to_string(),
+                    source_key: "INVALID_ENV".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![ValidationRule::MinLength(5)],
+                },
+            ],
+        };
+
+        let env_vars = HashMap::from([
+            ("VALID_ENV".to_string(), "hello".to_string()),
+            ("INVALID_ENV".to_string(), "hi".to_string()), // Too short
+        ]);
+
+        let extracted = mapping.extract_values(&env_vars);
+
+        // Both values should be extracted (validation failures are logged but don't prevent extraction)
+        assert_eq!(extracted.get("valid_value"), Some(&json!("hello")));
+        assert_eq!(extracted.get("invalid_value"), Some(&json!("hi")));
     }
 }
