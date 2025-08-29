@@ -72,6 +72,14 @@ pub enum ValueTransform {
     Contains(String),
     /// Parse as integer
     ToInt,
+    /// Convert to uppercase
+    ToUppercase,
+    /// Trim whitespace
+    Trim,
+    /// Replace substring
+    Replace { from: String, to: String },
+    /// Split string and get specific index
+    Split { delimiter: String, index: usize },
     /// Custom transformation function
     Custom(String),
 }
@@ -90,6 +98,20 @@ impl ValueTransform {
                 .parse::<i64>()
                 .map(|i| json!(i))
                 .map_err(|e| format!("Failed to parse '{}' as integer: {}", value, e)),
+            ValueTransform::ToUppercase => Ok(json!(value.to_uppercase())),
+            ValueTransform::Trim => Ok(json!(value.trim())),
+            ValueTransform::Replace { from, to } => Ok(json!(value.replace(from, to))),
+            ValueTransform::Split { delimiter, index } => {
+                let parts: Vec<&str> = value.split(delimiter).collect();
+                if *index < parts.len() {
+                    Ok(json!(parts[*index]))
+                } else {
+                    Err(format!(
+                        "Split index {} out of bounds for value '{}'",
+                        index, value
+                    ))
+                }
+            }
             ValueTransform::Custom(func_name) => {
                 // Future: plugin system for custom transformations
                 Err(format!(
@@ -1129,6 +1151,52 @@ mod tests {
         assert_eq!(transform.apply("123").unwrap(), json!(123));
         assert_eq!(transform.apply("-456").unwrap(), json!(-456));
         assert!(transform.apply("not_a_number").is_err());
+    }
+
+    #[test]
+    fn test_value_transform_to_uppercase() {
+        let transform = ValueTransform::ToUppercase;
+
+        assert_eq!(transform.apply("hello").unwrap(), json!("HELLO"));
+        assert_eq!(transform.apply("World").unwrap(), json!("WORLD"));
+        assert_eq!(transform.apply("123").unwrap(), json!("123"));
+    }
+
+    #[test]
+    fn test_value_transform_trim() {
+        let transform = ValueTransform::Trim;
+
+        assert_eq!(transform.apply("  hello  ").unwrap(), json!("hello"));
+        assert_eq!(transform.apply("world\n").unwrap(), json!("world"));
+        assert_eq!(transform.apply("  ").unwrap(), json!(""));
+    }
+
+    #[test]
+    fn test_value_transform_replace() {
+        let transform = ValueTransform::Replace {
+            from: "old".to_string(),
+            to: "new".to_string(),
+        };
+
+        assert_eq!(transform.apply("old_value").unwrap(), json!("new_value"));
+        assert_eq!(
+            transform.apply("no_old_here").unwrap(),
+            json!("no_new_here")
+        );
+        assert_eq!(transform.apply("").unwrap(), json!(""));
+    }
+
+    #[test]
+    fn test_value_transform_split() {
+        let transform = ValueTransform::Split {
+            delimiter: "/".to_string(),
+            index: 1,
+        };
+
+        assert_eq!(transform.apply("a/b/c").unwrap(), json!("b"));
+        assert_eq!(transform.apply("owner/repo").unwrap(), json!("repo"));
+        assert!(transform.apply("single").is_err()); // Index 1 out of bounds
+        assert_eq!(transform.apply("a/b").unwrap(), json!("b")); // Index 1 exists for "a/b"
     }
 
     #[test]
