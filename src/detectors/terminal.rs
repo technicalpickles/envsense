@@ -126,18 +126,12 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    fn create_env_snapshot(
-        is_tty_stdin: bool,
-        is_tty_stdout: bool,
-        is_tty_stderr: bool,
-    ) -> EnvSnapshot {
-        EnvSnapshot::with_mock_tty(HashMap::new(), is_tty_stdin, is_tty_stdout, is_tty_stderr)
-    }
+    use crate::detectors::test_utils::create_env_snapshot_with_tty;
 
     #[test]
     fn detects_terminal_traits() {
         let detector = TerminalDetector::new();
-        let snapshot = create_env_snapshot(true, true, false);
+        let snapshot = create_env_snapshot_with_tty(vec![], true, true, false);
 
         let detection = detector.detect(&snapshot);
 
@@ -179,7 +173,7 @@ mod tests {
     #[test]
     fn detects_piped_io() {
         let detector = TerminalDetector::new();
-        let snapshot = create_env_snapshot(false, false, false);
+        let snapshot = create_env_snapshot_with_tty(vec![], false, false, false);
 
         let detection = detector.detect(&snapshot);
 

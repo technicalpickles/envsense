@@ -125,14 +125,7 @@ mod tests {
     use crate::detectors::confidence::HIGH;
     use std::collections::HashMap;
 
-    fn create_env_snapshot(env_vars: Vec<(&str, &str)>) -> EnvSnapshot {
-        let mut env_map = HashMap::new();
-        for (k, v) in env_vars {
-            env_map.insert(k.to_string(), v.to_string());
-        }
-
-        EnvSnapshot::with_mock_tty(env_map, false, false, false)
-    }
+    use crate::detectors::test_utils::create_env_snapshot;
 
     #[test]
     fn detects_github_actions() {

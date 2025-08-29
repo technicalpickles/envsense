@@ -6,6 +6,7 @@ pub mod declarative;
 pub mod env_mapping;
 pub mod ide_declarative;
 pub mod terminal;
+pub mod test_utils;
 pub mod tty;
 pub mod utils;
 pub use agent_declarative::DeclarativeAgentDetector;
