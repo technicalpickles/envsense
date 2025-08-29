@@ -46,9 +46,6 @@ expression: json
     }
   ],
   "facets": {
-    "ci": {
-      "is_ci": false
-    },
     "host": "unknown",
     "ide_id": "vscode"
   },
@@ -57,7 +54,6 @@ expression: json
   },
   "traits": {
     "color_level": "none",
-    "is_ci": false,
     "is_interactive": false,
     "is_piped_stdin": true,
     "is_piped_stdout": true,

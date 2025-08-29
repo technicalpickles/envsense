@@ -34,9 +34,6 @@ expression: json
     }
   ],
   "facets": {
-    "ci": {
-      "is_ci": false
-    },
     "host": "unknown"
   },
   "meta": {
@@ -44,7 +41,6 @@ expression: json
   },
   "traits": {
     "color_level": "ansi256",
-    "is_ci": false,
     "is_interactive": true,
     "is_piped_stdin": false,
     "is_piped_stdout": false,

@@ -1,7 +1,7 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
 use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
-use envsense::ci::ci_traits;
+// Legacy CI detection removed - using declarative system
 use envsense::schema::{EnvSense, Evidence};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -146,12 +146,8 @@ fn collect_snapshot() -> Snapshot {
     if env.contexts.remote {
         contexts.push("remote".to_string());
     }
-    let mut traits_val = serde_json::to_value(env.traits).unwrap();
-    if let Value::Object(map) = &mut traits_val {
-        for (k, v) in ci_traits(&env.facets.ci) {
-            map.insert(k, v);
-        }
-    }
+    let traits_val = serde_json::to_value(env.traits).unwrap();
+    // Legacy CI traits generation removed - CI traits now come from declarative detection
     Snapshot {
         contexts,
         traits: traits_val,
@@ -400,8 +396,8 @@ fn evaluate(
                 "is_piped_stdin" => env.traits.is_piped_stdin,
                 "is_piped_stdout" => env.traits.is_piped_stdout,
                 "supports_hyperlinks" => env.traits.supports_hyperlinks,
-                "is_ci" => env.facets.ci.is_ci,
-                "ci_pr" => env.facets.ci.pr.unwrap_or(false),
+                "is_ci" => env.contexts.ci,
+                "ci_pr" => env.traits.ci_pr.unwrap_or(false),
                 _ => false,
             };
             let evidence = find_evidence(env, &key);
@@ -449,11 +445,10 @@ fn run_check(args: &CheckCmd) -> i32 {
     }
     let env = EnvSense::detect();
     if args.predicates.len() == 1 && args.predicates[0] == "ci" && !args.any && !args.all {
-        let ci = env.facets.ci.clone();
-        if ci.is_ci {
+        if env.contexts.ci {
             if !args.quiet {
-                let name = ci.name.unwrap_or_else(|| "Generic CI".into());
-                let vendor = ci.vendor.unwrap_or_else(|| "generic".into());
+                let name = env.traits.ci_name.as_deref().unwrap_or("Generic CI");
+                let vendor = env.traits.ci_vendor.as_deref().unwrap_or("generic");
                 println!("CI detected: {} ({})", name, vendor);
             }
             return 0;

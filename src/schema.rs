@@ -1,4 +1,4 @@
-use crate::ci::CiFacet;
+// Legacy CI detection removed - using declarative system
 use crate::detectors::DeclarativeAgentDetector;
 use crate::detectors::DeclarativeCiDetector;
 use crate::detectors::DeclarativeIdeDetector;
@@ -110,8 +110,7 @@ pub struct Facets {
     pub container_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    #[serde(default)]
-    pub ci: CiFacet,
+    // Legacy CiFacet removed - CI information now comes from declarative detection via traits
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
@@ -124,6 +123,19 @@ pub struct Traits {
     pub is_piped_stdout: bool,
     pub color_level: ColorLevel,
     pub supports_hyperlinks: bool,
+    // CI-related traits added by declarative CI detection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_ci: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_vendor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_pr: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_pr: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
 }
 
 impl Default for Traits {
@@ -137,6 +149,13 @@ impl Default for Traits {
             is_piped_stdout: false,
             color_level: ColorLevel::None,
             supports_hyperlinks: false,
+            // CI-related traits default to None
+            is_ci: None,
+            ci_vendor: None,
+            ci_name: None,
+            is_pr: None,
+            ci_pr: None,
+            branch: None,
         }
     }
 }
@@ -152,6 +171,13 @@ impl From<TerminalTraits> for Traits {
             is_piped_stdout: !t.is_tty_stdout,
             color_level: t.color_level,
             supports_hyperlinks: t.supports_hyperlinks,
+            // CI-related traits default to None for terminal traits
+            is_ci: None,
+            ci_vendor: None,
+            ci_name: None,
+            is_pr: None,
+            ci_pr: None,
+            branch: None,
         }
     }
 }

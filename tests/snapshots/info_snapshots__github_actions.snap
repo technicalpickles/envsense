@@ -45,12 +45,6 @@ expression: json
     }
   ],
   "facets": {
-    "ci": {
-      "is_ci": true,
-      "name": "GitHub Actions",
-      "pr": false,
-      "vendor": "github_actions"
-    },
     "ci_id": "github_actions",
     "host": "ci"
   },

@@ -187,12 +187,7 @@ fn generate_merge_impl(
                     if let Some(value) = all_facets.get("host").and_then(|v| v.as_str()) {
                         self.#field_name.host = Some(value.to_string());
                     }
-                    // Handle CI facet struct
-                    if let Some(ci_facet_value) = all_facets.get("ci") {
-                        if let Ok(ci_facet) = serde_json::from_value::<crate::ci::CiFacet>(ci_facet_value.clone()) {
-                            self.#field_name.ci = ci_facet;
-                        }
-                    }
+                    // Legacy CI facet handling removed - CI information now comes from declarative detection
                 });
             }
             (MappingType::Traits, FieldType::Traits) => {
@@ -228,6 +223,25 @@ fn generate_merge_impl(
                             "truecolor" => crate::traits::terminal::ColorLevel::Truecolor,
                             _ => crate::traits::terminal::ColorLevel::None,
                         };
+                    }
+                    // Handle CI-related traits
+                    if let Some(value) = all_traits.get("is_ci").and_then(|v| v.as_bool()) {
+                        self.#field_name.is_ci = Some(value);
+                    }
+                    if let Some(value) = all_traits.get("ci_vendor").and_then(|v| v.as_str()) {
+                        self.#field_name.ci_vendor = Some(value.to_string());
+                    }
+                    if let Some(value) = all_traits.get("ci_name").and_then(|v| v.as_str()) {
+                        self.#field_name.ci_name = Some(value.to_string());
+                    }
+                    if let Some(value) = all_traits.get("is_pr").and_then(|v| v.as_bool()) {
+                        self.#field_name.is_pr = Some(value);
+                    }
+                    if let Some(value) = all_traits.get("ci_pr").and_then(|v| v.as_bool()) {
+                        self.#field_name.ci_pr = Some(value);
+                    }
+                    if let Some(value) = all_traits.get("branch").and_then(|v| v.as_str()) {
+                        self.#field_name.branch = Some(value.to_string());
                     }
                 });
             }

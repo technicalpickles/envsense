@@ -36,12 +36,6 @@ expression: json
     }
   ],
   "facets": {
-    "ci": {
-      "is_ci": true,
-      "name": "GitLab CI",
-      "pr": false,
-      "vendor": "gitlab_ci"
-    },
     "ci_id": "gitlab_ci",
     "host": "unknown"
   },

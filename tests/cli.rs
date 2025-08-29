@@ -57,7 +57,7 @@ fn human_info_multiline() {
         .assert()
         .success()
         .stdout(contains(
-            "Traits:\n  color_level = none\n  is_ci = false\n  is_interactive = false",
+            "Traits:\n  color_level = none\n  is_interactive = false",
         ));
 }
 

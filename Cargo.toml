@@ -21,7 +21,7 @@ colored = "2"
 is-terminal = "0.4"
 supports-color = "3"
 supports-hyperlinks = "3"
-ci_info = "0.14"
+# ci_info dependency removed - using declarative CI detection instead
 envsense-macros = { path = "./envsense-macros" }
 
 [dev-dependencies]
