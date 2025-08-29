@@ -109,6 +109,7 @@ mod tests {
                 }],
                 facets: HashMap::from([("test_id".to_string(), "test".to_string())]),
                 contexts: vec!["test".to_string()],
+                value_mappings: vec![],
             }]
         }
 

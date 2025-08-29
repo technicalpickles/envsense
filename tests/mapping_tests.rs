@@ -29,6 +29,7 @@ fn test_env_indicator_exact_match() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -52,6 +53,7 @@ fn test_env_indicator_presence_only() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -75,6 +77,7 @@ fn test_env_indicator_contains_match() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -98,6 +101,7 @@ fn test_env_indicator_contains_no_match() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(!mapping.matches(&env_vars));
@@ -121,6 +125,7 @@ fn test_env_indicator_contains_case_insensitive() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -148,6 +153,7 @@ fn test_env_indicator_prefix_match() {
         indicators: vec![indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -183,6 +189,7 @@ fn test_env_indicator_required_and_optional() {
         indicators: vec![required_indicator, optional_indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(mapping.matches(&env_vars));
@@ -215,6 +222,7 @@ fn test_env_indicator_required_missing() {
         indicators: vec![required_indicator, optional_indicator],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert!(!mapping.matches(&env_vars));
@@ -253,6 +261,7 @@ fn test_get_highest_priority() {
         ],
         facets: HashMap::new(),
         contexts: vec![],
+        value_mappings: vec![],
     };
 
     assert_eq!(mapping.get_highest_priority(), 3);
@@ -392,6 +401,7 @@ fn test_mapping_evidence_generation() {
         ],
         facets: HashMap::from([("test_facet".to_string(), "test_value".to_string())]),
         contexts: vec!["test_context".to_string()],
+        value_mappings: vec![],
     };
 
     let env_vars = create_env_vars(vec![("VAR1", "value1"), ("VAR2", "value2")]);

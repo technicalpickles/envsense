@@ -20,6 +20,21 @@ This directory contains comprehensive planning documents for consolidating and e
 3. **Standardize Selection Logic** (Medium Risk, Medium Value)
 4. **Create Base Trait** (High Risk, High Value)
 
+### 🔄 [Contextual Value Extraction](./contextual-value-extraction.md)
+**Advanced enhancement** for declarative value extraction from environment variables.
+
+**Key Topics:**
+- CI-specific value mappings (branch, PR status, build numbers)
+- Value transformations (boolean, integer, string operations)
+- Declarative fallback chains (no more hardcoded Rust logic)
+- Extensible transformation system
+
+**Phases:**
+1. **Core Infrastructure** (Low Risk, High Value)
+2. **CI Value Mappings** (Medium Risk, High Value)
+3. **Integration and Testing** (Medium Risk, Medium Value)
+4. **Advanced Features** (High Risk, High Value)
+
 ### 🔧 [Override System Design](./override-system-design.md)
 **Detailed design** for implementing a comprehensive override system across all detectors.
 
@@ -62,6 +77,27 @@ ENVSENSE_ASSUME_HUMAN=1              # Semantic disable
 - Performance must not regress by >10%
 - Memory usage must not increase by >20%
 - CLI behavior must remain identical
+
+### 🔄 [Contextual Value Extraction](./contextual-value-extraction.md)
+**Advanced enhancement** for declarative value extraction from environment variables.
+
+**Key Features:**
+- CI-specific value mappings (branch, PR status, build numbers)
+- Value transformations (boolean, integer, string operations)
+- Declarative fallback chains (no more hardcoded Rust logic)
+- Extensible transformation system
+
+**Implementation Phases:**
+- **Phase 1**: Core infrastructure and data structures
+- **Phase 2**: CI value mappings for all major systems
+- **Phase 3**: Integration with existing detection pipeline
+- **Phase 4**: Advanced features and optimizations
+
+**Benefits:**
+- Eliminates hardcoded fallback chains in Rust code
+- Makes CI detection fully declarative
+- Enables easy addition of new CI systems
+- Improves maintainability and testability
 
 ## Project Summary
 
