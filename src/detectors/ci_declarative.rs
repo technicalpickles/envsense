@@ -1,4 +1,7 @@
 use crate::detectors::env_mapping::get_ci_mappings;
+use crate::detectors::utils::{
+    DetectionConfig, SelectionStrategy, basic_declarative_detection, check_generic_overrides,
+};
 use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::schema::Evidence;
 use serde_json::json;
@@ -11,21 +14,26 @@ impl DeclarativeCiDetector {
     }
 
     fn detect_ci(&self, snap: &EnvSnapshot) -> (Option<String>, f32, Vec<Evidence>) {
-        let mappings = get_ci_mappings();
-        let mut ci_id = None;
-        let mut confidence = 0.0;
-        let evidence = Vec::new();
-
-        // Find the highest confidence matching CI
-        for mapping in &mappings {
-            if mapping.matches(&snap.env_vars) && mapping.confidence > confidence {
-                ci_id = mapping.facets.get("ci_id").cloned();
-                confidence = mapping.confidence;
-                break; // Take the first (highest confidence) match
-            }
+        // Check for overrides first
+        if let Some(override_result) = check_generic_overrides(snap, "ci") {
+            return override_result;
         }
 
-        (ci_id, confidence, evidence)
+        let mappings = get_ci_mappings();
+
+        let config = DetectionConfig {
+            context_name: "ci".to_string(),
+            facet_key: "ci_id".to_string(),
+            should_generate_evidence: false, // CI detector doesn't generate evidence for compatibility
+            supports: vec!["ci".into(), "ci_id".into()],
+        };
+
+        basic_declarative_detection(
+            &mappings,
+            &snap.env_vars,
+            &config,
+            SelectionStrategy::Confidence,
+        )
     }
 
     fn detect_pr_status(&self, snap: &EnvSnapshot) -> Option<bool> {
@@ -71,7 +79,7 @@ impl Detector for DeclarativeCiDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
 
-        let (ci_id, confidence, evidence) = self.detect_ci(snap);
+        let (ci_id, confidence, _evidence) = self.detect_ci(snap);
 
         if let Some(id) = ci_id {
             detection.contexts_add.push("ci".to_string());
@@ -273,5 +281,48 @@ mod tests {
         assert!(detection.contexts_add.is_empty());
         assert!(detection.facets_patch.is_empty());
         assert_eq!(detection.confidence, 0.0);
+    }
+
+    #[test]
+    fn respects_override_force_ci() {
+        let detector = DeclarativeCiDetector::new();
+        let snapshot = create_env_snapshot(vec![("ENVSENSE_CI", "custom-ci")]);
+
+        let detection = detector.detect(&snapshot);
+
+        assert!(detection.contexts_add.contains(&"ci".to_string()));
+        assert_eq!(
+            detection.facets_patch.get("ci_id").unwrap(),
+            &json!("custom-ci")
+        );
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
+    fn respects_override_disable_ci() {
+        let detector = DeclarativeCiDetector::new();
+        let snapshot =
+            create_env_snapshot(vec![("ENVSENSE_CI", "none"), ("GITHUB_ACTIONS", "true")]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should not detect as CI despite GITHUB_ACTIONS being present
+        assert!(!detection.contexts_add.contains(&"ci".to_string()));
+        assert!(detection.facets_patch.get("ci_id").is_none());
+    }
+
+    #[test]
+    fn respects_override_assume_local() {
+        let detector = DeclarativeCiDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("ENVSENSE_ASSUME_LOCAL", "1"),
+            ("GITHUB_ACTIONS", "true"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should not detect as CI despite GITHUB_ACTIONS being present
+        assert!(!detection.contexts_add.contains(&"ci".to_string()));
+        assert!(detection.facets_patch.get("ci_id").is_none());
     }
 }

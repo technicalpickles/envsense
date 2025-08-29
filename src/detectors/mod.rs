@@ -6,6 +6,7 @@ pub mod env_mapping;
 pub mod ide_declarative;
 pub mod terminal;
 pub mod tty;
+pub mod utils;
 pub use agent_declarative::DeclarativeAgentDetector;
 pub use ci_declarative::DeclarativeCiDetector;
 pub use ide_declarative::DeclarativeIdeDetector;

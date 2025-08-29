@@ -1,5 +1,6 @@
 use crate::detectors::env_mapping::{get_agent_mappings, get_host_mappings};
-use crate::detectors::{Detection, Detector, EnvSnapshot, confidence::HIGH};
+use crate::detectors::utils::check_generic_overrides;
+use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::schema::Evidence;
 use serde_json::json;
 
@@ -20,34 +21,19 @@ impl DeclarativeAgentDetector {
         let mut confidence = 0.0;
         let mut evidence = Vec::new();
 
-        // Check for user overrides first
-        if let Some(override_agent) = snap.get_env("ENVSENSE_AGENT") {
-            if override_agent == "none" {
-                // Force human mode - no agent detection
-                return (None, None, 0.0, vec![]);
-            } else {
-                // Direct agent override
-                agent_id = Some(override_agent.clone());
-                confidence = HIGH;
-                evidence.push(
-                    Evidence::env_var("ENVSENSE_AGENT", override_agent)
-                        .with_supports(vec!["agent".into(), "agent_id".into()])
-                        .with_confidence(HIGH),
-                );
-            }
-        }
+        // Check for overrides first
+        let mut skip_host_detection = false;
+        if let Some(override_result) = check_generic_overrides(snap, "agent") {
+            let (override_agent_id, override_confidence, override_evidence) = override_result;
 
-        // Check for assume human override
-        if snap
-            .get_env("ENVSENSE_ASSUME_HUMAN")
-            .map(|v| v == "1")
-            .unwrap_or(false)
-        {
-            return (None, None, 0.0, vec![]);
-        }
+            // Skip host detection only if agent_id is None (assume human override)
+            skip_host_detection = override_agent_id.is_none();
 
-        // If no override, use declarative mappings
-        if agent_id.is_none() {
+            agent_id = override_agent_id;
+            confidence = override_confidence;
+            evidence = override_evidence;
+        } else {
+            // Use declarative mappings for agent detection
             let agent_mappings = get_agent_mappings();
 
             // Find the highest confidence matching agent
@@ -84,8 +70,8 @@ impl DeclarativeAgentDetector {
             }
         }
 
-        // Detect host if not already set
-        if host_id.is_none() {
+        // Detect host if not already set and not skipping host detection
+        if host_id.is_none() && !skip_host_detection {
             // First check if any agent mappings also set host
             let agent_mappings = get_agent_mappings();
             for mapping in &agent_mappings {

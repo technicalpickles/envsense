@@ -1,5 +1,5 @@
 use envsense::detectors::DeclarativeAgentDetector;
-use envsense::detectors::{Detection, Detector, EnvSnapshot};
+use envsense::detectors::{Detector, EnvSnapshot};
 use std::collections::HashMap;
 
 #[test]

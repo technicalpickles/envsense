@@ -1,4 +1,7 @@
-use crate::detectors::env_mapping::{EnvMapping, get_ide_mappings};
+use crate::detectors::env_mapping::get_ide_mappings;
+use crate::detectors::utils::{
+    DetectionConfig, SelectionStrategy, basic_declarative_detection, check_generic_overrides,
+};
 use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::schema::Evidence;
 use serde_json::json;
@@ -11,45 +14,26 @@ impl DeclarativeIdeDetector {
     }
 
     fn detect_ide(&self, snap: &EnvSnapshot) -> (Option<String>, f32, Vec<Evidence>) {
+        // Check for overrides first
+        if let Some(override_result) = check_generic_overrides(snap, "ide") {
+            return override_result;
+        }
+
         let mappings = get_ide_mappings();
-        let mut ide_id = None;
-        let mut confidence = 0.0;
-        let mut evidence = Vec::new();
 
-        // Find the highest priority matching mapping
-        let mut best_mapping: Option<&EnvMapping> = None;
-        let mut best_priority = 0;
+        let config = DetectionConfig {
+            context_name: "ide".to_string(),
+            facet_key: "ide_id".to_string(),
+            should_generate_evidence: true,
+            supports: vec!["ide".into(), "ide_id".into()],
+        };
 
-        for mapping in &mappings {
-            if mapping.matches(&snap.env_vars) {
-                let mapping_priority = mapping.get_highest_priority();
-                if mapping_priority > best_priority {
-                    best_mapping = Some(mapping);
-                    best_priority = mapping_priority;
-                }
-            }
-        }
-
-        if let Some(mapping) = best_mapping {
-            ide_id = mapping.facets.get("ide_id").cloned();
-            confidence = mapping.confidence;
-
-            // Add evidence for this detection
-            for (key, value) in mapping.get_evidence(&snap.env_vars) {
-                let evidence_item = if let Some(val) = value {
-                    Evidence::env_var(key, val)
-                } else {
-                    Evidence::env_presence(key)
-                };
-                evidence.push(
-                    evidence_item
-                        .with_supports(vec!["ide".into(), "ide_id".into()])
-                        .with_confidence(mapping.confidence),
-                );
-            }
-        }
-
-        (ide_id, confidence, evidence)
+        basic_declarative_detection(
+            &mappings,
+            &snap.env_vars,
+            &config,
+            SelectionStrategy::Priority,
+        )
     }
 }
 
@@ -178,5 +162,48 @@ mod tests {
         assert!(detection.facets_patch.is_empty());
         assert!(detection.evidence.is_empty());
         assert_eq!(detection.confidence, 0.0);
+    }
+
+    #[test]
+    fn respects_override_force_ide() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![("ENVSENSE_IDE", "custom-editor")]);
+
+        let detection = detector.detect(&snapshot);
+
+        assert!(detection.contexts_add.contains(&"ide".to_string()));
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("custom-editor")
+        );
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
+    fn respects_override_disable_ide() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot =
+            create_env_snapshot(vec![("ENVSENSE_IDE", "none"), ("TERM_PROGRAM", "vscode")]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should not detect as IDE despite TERM_PROGRAM being present
+        assert!(!detection.contexts_add.contains(&"ide".to_string()));
+        assert!(detection.facets_patch.get("ide_id").is_none());
+    }
+
+    #[test]
+    fn respects_override_assume_terminal() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("ENVSENSE_ASSUME_TERMINAL", "1"),
+            ("TERM_PROGRAM", "vscode"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should not detect as IDE despite TERM_PROGRAM being present
+        assert!(!detection.contexts_add.contains(&"ide".to_string()));
+        assert!(detection.facets_patch.get("ide_id").is_none());
     }
 }
