@@ -39,39 +39,7 @@ impl DeclarativeDetector for DeclarativeCiDetector {
 }
 
 impl DeclarativeCiDetector {
-    fn detect_pr_status(&self, snap: &EnvSnapshot) -> Option<bool> {
-        // GitHub Actions
-        if let Some(event_name) = snap.get_env("GITHUB_EVENT_NAME") {
-            return Some(event_name == "pull_request");
-        }
-
-        // GitLab CI
-        if let Some(merge_request_id) = snap.get_env("CI_MERGE_REQUEST_ID") {
-            return Some(!merge_request_id.is_empty());
-        }
-
-        // CircleCI
-        if let Some(pr_number) = snap.get_env("CIRCLE_PR_NUMBER") {
-            return Some(!pr_number.is_empty());
-        }
-
-        // Generic CI_PULL_REQUEST
-        if let Some(pr) = snap.get_env("CI_PULL_REQUEST") {
-            return Some(pr.to_lowercase() == "true" || pr == "1");
-        }
-
-        None
-    }
-
-    fn detect_branch(&self, snap: &EnvSnapshot) -> Option<String> {
-        // Try various branch environment variables
-        snap.get_env("GITHUB_REF_NAME")
-            .cloned()
-            .or_else(|| snap.get_env("CI_COMMIT_REF_NAME").cloned())
-            .or_else(|| snap.get_env("CIRCLE_BRANCH").cloned())
-            .or_else(|| snap.get_env("BRANCH_NAME").cloned())
-            .or_else(|| snap.get_env("GIT_BRANCH").cloned())
-    }
+    // Imperative value extraction methods removed - using declarative value mappings instead
 }
 
 impl Detector for DeclarativeCiDetector {
@@ -124,29 +92,16 @@ impl Detector for DeclarativeCiDetector {
                 .traits_patch
                 .insert("ci_name".to_string(), json!(ci_name));
 
-            // Add PR status if available
-            if let Some(is_pr) = self.detect_pr_status(snap) {
-                detection
-                    .traits_patch
-                    .insert("is_pr".to_string(), json!(is_pr));
-                detection
-                    .traits_patch
-                    .insert("ci_pr".to_string(), json!(is_pr));
-                ci_facet.insert("pr".to_string(), json!(is_pr));
-            } else {
-                // Default to false if not detected
-                detection
-                    .traits_patch
-                    .insert("ci_pr".to_string(), json!(false));
-                ci_facet.insert("pr".to_string(), json!(false));
-            }
-
-            // Add branch name if available
-            if let Some(branch) = self.detect_branch(snap) {
-                detection
-                    .traits_patch
-                    .insert("branch".to_string(), json!(branch));
-                ci_facet.insert("branch".to_string(), json!(branch));
+            // Process declarative value mappings
+            let mappings = Self::get_mappings();
+            for mapping in &mappings {
+                if mapping.matches(&snap.env_vars) {
+                    let extracted_values = mapping.extract_values(&snap.env_vars);
+                    for (key, value) in extracted_values {
+                        detection.traits_patch.insert(key, value);
+                    }
+                    break; // Use the first matching mapping
+                }
             }
 
             detection

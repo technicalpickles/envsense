@@ -448,7 +448,10 @@ impl ValueTransform {
     /// Apply the transformation to a value
     pub fn apply(&self, value: &str) -> Result<serde_json::Value, String> {
         match self {
-            ValueTransform::ToBool => Ok(json!(!value.is_empty())),
+            ValueTransform::ToBool => {
+                let lower_value = value.to_lowercase();
+                Ok(json!(lower_value == "true" || lower_value == "1"))
+            }
             ValueTransform::ToLowercase => Ok(json!(value.to_lowercase())),
             ValueTransform::Equals(target) => Ok(json!(value == target)),
             ValueTransform::Contains(substring) => Ok(json!(
@@ -1234,6 +1237,23 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     condition: None,
                     validation_rules: vec![],
                 },
+                // Fallback branch detection for GitHub Actions
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "BRANCH_NAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "GIT_BRANCH".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
             ],
         },
         // GitLab CI detection
@@ -1283,6 +1303,23 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                     condition: None,
                     validation_rules: vec![],
                 },
+                // Fallback branch detection for GitLab CI
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "BRANCH_NAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "GIT_BRANCH".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
             ],
         },
         // CircleCI detection
@@ -1327,6 +1364,23 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
                 ValueMapping {
                     target_key: "project_name".to_string(),
                     source_key: "CIRCLE_PROJECT_REPONAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                // Fallback branch detection for CircleCI
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "BRANCH_NAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "GIT_BRANCH".to_string(),
                     required: false,
                     transform: None,
                     condition: None,
@@ -1514,6 +1568,47 @@ pub fn get_ci_mappings() -> Vec<EnvMapping> {
             contexts: vec!["ci".to_string()],
             value_mappings: vec![],
         },
+        // Generic CI detection for common environment variables
+        EnvMapping {
+            id: "generic-ci".to_string(),
+            confidence: LOW,
+            indicators: vec![EnvIndicator {
+                key: "CI".to_string(),
+                value: None,
+                required: false,
+                prefix: false,
+                contains: None,
+                priority: 0,
+            }],
+            facets: HashMap::from([("ci_id".to_string(), "generic".to_string())]),
+            contexts: vec!["ci".to_string()],
+            value_mappings: vec![
+                ValueMapping {
+                    target_key: "is_pr".to_string(),
+                    source_key: "CI_PULL_REQUEST".to_string(),
+                    required: false,
+                    transform: Some(ValueTransform::ToBool),
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "BRANCH_NAME".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "GIT_BRANCH".to_string(),
+                    required: false,
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+            ],
+        },
     ]
 }
 
@@ -1574,8 +1669,13 @@ mod tests {
         let transform = ValueTransform::ToBool;
 
         assert_eq!(transform.apply("").unwrap(), json!(false));
-        assert_eq!(transform.apply("value").unwrap(), json!(true));
-        assert_eq!(transform.apply("123").unwrap(), json!(true));
+        assert_eq!(transform.apply("false").unwrap(), json!(false));
+        assert_eq!(transform.apply("FALSE").unwrap(), json!(false));
+        assert_eq!(transform.apply("value").unwrap(), json!(false));
+        assert_eq!(transform.apply("123").unwrap(), json!(false));
+        assert_eq!(transform.apply("true").unwrap(), json!(true));
+        assert_eq!(transform.apply("TRUE").unwrap(), json!(true));
+        assert_eq!(transform.apply("1").unwrap(), json!(true));
     }
 
     #[test]
@@ -1702,7 +1802,7 @@ mod tests {
         let extracted = gitlab_mapping.extract_values(&env_vars);
 
         assert_eq!(extracted.get("branch").unwrap(), &json!("feature-branch"));
-        assert_eq!(extracted.get("is_pr").unwrap(), &json!(true)); // Non-empty string = true
+        assert_eq!(extracted.get("is_pr").unwrap(), &json!(false)); // Only "true" or "1" = true
         assert_eq!(extracted.get("pipeline_id").unwrap(), &json!(456));
         assert_eq!(
             extracted.get("project_path").unwrap(),
@@ -1733,7 +1833,7 @@ mod tests {
         let extracted = circle_mapping.extract_values(&env_vars);
 
         assert_eq!(extracted.get("branch").unwrap(), &json!("develop"));
-        assert_eq!(extracted.get("is_pr").unwrap(), &json!(true)); // Non-empty string = true
+        assert_eq!(extracted.get("is_pr").unwrap(), &json!(false)); // Only "true" or "1" = true
         assert_eq!(extracted.get("build_number").unwrap(), &json!(1001));
         assert_eq!(extracted.get("project_name").unwrap(), &json!("my-project"));
     }

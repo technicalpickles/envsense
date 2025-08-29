@@ -44,7 +44,6 @@ expression: json
   },
   "traits": {
     "ci_name": "GitLab CI",
-    "ci_pr": false,
     "ci_vendor": "gitlab_ci",
     "color_level": "none",
     "is_ci": true,

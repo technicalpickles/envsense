@@ -53,7 +53,6 @@ expression: json
   },
   "traits": {
     "ci_name": "GitHub Actions",
-    "ci_pr": false,
     "ci_vendor": "github_actions",
     "color_level": "none",
     "is_ci": true,
