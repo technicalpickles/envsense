@@ -124,7 +124,6 @@ impl Default for TerminalDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     use crate::detectors::test_utils::create_env_snapshot_with_tty;
 

@@ -54,7 +54,6 @@ mod tests {
     use super::*;
     use crate::detectors::confidence::HIGH;
     use serde_json::json;
-    use std::collections::HashMap;
 
     use crate::detectors::test_utils::create_env_snapshot;
 

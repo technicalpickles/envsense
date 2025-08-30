@@ -123,7 +123,6 @@ impl Default for DeclarativeCiDetector {
 mod tests {
     use super::*;
     use crate::detectors::confidence::HIGH;
-    use std::collections::HashMap;
 
     use crate::detectors::test_utils::create_env_snapshot;
 

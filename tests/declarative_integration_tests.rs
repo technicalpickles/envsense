@@ -1,7 +1,6 @@
 use envsense::detectors::{
-    DeclarativeAgentDetector, DeclarativeCiDetector, DeclarativeIdeDetector, Detector, EnvSnapshot,
+    DeclarativeAgentDetector, DeclarativeCiDetector, DeclarativeIdeDetector, Detector,
 };
-use std::collections::HashMap;
 
 use envsense::detectors::test_utils::create_env_snapshot;
 
