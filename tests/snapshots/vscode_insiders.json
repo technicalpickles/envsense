@@ -2,10 +2,57 @@
   "contexts": [
     "ide"
   ],
-  "facets": {
-    "ci": {
-      "is_ci": false
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "true"
     },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "TERM_PROGRAM",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide_id"
+      ],
+      "value": "vscode"
+    },
+    {
+      "confidence": 1.0,
+      "key": "TERM_PROGRAM_VERSION",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide_id"
+      ],
+      "value": "1.75.0-insider"
+    }
+  ],
+  "facets": {
+    "host": "unknown",
     "ide_id": "vscode-insiders"
   },
   "meta": {
@@ -13,7 +60,6 @@
   },
   "traits": {
     "color_level": "none",
-    "is_ci": false,
     "is_interactive": false,
     "is_piped_stdin": false,
     "is_piped_stdout": true,
