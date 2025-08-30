@@ -1,8 +1,8 @@
-use crate::ci::CiFacet;
-use crate::detectors::agent::AgentDetector;
-use crate::detectors::ci::CiDetector;
+// Legacy CI detection removed - using declarative system
+use crate::detectors::DeclarativeAgentDetector;
+use crate::detectors::DeclarativeCiDetector;
+use crate::detectors::DeclarativeIdeDetector;
 use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
-use crate::detectors::ide::IdeDetector;
 use crate::detectors::terminal::TerminalDetector;
 use crate::engine::DetectionEngine;
 use crate::traits::terminal::{ColorLevel, TerminalTraits};
@@ -108,8 +108,9 @@ pub struct Facets {
     pub ci_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_id: Option<String>,
-    #[serde(default)]
-    pub ci: CiFacet,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    // Legacy CiFacet removed - CI information now comes from declarative detection via traits
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
@@ -122,6 +123,19 @@ pub struct Traits {
     pub is_piped_stdout: bool,
     pub color_level: ColorLevel,
     pub supports_hyperlinks: bool,
+    // CI-related traits added by declarative CI detection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_ci: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_vendor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_pr: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_pr: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
 }
 
 impl Default for Traits {
@@ -135,6 +149,13 @@ impl Default for Traits {
             is_piped_stdout: false,
             color_level: ColorLevel::None,
             supports_hyperlinks: false,
+            // CI-related traits default to None
+            is_ci: None,
+            ci_vendor: None,
+            ci_name: None,
+            is_pr: None,
+            ci_pr: None,
+            branch: None,
         }
     }
 }
@@ -150,6 +171,13 @@ impl From<TerminalTraits> for Traits {
             is_piped_stdout: !t.is_tty_stdout,
             color_level: t.color_level,
             supports_hyperlinks: t.supports_hyperlinks,
+            // CI-related traits default to None for terminal traits
+            is_ci: None,
+            ci_vendor: None,
+            ci_name: None,
+            is_pr: None,
+            ci_pr: None,
+            branch: None,
         }
     }
 }
@@ -169,9 +197,9 @@ pub const SCHEMA_VERSION: &str = "0.2.0";
 fn detect_environment() -> EnvSense {
     let engine = DetectionEngine::new()
         .register(TerminalDetector::new())
-        .register(AgentDetector::new())
-        .register(CiDetector::new())
-        .register(IdeDetector::new());
+        .register(DeclarativeAgentDetector::new())
+        .register(DeclarativeCiDetector::new())
+        .register(DeclarativeIdeDetector::new());
 
     engine.detect()
 }

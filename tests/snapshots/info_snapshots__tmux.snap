@@ -4,17 +4,43 @@ expression: json
 ---
 {
   "contexts": [],
-  "facets": {
-    "ci": {
-      "is_ci": false
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "true"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "true"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "true"
     }
+  ],
+  "facets": {
+    "host": "unknown"
   },
   "meta": {
     "schema_version": "0.2.0"
   },
   "traits": {
     "color_level": "ansi256",
-    "is_ci": false,
     "is_interactive": true,
     "is_piped_stdin": false,
     "is_piped_stdout": false,

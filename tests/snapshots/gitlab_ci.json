@@ -2,21 +2,44 @@
   "contexts": [
     "ci"
   ],
-  "facets": {
-    "ci": {
-      "is_ci": true,
-      "name": "GitLab CI",
-      "pr": false,
-      "vendor": "gitlab_ci"
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "true"
     },
-    "ci_id": "gitlab_ci"
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    }
+  ],
+  "facets": {
+    "ci_id": "gitlab_ci",
+    "host": "unknown"
   },
   "meta": {
     "schema_version": "0.2.0"
   },
   "traits": {
     "ci_name": "GitLab CI",
-    "ci_pr": false,
     "ci_vendor": "gitlab_ci",
     "color_level": "none",
     "is_ci": true,

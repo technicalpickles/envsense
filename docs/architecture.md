@@ -43,21 +43,56 @@
 * **Traits**: booleans/properties about terminal and session (TTYs, color depth).
 * **Evidence**: why something was set, traceable to a signal.
 
+## Declarative Detection System
+
+The core of envsense uses a declarative pattern-based detection system:
+
+### EnvMapping
+Each detection domain (CI, agent, IDE) defines `EnvMapping` rules that specify:
+- **Indicators**: Environment variables that indicate the presence of an environment
+- **Value Mappings**: How to extract specific values (branch names, PR status, etc.)
+- **Conditions**: When certain mappings should be applied
+- **Transformations**: How to process extracted values
+
+### ValueMapping
+Extracts specific values from environment variables:
+```rust
+ValueMapping {
+    target_key: "branch".to_string(),
+    source_key: "GITHUB_REF_NAME".to_string(),
+    transform: Some(ValueTransform::ToLowercase),
+    condition: Some(Condition::Exists("GITHUB_ACTIONS".to_string())),
+    validation_rules: vec![ValidationRule::NotEmpty],
+}
+```
+
+### Benefits
+- **Consistency**: All detection follows the same pattern
+- **Extensibility**: Easy to add new environments and value extractions
+- **Maintainability**: Centralized logic reduces duplication
+- **Testability**: Declarative patterns are easier to test
+
 ---
 
 ## Detection Modules
 
-* [`src/agent.rs`](../src/agent.rs)
-  Detects AI coding agents and related facets (editor, host). Handles overrides (`ENVSENSE_AGENT`, `ENVSENSE_ASSUME_HUMAN`) and secret-safe session capture.
+* [`src/detectors/agent_declarative.rs`](../src/detectors/agent_declarative.rs)
+  Detects AI coding agents using declarative patterns. Handles overrides (`ENVSENSE_AGENT`, `ENVSENSE_ASSUME_HUMAN`) and secret-safe session capture.
 
-* [`src/ci.rs`](../src/ci.rs)
-  Wraps [`ci_info`](https://crates.io/crates/ci_info) to detect CI vendors and normalize them into consistent identifiers.
+* [`src/detectors/ci_declarative.rs`](../src/detectors/ci_declarative.rs)
+  Detects CI environments using declarative patterns. Supports GitHub Actions, GitLab CI, CircleCI, and other CI systems with value extraction for branch names, PR status, and more.
 
-* [`src/traits/terminal.rs`](../src/traits/terminal.rs)
+* [`src/detectors/ide_declarative.rs`](../src/detectors/ide_declarative.rs)
+  Detects IDE environments using declarative patterns. Identifies VS Code, Cursor, and other development environments.
+
+* [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs)
+  Core declarative detection system. Defines `EnvMapping`, `ValueMapping`, and related structures for environment detection patterns.
+
+* [`src/detectors/terminal.rs`](../src/detectors/terminal.rs)
   Detects TTYs, interactivity, color depth (`supports-color`), and OSC-8 hyperlink support.
 
 * [`src/schema.rs`](../src/schema.rs)
-  Defines the `EnvSense` struct, JSON schema, and orchestrates the detection pipeline (terminal → agent → CI → IDE).
+  Defines the `EnvSense` struct, JSON schema, and orchestrates the detection pipeline using the declarative system.
 
 * [`src/check.rs`](../src/check.rs)
   Implements the simple check expression grammar:
@@ -89,9 +124,10 @@ Detection precedence ensures consistent results:
 
 ## Schema Versioning
 
-* The schema is versioned via `SCHEMA_VERSION` (`0.1.0` currently).
+* The schema is versioned via `SCHEMA_VERSION` (`0.2.0` currently).
 * Every detection result includes `version` (schema).
 * Schema evolution requires bumping `version` and updating tests.
+* Recent changes: CI detection moved from nested `ci` facet to flat traits structure.
 
 ---
 
@@ -122,10 +158,36 @@ This allows `--explain` to surface reasoning for any true claim.
 
 * Adding a new detection requires:
 
-  1. Updating detector logic (new env vars or rules).
-  2. Adding schema facets/traits if needed.
-  3. Extending `CONTEXTS`, `FACETS`, or `TRAITS` arrays in `check.rs` to expose in help.
-  4. Writing tests in `tests/` for CLI and golden JSON.
+  1. **Declarative approach**: Define `EnvMapping` rules in the appropriate detector module.
+  2. **Value extraction**: Add `ValueMapping` rules for extracting specific values.
+  3. **Schema updates**: Add new facets/traits to `src/schema.rs` if needed.
+  4. **CLI exposure**: Extend `CONTEXTS`, `FACETS`, or `TRAITS` arrays in `check.rs`.
+  5. **Testing**: Write tests in `tests/` for CLI and golden JSON.
+
+### Adding New CI Vendors
+```rust
+// In src/detectors/env_mapping.rs
+pub fn get_ci_mappings() -> Vec<EnvMapping> {
+    vec![
+        // ... existing mappings
+        EnvMapping {
+            name: "my-ci".to_string(),
+            indicators: vec![
+                EnvIndicator::new("MY_CI_VAR"),
+            ],
+            value_mappings: vec![
+                ValueMapping {
+                    target_key: "branch".to_string(),
+                    source_key: "MY_CI_BRANCH".to_string(),
+                    transform: None,
+                    condition: None,
+                    validation_rules: vec![],
+                },
+            ],
+        },
+    ]
+}
+```
 
 ---
 

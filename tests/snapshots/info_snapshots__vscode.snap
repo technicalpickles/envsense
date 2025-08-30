@@ -6,10 +6,47 @@ expression: json
   "contexts": [
     "ide"
   ],
-  "facets": {
-    "ci": {
-      "is_ci": false
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdin",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdin"
+      ],
+      "value": "false"
     },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stdout",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stdout"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "is_tty_stderr",
+      "signal": "tty",
+      "supports": [
+        "is_tty_stderr"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "TERM_PROGRAM",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide_id"
+      ],
+      "value": "vscode"
+    }
+  ],
+  "facets": {
+    "host": "unknown",
     "ide_id": "vscode"
   },
   "meta": {
@@ -17,7 +54,6 @@ expression: json
   },
   "traits": {
     "color_level": "none",
-    "is_ci": false,
     "is_interactive": false,
     "is_piped_stdin": true,
     "is_piped_stdout": true,

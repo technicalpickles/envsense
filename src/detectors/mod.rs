@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
-pub mod agent;
-pub mod ci;
-pub mod ide;
+pub mod agent_declarative;
+pub mod ci_declarative;
+pub mod declarative;
+pub mod env_mapping;
+pub mod ide_declarative;
 pub mod terminal;
+pub mod test_utils;
 pub mod tty;
+pub mod utils;
+pub use agent_declarative::DeclarativeAgentDetector;
+pub use ci_declarative::DeclarativeCiDetector;
+pub use ide_declarative::DeclarativeIdeDetector;
 pub use tty::TtyDetector;
 
 /// Confidence levels for detection results

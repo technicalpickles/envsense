@@ -35,16 +35,16 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 
 1. Add the facet field to `Facets` in [`src/schema.rs`](../src/schema.rs).
 2. Update `FACETS` constant in [`src/check.rs`](../src/check.rs).
-3. Extend detection logic:
+3. Extend detection logic using declarative patterns:
 
-   * For CI vendors, update `normalize_vendor()` in [`src/ci.rs`](../src/ci.rs).
-   * For agents/editors, extend detection in [`src/agent.rs`](../src/agent.rs).
-   * For IDEs, update `detect_ide()` in [`src/schema.rs`](../src/schema.rs).
-4. Add `Evidence` whenever a facet is set.
+   * For CI vendors, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+   * For agents/editors, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+   * For IDEs, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+4. Add `Evidence` whenever a facet is set (handled automatically by declarative system).
 5. Test via CLI:
 
    ```bash
-   envsense check facet:new_id=value
+   cargo run -- check facet:new_id=value
    ```
 
 ---
@@ -55,40 +55,91 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 2. Update `TRAITS` constant in [`src/check.rs`](../src/check.rs).
 3. Extend detection logic in:
 
-   * [`src/traits/terminal.rs`](../src/traits/terminal.rs) for terminal properties.
-   * Or a new detector module if domain-specific.
-4. Include evidence if not purely derived.
-5. Write CLI tests to validate `envsense info --fields=traits`.
+   * [`src/detectors/terminal.rs`](../src/detectors/terminal.rs) for terminal properties.
+   * Or add `ValueMapping` rules in the appropriate declarative detector for domain-specific traits.
+4. Include evidence if not purely derived (handled automatically by declarative system).
+5. Write CLI tests to validate `cargo run -- info --fields=traits`.
 
 ---
 
 ## Adding a New Agent
 
-1. Update the `descriptor()` map in [`src/agent.rs`](../src/agent.rs) with:
-
-   * Human name
-   * Variant (e.g. `terminal`, `sandbox`)
-   * Capabilities (`code-edit`, `run-commands`, etc.)
-2. Add environment variable detection in `detect_agent()`.
-3. Ensure secret-scrubbing rules in `is_secret()` apply to any new vars.
-4. Test using a synthetic environment:
+1. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new agent:
 
    ```rust
-   let env = TestEnv { vars: hashmap!["NEW_AGENT" => "1"] };
-   let det = detect_agent(&env);
-   assert_eq!(det.agent.name, Some("new-agent".into()));
+   EnvMapping {
+       name: "new-agent".to_string(),
+       indicators: vec![
+           EnvIndicator::new("NEW_AGENT_VAR"),
+       ],
+       value_mappings: vec![
+           ValueMapping {
+               target_key: "agent_id".to_string(),
+               source_key: "NEW_AGENT_ID".to_string(),
+               transform: None,
+               condition: None,
+               validation_rules: vec![],
+           },
+       ],
+   }
+   ```
+
+2. Add the agent to the appropriate detector's mapping list (e.g., `get_agent_mappings()`).
+3. Test using shared test utilities:
+
+   ```rust
+   use envsense::detectors::test_utils::create_env_snapshot;
+   
+   #[test]
+   fn test_new_agent_detection() {
+       let snap = create_env_snapshot(vec![
+           ("NEW_AGENT_VAR", "true"),
+           ("NEW_AGENT_ID", "new-agent"),
+       ]);
+       
+       let detector = DeclarativeAgentDetector;
+       let detection = detector.detect(&snap);
+       
+       assert_eq!(detection.facets_patch.get("agent_id"), Some(&"new-agent".to_string()));
+   }
    ```
 
 ---
 
 ## Adding a New CI Vendor
 
-1. Add normalization in `normalize_vendor()` in [`src/ci.rs`](../src/ci.rs).
-2. Ensure both `vendor` (snake\_case ID) and `name` (human readable) are set.
+1. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new CI vendor:
+
+   ```rust
+   EnvMapping {
+       name: "new-ci".to_string(),
+       indicators: vec![
+           EnvIndicator::new("NEW_CI_VAR"),
+       ],
+       value_mappings: vec![
+           ValueMapping {
+               target_key: "ci_vendor".to_string(),
+               source_key: "NEW_CI_VENDOR".to_string(),
+               transform: Some(ValueTransform::ToLowercase),
+               condition: None,
+               validation_rules: vec![],
+           },
+           ValueMapping {
+               target_key: "branch".to_string(),
+               source_key: "NEW_CI_BRANCH".to_string(),
+               transform: None,
+               condition: None,
+               validation_rules: vec![ValidationRule::NotEmpty],
+           },
+       ],
+   }
+   ```
+
+2. Add the CI vendor to `get_ci_mappings()` in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
 3. Add CLI test:
 
    ```bash
-   GITHUB_ACTIONS=1 envsense check ci
+   NEW_CI_VAR=true NEW_CI_BRANCH=main cargo run -- check ci
    ```
 
 ---
@@ -97,11 +148,83 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 
 For larger categories (e.g., containers, remote sessions):
 
-1. Create a new module under `src/`.
-2. Define a struct for the facet(s).
-3. Implement a `detect_*()` function.
+1. Create a new module under `src/detectors/` following the declarative pattern.
+2. Implement the `DeclarativeDetector` trait:
+
+   ```rust
+   pub struct DeclarativeContainerDetector;
+   
+   impl DeclarativeDetector for DeclarativeContainerDetector {
+       type Facet = String; // or custom struct
+       
+       fn get_mappings() -> Vec<EnvMapping> {
+           get_container_mappings()
+       }
+       
+       fn create_detection() -> Detection<Self::Facet> {
+           Detection::new()
+       }
+   }
+   ```
+
+3. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
 4. Wire it into `EnvSense::detect()` in [`src/schema.rs`](../src/schema.rs).
 5. Provide unit tests and CLI integration tests.
+
+## Declarative Extension Patterns
+
+### Adding Value Mappings
+
+To extract specific values from environment variables:
+
+```rust
+ValueMapping {
+    target_key: "custom_value".to_string(),
+    source_key: "CUSTOM_ENV_VAR".to_string(),
+    transform: Some(ValueTransform::ToLowercase),
+    condition: Some(Condition::Exists("REQUIRED_VAR".to_string())),
+    validation_rules: vec![ValidationRule::NotEmpty],
+}
+```
+
+### Adding Conditional Logic
+
+To apply mappings only under certain conditions:
+
+```rust
+ValueMapping {
+    target_key: "is_feature_enabled".to_string(),
+    source_key: "FEATURE_FLAG".to_string(),
+    transform: Some(ValueTransform::ToBool),
+    condition: Some(Condition::Equals("ENVIRONMENT".to_string(), "production".to_string())),
+    validation_rules: vec![],
+}
+```
+
+### Adding Transformations
+
+Available transformations for value processing:
+
+- `ValueTransform::ToBool` - Convert to boolean
+- `ValueTransform::ToLowercase` - Convert to lowercase
+- `ValueTransform::ToUppercase` - Convert to uppercase
+- `ValueTransform::Trim` - Remove whitespace
+- `ValueTransform::Replace` - String replacement
+- `ValueTransform::Split` - Split into array
+- `ValueTransform::Custom` - Custom transformation function
+
+### Adding Validation Rules
+
+Ensure extracted values meet requirements:
+
+- `ValidationRule::NotEmpty` - Value must not be empty
+- `ValidationRule::IsInteger` - Value must be an integer
+- `ValidationRule::IsBoolean` - Value must be a boolean
+- `ValidationRule::MatchesRegex` - Value must match regex pattern
+- `ValidationRule::InRange` - Value must be within range
+- `ValidationRule::AllowedValues` - Value must be in allowed list
+- `ValidationRule::MinLength` - Minimum string length
+- `ValidationRule::MaxLength` - Maximum string length
 
 ---
 
@@ -109,8 +232,9 @@ For larger categories (e.g., containers, remote sessions):
 
 When adding new contexts/facets/traits:
 
-* Verify `--list-checks` shows the new option.
-* Ensure `--explain` produces meaningful `reason` and `signals`.
+* Verify `cargo run -- check --list` shows the new option.
+* Ensure `cargo run -- check --explain` produces meaningful reasoning.
+* Test with `cargo run -- info --json --fields=contexts,traits,facets` to verify output.
 
 ---
 

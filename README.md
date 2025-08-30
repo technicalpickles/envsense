@@ -76,20 +76,26 @@ Example JSON output:
 
 ```json
 {
-  "contexts": ["agent", "ide"],
+  "contexts": [
+    "agent",
+    "ide"
+  ],
   "traits": {
     "is_interactive": true,
+    "is_tty_stdin": true,
+    "is_tty_stdout": true,
+    "is_tty_stderr": true,
+    "is_piped_stdin": false,
+    "is_piped_stdout": false,
     "color_level": "truecolor",
-    "supports_hyperlinks": true,
-    "is_piped_stdout": false
+    "supports_hyperlinks": true
   },
   "facets": {
     "agent_id": "cursor",
-    "ide_id": "vscode"
+    "ide_id": "cursor"
   },
-  "meta": {
-    "schema_version": "0.2.0"
-  }
+  "evidence": [],
+  "version": "0.2.0"
 }
 ```
 
@@ -248,11 +254,11 @@ envsense info --json --fields=traits,facets
 envsense check ci
 ```
 
-Sample `envsense info --fields=facets --no-color` output on GitHub Actions:
+Sample `cargo run -- info --fields=facets --no-color` output on GitHub Actions:
 
 ```
 Facets:
-  ci = {"is_ci": true, "vendor": "github_actions", "name": "GitHub Actions"}
+  ci_id = github_actions
 ```
 
 And the corresponding JSON fragment:
@@ -262,14 +268,12 @@ And the corresponding JSON fragment:
   "traits": {
     "is_ci": true,
     "ci_vendor": "github_actions",
-    "ci_name": "GitHub Actions"
+    "ci_name": "GitHub Actions",
+    "is_pr": true,
+    "branch": "main"
   },
   "facets": {
-    "ci": {
-      "is_ci": true,
-      "vendor": "github_actions",
-      "name": "GitHub Actions"
-    }
+    "ci_id": "github_actions"
   }
 }
 ```
@@ -278,13 +282,30 @@ And the corresponding JSON fragment:
 
 ## Language Bindings
 
-* **Node.js**:
+* **Rust** (Primary):
+
+  ```rust
+  use envsense::detect_environment;
+  
+  let env = detect_environment();
+  if env.contexts.agent {
+      println!("Agent detected");
+  }
+  if env.facets.ide_id.as_deref() == Some("cursor") {
+      println!("Cursor detected");
+  }
+  if !env.traits.is_interactive {
+      println!("Non-interactive session");
+  }
+  ```
+
+* **Node.js** (Planned):
 
   ```js
   import { detect } from "envsense";
   const ctx = await detect();
   if (ctx.contexts.agent) console.log("Agent detected");
-  if (ctx.facets.ide_id === "vscode") console.log("VS Code detected");
+  if (ctx.facets.ide_id === "cursor") console.log("Cursor detected");
   if (!ctx.traits.is_interactive) console.log("Non-interactive session");
   ```
 
@@ -321,20 +342,24 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 
 ## Project Status
 
-* Prototype phase
-* Rust core + CLI planned
-* Node.js bindings first
-* Rule definitions in YAML for extensibility
+* **Rust implementation complete** - Core library and CLI fully functional
+* **Declarative detection system** - Environment detection using declarative patterns
+* **Comprehensive CI support** - GitHub Actions, GitLab CI, CircleCI, and more
+* **Extensible architecture** - Easy to add new detection patterns
+* **Production ready** - Used in real-world environments
 
 ---
 
 ## Roadmap
 
-* [ ] Implement baseline detectors (env vars, TTY)
-* [ ] CLI output in JSON + pretty modes
-* [ ] Rule engine for contexts/facets/traits
+* [x] Implement baseline detectors (env vars, TTY)
+* [x] CLI output in JSON + pretty modes
+* [x] Rule engine for contexts/facets/traits
+* [x] Declarative detection system
+* [x] Comprehensive CI environment support
 * [ ] Node binding via napi-rs
-* [ ] Profiles for common cases (agent, CI, IDE)
+* [ ] Additional language bindings
+* [ ] Advanced value extraction patterns
 
 ---
 
@@ -349,13 +374,17 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 
 ```bash
 # Run all tests
-cargo test
+cargo test --all
 
 # Run snapshot tests
 cargo test --test info_snapshots
 
 # Update snapshots after schema changes
-cargo insta review
+cargo insta accept
+
+# Test specific components
+cargo test --package envsense
+cargo test --package envsense-macros
 ```
 
 ### Schema Changes
@@ -364,8 +393,24 @@ When making breaking schema changes (like removing fields):
 
 1. Bump `SCHEMA_VERSION` in `src/schema.rs`
 2. Update tests to expect new version
-3. Run `cargo insta review` to update snapshots
+3. Run `cargo insta accept` to update snapshots
 4. Verify all tests pass
+
+### Development Workflow
+
+```bash
+# Format code (enforced by pre-commit hooks)
+cargo fmt --all
+
+# Lint and fix issues
+cargo clippy --all --fix -D warnings
+
+# Run full test suite
+cargo test --all
+
+# Build release version
+cargo build --release
+```
 
 See `docs/testing.md` for detailed testing guidelines.
 
