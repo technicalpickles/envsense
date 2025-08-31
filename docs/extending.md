@@ -1,16 +1,18 @@
 # Extending envsense
 
-This document describes how to add new **contexts**, **facets**, **traits**, and **detectors**.
-The goal is to keep detection logic deterministic, evidence-backed, and schema-stable.
+This document describes how to add new **contexts**, **facets**, **traits**, and
+**detectors**. The goal is to keep detection logic deterministic,
+evidence-backed, and schema-stable.
 
 ---
 
 ## General Principles
 
-* **Schema is a contract**: Any new field requires a schema bump (`SCHEMA_VERSION`) and updated tests.
-* **Evidence first**: Every `true` claim should be backed by at least one `Evidence` item.
-* **Precedence rules** remain consistent:
-
+- **Schema is a contract**: Any new field requires a schema bump
+  (`SCHEMA_VERSION`) and updated tests.
+- **Evidence first**: Every `true` claim should be backed by at least one
+  `Evidence` item.
+- **Precedence rules** remain consistent:
   1. User overrides
   2. Explicit env vars
   3. Execution channel markers
@@ -22,11 +24,13 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 ## Adding a New Context
 
 1. Add the context to `Contexts` in [`src/schema.rs`](../src/schema.rs).
-2. Update `CONTEXTS` constant in [`src/check.rs`](../src/check.rs) so it shows up in CLI help.
+2. Update `CONTEXTS` constant in [`src/check.rs`](../src/check.rs) so it shows
+   up in CLI help.
 3. Implement detection logic:
+   - Add a new function in `schema.rs` that sets the context and pushes
+     `Evidence`.
+   - Call it from `EnvSense::detect()`.
 
-   * Add a new function in `schema.rs` that sets the context and pushes `Evidence`.
-   * Call it from `EnvSense::detect()`.
 4. Write unit tests in `src/` and CLI tests in `tests/` to confirm detection.
 
 ---
@@ -36,11 +40,15 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 1. Add the facet field to `Facets` in [`src/schema.rs`](../src/schema.rs).
 2. Update `FACETS` constant in [`src/check.rs`](../src/check.rs).
 3. Extend detection logic using declarative patterns:
+   - For CI vendors, add `EnvMapping` rules in
+     [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+   - For agents/editors, add `EnvMapping` rules in
+     [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+   - For IDEs, add `EnvMapping` rules in
+     [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
 
-   * For CI vendors, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
-   * For agents/editors, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
-   * For IDEs, add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
-4. Add `Evidence` whenever a facet is set (handled automatically by declarative system).
+4. Add `Evidence` whenever a facet is set (handled automatically by declarative
+   system).
 5. Test via CLI:
 
    ```bash
@@ -54,17 +62,22 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 1. Add the trait field to `Traits` in [`src/schema.rs`](../src/schema.rs).
 2. Update `TRAITS` constant in [`src/check.rs`](../src/check.rs).
 3. Extend detection logic in:
+   - [`src/detectors/terminal.rs`](../src/detectors/terminal.rs) for terminal
+     properties.
+   - Or add `ValueMapping` rules in the appropriate declarative detector for
+     domain-specific traits.
 
-   * [`src/detectors/terminal.rs`](../src/detectors/terminal.rs) for terminal properties.
-   * Or add `ValueMapping` rules in the appropriate declarative detector for domain-specific traits.
-4. Include evidence if not purely derived (handled automatically by declarative system).
+4. Include evidence if not purely derived (handled automatically by declarative
+   system).
 5. Write CLI tests to validate `cargo run -- info --fields=traits`.
 
 ---
 
 ## Adding a New Agent
 
-1. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new agent:
+1. Add `EnvMapping` rules in
+   [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new
+   agent:
 
    ```rust
    EnvMapping {
@@ -84,22 +97,23 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
    }
    ```
 
-2. Add the agent to the appropriate detector's mapping list (e.g., `get_agent_mappings()`).
+2. Add the agent to the appropriate detector's mapping list (e.g.,
+   `get_agent_mappings()`).
 3. Test using shared test utilities:
 
    ```rust
    use envsense::detectors::test_utils::create_env_snapshot;
-   
+
    #[test]
    fn test_new_agent_detection() {
        let snap = create_env_snapshot(vec![
            ("NEW_AGENT_VAR", "true"),
            ("NEW_AGENT_ID", "new-agent"),
        ]);
-       
+
        let detector = DeclarativeAgentDetector;
        let detection = detector.detect(&snap);
-       
+
        assert_eq!(detection.facets_patch.get("agent_id"), Some(&"new-agent".to_string()));
    }
    ```
@@ -108,7 +122,9 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
 
 ## Adding a New CI Vendor
 
-1. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new CI vendor:
+1. Add `EnvMapping` rules in
+   [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs) for the new
+   CI vendor:
 
    ```rust
    EnvMapping {
@@ -135,7 +151,8 @@ The goal is to keep detection logic deterministic, evidence-backed, and schema-s
    }
    ```
 
-2. Add the CI vendor to `get_ci_mappings()` in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+2. Add the CI vendor to `get_ci_mappings()` in
+   [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
 3. Add CLI test:
 
    ```bash
@@ -153,21 +170,22 @@ For larger categories (e.g., containers, remote sessions):
 
    ```rust
    pub struct DeclarativeContainerDetector;
-   
+
    impl DeclarativeDetector for DeclarativeContainerDetector {
        type Facet = String; // or custom struct
-       
+
        fn get_mappings() -> Vec<EnvMapping> {
            get_container_mappings()
        }
-       
+
        fn create_detection() -> Detection<Self::Facet> {
            Detection::new()
        }
    }
    ```
 
-3. Add `EnvMapping` rules in [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
+3. Add `EnvMapping` rules in
+   [`src/detectors/env_mapping.rs`](../src/detectors/env_mapping.rs).
 4. Wire it into `EnvSense::detect()` in [`src/schema.rs`](../src/schema.rs).
 5. Provide unit tests and CLI integration tests.
 
@@ -232,17 +250,18 @@ Ensure extracted values meet requirements:
 
 When adding new contexts/facets/traits:
 
-* Verify `cargo run -- check --list` shows the new option.
-* Ensure `cargo run -- check --explain` produces meaningful reasoning.
-* Test with `cargo run -- info --json --fields=contexts,traits,facets` to verify output.
+- Verify `cargo run -- check --list` shows the new option.
+- Ensure `cargo run -- check --explain` produces meaningful reasoning.
+- Test with `cargo run -- info --json --fields=contexts,traits,facets` to verify
+  output.
 
 ---
 
 ## Checklist for Every Extension
 
-* [ ] Schema updated if new fields are introduced.
-* [ ] Added to `CONTEXTS` / `FACETS` / `TRAITS` constants.
-* [ ] Evidence added for every detection.
-* [ ] Unit tests written for detection logic.
-* [ ] CLI integration tests added.
-* [ ] Documentation updated (README, `docs/`).
+- [ ] Schema updated if new fields are introduced.
+- [ ] Added to `CONTEXTS` / `FACETS` / `TRAITS` constants.
+- [ ] Evidence added for every detection.
+- [ ] Unit tests written for detection logic.
+- [ ] CLI integration tests added.
+- [ ] Documentation updated (README, `docs/`).

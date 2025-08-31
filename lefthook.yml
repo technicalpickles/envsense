@@ -1,15 +1,20 @@
 pre-commit:
   commands:
+    prettier:
+      glob: "*.{md,yml,yaml,toml,json}"
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+
     format:
       glob: "*.rs"
       run: cargo fmt --all
       stage_fixed: true
-      
+
     clippy:
       glob: "*.rs"
       run: cargo clippy --all --locked --fix --allow-dirty --allow-staged
       stage_fixed: true
-      
+
     actionlint:
       glob: ".github/workflows/*.yml"
       run: actionlint {staged_files}

@@ -1,0 +1,43 @@
+{
+  "name": "envsense",
+  "version": "0.1.0",
+  "description": "Rust library and CLI for detecting runtime environments",
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.2.0",
+    "prettier-plugin-toml": "^0.3.0"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "prettier": {
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": true,
+    "singleQuote": false,
+    "quoteProps": "as-needed",
+    "jsxSingleQuote": false,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "arrowParens": "always",
+    "endOfLine": "lf",
+    "overrides": [
+      {
+        "files": "*.md",
+        "options": {
+          "printWidth": 80,
+          "proseWrap": "always"
+        }
+      },
+      {
+        "files": "*.toml",
+        "options": {
+          "printWidth": 120
+        }
+      }
+    ]
+  }
+}
