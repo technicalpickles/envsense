@@ -12,44 +12,35 @@ Most developers end up writing brittle ad-hoc checks in their shell configs or t
 
 These heuristics get duplicated across dotfiles and codebases. **envsense** centralizes and standardizes this detection.
 
----
-
 ## Quick Start (Shell)
 
 ```bash
 # Detect and show agent status
 envsense check agent
-envsense check --json agent
 
 # Simple check for any coding agent
-envsense check agent && echo "Running inside a coding agent"
+envsense -q check agent && echo "Running inside a coding agent"
 
 # Check if specifically running in Cursor
-envsense check facet:agent_id=cursor && echo "Cursor detected"
+envsense -q check agent.id=cursor && echo "Cursor detected"
 
 # Check if running in VS Code or VS Code Insiders
-envsense check facet:ide_id=vscode && echo "VS Code"
-envsense check facet:ide_id=vscode-insiders && echo "VS Code Insiders"
+envsense -q check ide.id=vscode && echo "VS Code"
+envsense -q check ide.id=vscode-insiders && echo "VS Code Insiders"
 
-# Combine checks in scripts
-if envsense check -q facet:ide_id=cursor; then
-  export PAGER=cat
-fi
 
 # Check multiple conditions (any must match)
 envsense check --any agent ide && echo "Running in agent or IDE"
 
 # Check multiple conditions (all must match)
-envsense check --all agent trait:is_interactive && echo "Interactive agent session"
+envsense check --all agent terminal.interactive && echo "Interactive agent session"
 
 # Get detailed reasoning for checks
-envsense check --explain facet:ide_id=cursor
+envsense check --explain ide.id=cursor
 
 # List all available predicates
 envsense check --list
 ```
-
----
 
 ## Exploring the Environment
 
@@ -61,9 +52,6 @@ envsense info
 
 # Print detected environment as JSON
 envsense info --json
-
-# Restrict to specific keys
-envsense info --fields contexts,traits
 
 # Pipe-friendly text
 envsense info --raw
@@ -81,18 +69,29 @@ Example JSON output:
     "ide"
   ],
   "traits": {
-    "is_interactive": true,
-    "is_tty_stdin": true,
-    "is_tty_stdout": true,
-    "is_tty_stderr": true,
-    "is_piped_stdin": false,
-    "is_piped_stdout": false,
-    "color_level": "truecolor",
-    "supports_hyperlinks": true
-  },
-  "facets": {
-    "agent_id": "cursor",
-    "ide_id": "cursor"
+    "agent": {
+      "id": "claude-code"
+    },
+    "ide": {
+      "id": "cursor"
+    },
+    "terminal": {
+      "interactive": true,
+      "color_level": "truecolor",
+      "stdin": {
+        "tty": true,
+        "piped": false,
+      },
+      "stdout": {
+        "tty": true,
+        "piped": false,
+      },
+      "stderr": {
+        "tty": true,
+        "pipped": false
+      },
+      "supports_hyperlinks": true
+    }
   },
   "evidence": [],
   "version": "0.2.0"
@@ -182,18 +181,17 @@ envsense check --any agent ide || echo "Neither"  # Runs if neither matches
 
 ## Key Concepts
 
-* **Contexts** — broad categories of environment (`agent`, `ide`, `ci`, `container`, `remote`).
-* **Facets** — more specific identifiers (`agent_id=cursor`, `ide_id=vscode`).
-* **Traits** — capabilities or properties (`is_interactive`, `supports_hyperlinks`, `color_level`).
+* **Contexts** — broad categories of environment (`agent`, `ide`, `ci`).
+* **Traits** — identifiers,  capabilities or properties (`is_interactive`, `supports_hyperlinks`, `color_level`).
 * **Evidence** — why envsense believes something (env vars, TTY checks, etc.), with confidence scores.
 
 ### Ask: Which category is it?
 
-* *“Running in VS Code”* → **Context/Facet** (`ide`, `ide_id=vscode`).
-* *“Running in GitHub Actions”* → **Facet** (`ci_id=github`).
-* *“Running in CI at all”* → **Context** (`ci=true`).
-* *“Can print hyperlinks”* → **Trait** (`supports_hyperlinks=true`).
-* *“stdout is not a TTY”* → **Trait** (`is_interactive=false`).
+* *“Running in VS Code”* → **Context/Trait** (`ide`, `ide.id=vscode`).
+* *“Running in GitHub Actions”* → **Trait** (`ci.id=github`).
+* *“Running in CI at all”* → **Context** (`ci`).
+* *“Can print hyperlinks”* → **Trait** (`terminal.supports_hyperlinks=true`).
+* *“stdout is not a TTY”* → **Trait** (`terminal.interactive=false`).
 
 ### Snippet Examples
 
@@ -202,10 +200,10 @@ envsense check --any agent ide || echo "Neither"  # Runs if neither matches
 envsense check ci && echo "In CI"
 
 # Facet: specifically GitHub Actions
-envsense check facet:ci_id=github && echo "In GitHub Actions"
+envsense check ci.id=github && echo "In GitHub Actions"
 
 # Trait: non-interactive
-if ! envsense check trait:is_interactive; then
+if ! envsense check terminal.interactive; then
   echo "Running non-interactive"
 fi
 ```
@@ -219,66 +217,21 @@ Predicates follow a simple syntax pattern:
 envsense check agent
 envsense check ide
 envsense check ci
-envsense check container
-envsense check remote
 
 # Facets (specific identifiers)
-envsense check facet:agent_id=cursor
-envsense check facet:ide_id=vscode
-envsense check facet:ci_id=github
-envsense check facet:container_id=docker
 
 # Traits (capabilities/properties)
-envsense check trait:is_interactive
-envsense check trait:supports_hyperlinks
-envsense check trait:is_ci
+envsense check agent.id=cursor
+envsense check ide.id=vscode
+envsense check ci.id=github
+envsense check terminal.interactive
+envsense check terminal.support_colors
 
 # Negation (prefix with !)
 envsense check !agent
-envsense check !trait:is_interactive
-envsense check !facet:ide_id=vscode
+envsense check !termina.interactive
+envsense check !ide.id=vscode
 ```
-
-### CI detection
-
-Detect if envsense is running in a CI environment and inspect details:
-
-```bash
-# Human-friendly summary
-envsense info --fields=facets --no-color
-
-# JSON output
-envsense info --json --fields=traits,facets
-
-# Simple check that exits 0 on CI, 1 otherwise
-envsense check ci
-```
-
-Sample `cargo run -- info --fields=facets --no-color` output on GitHub Actions:
-
-```
-Facets:
-  ci_id = github_actions
-```
-
-And the corresponding JSON fragment:
-
-```json
-{
-  "traits": {
-    "is_ci": true,
-    "ci_vendor": "github_actions",
-    "ci_name": "GitHub Actions",
-    "is_pr": true,
-    "branch": "main"
-  },
-  "facets": {
-    "ci_id": "github_actions"
-  }
-}
-```
-
----
 
 ## Language Bindings
 
@@ -309,36 +262,27 @@ And the corresponding JSON fragment:
   if (!ctx.traits.is_interactive) console.log("Non-interactive session");
   ```
 
----
 
 ## Detection Strategy
 
 1. **Explicit signals** — documented env vars (e.g. `TERM_PROGRAM`, `INSIDE_EMACS`, `CI`).
-2. **Execution channel** — SSH env vars, container cgroups, devcontainer markers.
-3. **Process ancestry** — parent process names (optional, behind a flag).
-4. **Heuristics** — last resort (file paths, working dir markers).
+2. **Process ancestry** — parent process names (optional, behind a flag).
+3. **Heuristics** — last resort (file paths, working dir markers).
 
 Precedence is: user override > explicit > channel > ancestry > heuristics.
-
----
 
 ## Terminal Features Detected
 
 * **Interactivity**
-
   * Shell flags (interactive mode)
   * TTY checks for stdin/stdout/stderr
   * Pipe/redirect detection
 * **Colors**
-
   * Honors `NO_COLOR`, `FORCE_COLOR`
   * Detects depth: none, basic, 256, truecolor
 * **Hyperlinks (OSC 8)**
-
   * Known supporting terminals (iTerm2, kitty, WezTerm, VS Code, etc.)
   * Optional probe for fallback
-
----
 
 ## Project Status
 
@@ -346,11 +290,8 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 * **Declarative detection system** - Environment detection using declarative patterns
 * **Comprehensive CI support** - GitHub Actions, GitLab CI, CircleCI, and more
 * **Extensible architecture** - Easy to add new detection patterns
-* **Production ready** - Used in real-world environments
 
----
-
-## Roadmap
+### Roadmap
 
 * [x] Implement baseline detectors (env vars, TTY)
 * [x] CLI output in JSON + pretty modes
@@ -361,65 +302,6 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 * [ ] Additional language bindings
 * [ ] Advanced value extraction patterns
 
----
-
-## Development
-
-### Prerequisites
-
-- Rust 1.70+
-- `cargo-insta` for snapshot testing: `cargo install cargo-insta`
-
-### Testing
-
-```bash
-# Run all tests
-cargo test --all
-
-# Run snapshot tests
-cargo test --test info_snapshots
-
-# Update snapshots after schema changes
-cargo insta accept
-
-# Test specific components
-cargo test --package envsense
-cargo test --package envsense-macros
-```
-
-### Schema Changes
-
-When making breaking schema changes (like removing fields):
-
-1. Bump `SCHEMA_VERSION` in `src/schema.rs`
-2. Update tests to expect new version
-3. Run `cargo insta accept` to update snapshots
-4. Verify all tests pass
-
-### Development Workflow
-
-```bash
-# Format code (enforced by pre-commit hooks)
-cargo fmt --all
-
-# Lint and fix issues
-cargo clippy --all --fix -D warnings
-
-# Run full test suite
-cargo test --all
-
-# Build release version
-cargo build --release
-```
-
-See `docs/testing.md` for detailed testing guidelines.
-
----
-
 ## License
 
 MIT
-
----
-
-**envsense**: environment awareness for any tool, in any language.
