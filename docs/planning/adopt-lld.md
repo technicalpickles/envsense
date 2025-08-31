@@ -2,19 +2,23 @@
 
 ## Overview
 
-This document outlines the plan to adopt LLVM's LLD linker for both local development and CI environments to improve build performance.
+This document outlines the plan to adopt LLVM's LLD linker for both local
+development and CI environments to improve build performance.
 
 ## Implementation Status
 
 **Overall Progress**: 100% Complete ✅
 
 ### ✅ Completed Phases
+
 - **Phase 1: Local Development Setup** - 100% Complete ✅
 - **Phase 2: CI Integration** - 100% Complete ✅
 - **Phase 3: Validation and Testing** - 100% Complete ✅
 
 ### 🎉 LLD Adoption Complete
-LLD has been successfully adopted and is now providing faster build times across all platforms:
+
+LLD has been successfully adopted and is now providing faster build times across
+all platforms:
 
 - ✅ **Local development**: LLD configured in `.cargo/config.toml`
 - ✅ **CI environments**: LLD integrated into GitHub Actions
@@ -25,11 +29,13 @@ LLD has been successfully adopted and is now providing faster build times across
 ## Background
 
 ### Current State
+
 - Using default system linker (GNU ld on Linux, system linker on macOS)
 - Linking can be a bottleneck in development workflow
 - CI builds could benefit from faster linking
 
 ### Why LLD?
+
 - **Speed**: 2-3x faster than GNU ld
 - **Stability**: More reliable than Mold (fastest alternative)
 - **Cross-platform**: Works on Linux, macOS, and Windows
@@ -42,21 +48,23 @@ LLD has been successfully adopted and is now providing faster build times across
 #### 1.1 Install Prerequisites
 
 **macOS:**
+
 ```bash
 brew install llvm
 ```
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt install clang
 ```
 
-**Other Linux:**
-Download from https://releases.llvm.org/
+**Other Linux:** Download from https://releases.llvm.org/
 
 #### 1.2 Configure Cargo
 
 Create `~/.cargo/config.toml`:
+
 ```toml
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
@@ -106,6 +114,7 @@ Add LLD installation to CI:
 #### 2.2 Configure CI Environment
 
 Add to workflow:
+
 ```yaml
 - name: Configure LLD
   run: |
@@ -117,6 +126,7 @@ Add to workflow:
 #### 3.1 Performance Testing
 
 **Before/After Comparison:**
+
 ```bash
 # Baseline (current linker)
 time cargo build --release
@@ -126,6 +136,7 @@ time cargo build --release
 ```
 
 **Expected Improvements:**
+
 - 2-3x faster linking on Linux
 - 1.5-2x faster linking on macOS
 - Reduced CI build times by 10-20%
@@ -133,6 +144,7 @@ time cargo build --release
 #### 3.2 Compatibility Testing
 
 **Test Scenarios:**
+
 1. Debug builds
 2. Release builds
 3. Test execution
@@ -140,6 +152,7 @@ time cargo build --release
 5. Cross-compilation (if applicable)
 
 **Known Issues to Watch:**
+
 - Some crates may have linker-specific code
 - Rare compatibility issues with certain system libraries
 
@@ -159,6 +172,7 @@ time cargo build --release
 #### 4.2 Fallback Plan
 
 If issues arise:
+
 1. Revert to default linker temporarily
 2. Document specific incompatibilities
 3. Create workarounds for problematic crates
@@ -168,6 +182,7 @@ If issues arise:
 ### Project-level Configuration
 
 Consider adding to `Cargo.toml`:
+
 ```toml
 [profile.release]
 # Optimize for LLD
@@ -178,10 +193,12 @@ codegen-units = 1
 ### Environment-specific Configuration
 
 **Development:**
+
 - Use `~/.cargo/config.toml` for personal setup
 - Document in team onboarding
 
 **CI:**
+
 - Use environment variables in GitHub Actions
 - Ensure consistent behavior across environments
 

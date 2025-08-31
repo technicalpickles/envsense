@@ -2,7 +2,10 @@
 
 ## Overview
 
-This document details the implementation plan for Phase 2 of the EnvSense simplification proposal: **Confidence Scoring Simplification**. The goal is to replace arbitrary hardcoded confidence values with clear, meaningful constants that have documented reasoning.
+This document details the implementation plan for Phase 2 of the EnvSense
+simplification proposal: **Confidence Scoring Simplification**. The goal is to
+replace arbitrary hardcoded confidence values with clear, meaningful constants
+that have documented reasoning.
 
 ## Current State Analysis
 
@@ -10,15 +13,17 @@ This document details the implementation plan for Phase 2 of the EnvSense simpli
 
 1. **Inconsistent Values**: Different detectors use different hardcoded values:
    - Terminal detector: `1.0` (always reliable)
-   - IDE detector: `0.95` 
+   - IDE detector: `0.95`
    - CI detector: `0.9`
    - Agent detector: Various values (`0.8`, `0.9`, `0.95`, `1.0`)
 
 2. **No Clear Reasoning**: Values appear arbitrary with no documented rationale
 
-3. **Limited Usage**: Confidence is only used in individual `Evidence` items, not in final output schema
+3. **Limited Usage**: Confidence is only used in individual `Evidence` items,
+   not in final output schema
 
-4. **Default Value**: Detection struct defaults to `0.0` confidence, which is meaningless
+4. **Default Value**: Detection struct defaults to `0.0` confidence, which is
+   meaningless
 
 ### Current Confidence Usage
 
@@ -42,7 +47,8 @@ detection.agent.confidence = 0.8;
 
 ### Option 1: Confidence Constants (Recommended)
 
-Replace hardcoded values with well-documented constants that have clear reasoning.
+Replace hardcoded values with well-documented constants that have clear
+reasoning.
 
 #### Confidence Level Definitions
 
@@ -53,17 +59,17 @@ pub mod confidence {
     /// Used when we have a clear, unambiguous signal from the environment
     /// Examples: CI=true, TERM_PROGRAM=vscode, CURSOR_AGENT=1
     pub const HIGH: f32 = 1.0;
-    
+
     /// Inferred from context (e.g., multiple environment variables)
     /// Used when we have strong but indirect evidence
     /// Examples: Multiple AIDER_* variables, SANDBOX_* variables
     pub const MEDIUM: f32 = 0.8;
-    
+
     /// Heuristic detection (e.g., file path patterns, process names)
     /// Used when we have weak or circumstantial evidence
     /// Examples: Process name patterns, file system markers
     pub const LOW: f32 = 0.6;
-    
+
     /// Terminal detection (always reliable)
     /// Used for TTY detection which is always accurate
     /// Examples: isatty() calls, terminal capability detection
@@ -114,48 +120,48 @@ pub struct Detection {
 
 ```rust
 /// Confidence levels for detection results
-/// 
+///
 /// These constants provide clear, meaningful confidence values
 /// with documented reasoning for when to use each level.
 pub mod confidence {
     /// Direct environment variable match (e.g., TERM_PROGRAM=vscode)
-    /// 
+    ///
     /// Used when we have a clear, unambiguous signal from the environment.
     /// This is the highest confidence level for environment-based detection.
-    /// 
+    ///
     /// Examples:
     /// - `CI=true` - Direct CI environment indicator
     /// - `TERM_PROGRAM=vscode` - Direct IDE environment indicator
     /// - `CURSOR_AGENT=1` - Direct agent environment indicator
     pub const HIGH: f32 = 1.0;
-    
+
     /// Inferred from context (e.g., multiple environment variables)
-    /// 
+    ///
     /// Used when we have strong but indirect evidence that requires
     /// interpretation or combination of multiple signals.
-    /// 
+    ///
     /// Examples:
     /// - Multiple `AIDER_*` variables indicating Aider agent
     /// - Multiple `SANDBOX_*` variables indicating sandboxed environment
     /// - Combination of SSH variables indicating remote session
     pub const MEDIUM: f32 = 0.8;
-    
+
     /// Heuristic detection (e.g., file path patterns, process names)
-    /// 
+    ///
     /// Used when we have weak or circumstantial evidence that requires
     /// pattern matching or heuristic analysis.
-    /// 
+    ///
     /// Examples:
     /// - Process name patterns (e.g., "cursor" in process tree)
     /// - File system markers (e.g., `.vscode` directory)
     /// - Network connection patterns
     pub const LOW: f32 = 0.6;
-    
+
     /// Terminal detection (always reliable)
-    /// 
+    ///
     /// Used for TTY detection which is always accurate because it
     /// directly queries the operating system for terminal capabilities.
-    /// 
+    ///
     /// Examples:
     /// - `isatty()` calls for stdin/stdout/stderr
     /// - Terminal capability detection
@@ -194,15 +200,15 @@ use crate::detectors::confidence::TERMINAL;
 impl Detector for TerminalDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         // TTY detection is always reliable
         detection.confidence = TERMINAL;
-        
+
         // Set TTY traits
         detection.traits_patch.insert("is_tty_stdin".to_string(), json!(snap.is_tty_stdin));
         detection.traits_patch.insert("is_tty_stdout".to_string(), json!(snap.is_tty_stdout));
         detection.traits_patch.insert("is_tty_stderr".to_string(), json!(snap.is_tty_stderr));
-        
+
         // Add evidence for TTY detection
         detection.evidence.push(
             Evidence::tty_trait("is_tty_stdin", snap.is_tty_stdin)
@@ -219,7 +225,7 @@ impl Detector for TerminalDetector {
                 .with_supports(vec!["is_tty_stderr".into()])
                 .with_confidence(TERMINAL)
         );
-        
+
         detection
     }
 }
@@ -383,7 +389,7 @@ fn detect_agent(env: &impl EnvReader) -> AgentDetection {
             detection.agent.is_agent = true;
             add_raw(&mut detection.agent, "CLAUDECODE", v);
         }
-        
+
         // Inferred from context
         else if vars.keys().any(|k| k.starts_with("SANDBOX_")) {
             detection.agent.name = Some("openhands".into());
@@ -422,7 +428,7 @@ use crate::detectors::confidence::{HIGH, MEDIUM, TERMINAL};
 
 impl Evidence {
     /// Create evidence from environment variable with value
-    /// 
+    ///
     /// Used when we have a direct environment variable match.
     /// Confidence: HIGH (1.0) - Direct env var match
     pub fn env_var(key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -436,7 +442,7 @@ impl Evidence {
     }
 
     /// Create evidence from environment variable presence
-    /// 
+    ///
     /// Used when we know an environment variable exists but don't capture its value.
     /// Confidence: MEDIUM (0.8) - Inferred from presence
     pub fn env_presence(key: impl Into<String>) -> Self {
@@ -450,7 +456,7 @@ impl Evidence {
     }
 
     /// Create evidence from TTY trait detection
-    /// 
+    ///
     /// Used for terminal capability detection which is always reliable.
     /// Confidence: TERMINAL (1.0) - Always reliable
     pub fn tty_trait(key: impl Into<String>, is_tty: bool) -> Self {
@@ -470,7 +476,7 @@ impl Evidence {
     }
 
     /// Override confidence level
-    /// 
+    ///
     /// Use this sparingly - prefer the default confidence levels
     /// from the evidence constructors.
     pub fn with_confidence(mut self, confidence: f32) -> Self {
@@ -497,7 +503,7 @@ fn test_confidence_constants() {
     assert!(MEDIUM >= 0.0 && MEDIUM <= 1.0);
     assert!(LOW >= 0.0 && LOW <= 1.0);
     assert!(TERMINAL >= 0.0 && TERMINAL <= 1.0);
-    
+
     // Verify relative ordering
     assert!(HIGH >= MEDIUM);
     assert!(MEDIUM >= LOW);
@@ -507,21 +513,21 @@ fn test_confidence_constants() {
 #[test]
 fn test_detection_confidence_values() {
     let result = EnvSense::detect();
-    
+
     // Verify all detections have appropriate confidence levels
     for evidence in &result.evidence {
         match evidence.signal {
             Signal::Env => {
                 if evidence.value.is_some() {
-                    assert_eq!(evidence.confidence, HIGH, 
+                    assert_eq!(evidence.confidence, HIGH,
                         "Direct env var should have HIGH confidence: {}", evidence.key);
                 } else {
-                    assert_eq!(evidence.confidence, MEDIUM, 
+                    assert_eq!(evidence.confidence, MEDIUM,
                         "Env presence should have MEDIUM confidence: {}", evidence.key);
                 }
             }
             Signal::Tty => {
-                assert_eq!(evidence.confidence, TERMINAL, 
+                assert_eq!(evidence.confidence, TERMINAL,
                     "TTY detection should have TERMINAL confidence: {}", evidence.key);
             }
             _ => {
@@ -539,7 +545,7 @@ fn test_specific_detector_confidence() {
     let snapshot = EnvSnapshot::current();
     let detection = terminal_detector.detect(&snapshot);
     assert_eq!(detection.confidence, TERMINAL);
-    
+
     // Test IDE detector with VSCode
     std::env::set_var("TERM_PROGRAM", "vscode");
     let ide_detector = IdeDetector::new();
@@ -547,7 +553,7 @@ fn test_specific_detector_confidence() {
     if !detection.contexts_add.is_empty() {
         assert_eq!(detection.confidence, HIGH);
     }
-    
+
     // Clean up
     std::env::remove_var("TERM_PROGRAM");
 }
@@ -556,26 +562,26 @@ fn test_specific_detector_confidence() {
 fn test_confidence_documentation() {
     // Verify that confidence levels are well-documented
     let result = EnvSense::detect();
-    
+
     // Check that evidence has appropriate confidence based on signal type
     for evidence in &result.evidence {
         match evidence.signal {
             Signal::Env => {
                 if evidence.value.is_some() {
                     // Direct env var match should be HIGH
-                    assert!(evidence.confidence >= HIGH, 
-                        "Direct env var {} should have HIGH confidence, got {}", 
+                    assert!(evidence.confidence >= HIGH,
+                        "Direct env var {} should have HIGH confidence, got {}",
                         evidence.key, evidence.confidence);
                 } else {
                     // Env presence should be MEDIUM
-                    assert!(evidence.confidence >= MEDIUM, 
-                        "Env presence {} should have MEDIUM confidence, got {}", 
+                    assert!(evidence.confidence >= MEDIUM,
+                        "Env presence {} should have MEDIUM confidence, got {}",
                         evidence.key, evidence.confidence);
                 }
             }
             Signal::Tty => {
                 // TTY detection should always be TERMINAL
-                assert_eq!(evidence.confidence, TERMINAL, 
+                assert_eq!(evidence.confidence, TERMINAL,
                     "TTY detection {} should have TERMINAL confidence", evidence.key);
             }
             _ => {
@@ -603,9 +609,9 @@ fn test_ide_detection_confidence() {
         .env("TERM_PROGRAM", "vscode")
         .output()
         .unwrap();
-    
+
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    
+
     // Verify evidence has appropriate confidence
     if let Some(evidence) = result.get("evidence").and_then(|e| e.as_array()) {
         for item in evidence {
@@ -630,10 +636,12 @@ fn test_ide_detection_confidence() {
 
 This implementation maintains full backward compatibility:
 
-1. **Schema Unchanged**: The `Detection` struct and `Evidence` struct remain unchanged
+1. **Schema Unchanged**: The `Detection` struct and `Evidence` struct remain
+   unchanged
 2. **API Unchanged**: All public APIs continue to work as before
 3. **Output Unchanged**: JSON output format remains the same
-4. **Values Improved**: Confidence values are now more consistent and well-documented
+4. **Values Improved**: Confidence values are now more consistent and
+   well-documented
 
 ### Rollout Plan
 
@@ -713,4 +721,5 @@ Phase 2 confidence scoring simplification provides immediate benefits:
 3. **Maintainability**: Easy to understand and modify
 4. **Backward Compatibility**: No breaking changes to schema or API
 
-The implementation plan provides a clear roadmap for achieving these benefits while minimizing risk and maintaining quality.
+The implementation plan provides a clear roadmap for achieving these benefits
+while minimizing risk and maintaining quality.

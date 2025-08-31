@@ -2,19 +2,24 @@
 
 ## Overview
 
-This document outlines a phased approach to implementing the CLI streamlining changes outlined in `streamlining-cli.md`. The implementation is designed to minimize risk while providing clear migration paths for users.
+This document outlines a phased approach to implementing the CLI streamlining
+changes outlined in `streamlining-cli.md`. The implementation is designed to
+minimize risk while providing clear migration paths for users.
 
 ## Implementation Strategy
 
 ### Core Principles
-1. **Backward Compatibility**: Maintain support for existing syntax during transition
+
+1. **Backward Compatibility**: Maintain support for existing syntax during
+   transition
 2. **Incremental Delivery**: Each phase delivers working functionality
 3. **Clear Migration Path**: Provide tools and documentation for users
 4. **Risk Mitigation**: Extensive testing at each phase
 
 ### High-Level Timeline
+
 - **Phase 1**: Foundation & Schema (2-3 weeks)
-- **Phase 2**: Parser & Evaluation (2-3 weeks)  
+- **Phase 2**: Parser & Evaluation (2-3 weeks)
 - **Phase 3**: Detection System (2-3 weeks)
 - **Phase 4**: CLI Integration (1-2 weeks)
 - **Phase 5**: Migration & Cleanup (1-2 weeks)
@@ -24,11 +29,14 @@ This document outlines a phased approach to implementing the CLI streamlining ch
 ## Phase 1: Foundation & Schema
 
 ### Objective
-Establish the new nested schema structure while maintaining backward compatibility.
+
+Establish the new nested schema structure while maintaining backward
+compatibility.
 
 ### Tasks
 
 #### 1.1 Create New Trait Structures
+
 **Files**: `src/schema.rs`, `src/traits/`
 
 ```rust
@@ -78,6 +86,7 @@ pub struct NestedTraits {
 ```
 
 #### 1.2 Update Main Schema
+
 **Files**: `src/schema.rs`
 
 ```rust
@@ -101,6 +110,7 @@ pub struct LegacyEnvSense {
 ```
 
 #### 1.3 Schema Version Management
+
 **Files**: `src/schema.rs`
 
 ```rust
@@ -111,7 +121,7 @@ impl EnvSense {
     pub fn to_legacy(&self) -> LegacyEnvSense {
         // Convert new schema to legacy format
     }
-    
+
     pub fn from_legacy(legacy: &LegacyEnvSense) -> Self {
         // Convert legacy schema to new format
     }
@@ -119,6 +129,7 @@ impl EnvSense {
 ```
 
 #### 1.4 Update Macro System
+
 **Files**: `envsense-macros/src/`, `envsense-macros-impl/src/`
 
 - Extend `DetectionMergerDerive` to handle nested structures
@@ -126,6 +137,7 @@ impl EnvSense {
 - Maintain backward compatibility for flat structures
 
 #### 1.5 Tests & Validation
+
 **Files**: `tests/`, `src/schema.rs`
 
 ```rust
@@ -147,6 +159,7 @@ fn legacy_conversion() {
 ```
 
 ### Success Criteria
+
 - [ ] New schema structures compile and serialize correctly
 - [ ] Legacy conversion functions work bidirectionally
 - [ ] All existing tests pass with new schema
@@ -154,9 +167,11 @@ fn legacy_conversion() {
 - [ ] Schema version bumped to 0.3.0
 
 ### Dependencies
+
 - None (foundation phase)
 
 ### Risk Mitigation
+
 - Extensive testing of schema conversions
 - Maintain both schemas during transition
 - Clear documentation of changes
@@ -166,11 +181,13 @@ fn legacy_conversion() {
 ## Phase 2: Parser & Evaluation
 
 ### Objective
+
 Implement new predicate syntax parser with dot notation support.
 
 ### Tasks
 
 #### 2.1 New Parser Implementation
+
 **Files**: `src/check.rs`
 
 ```rust
@@ -206,17 +223,18 @@ fn parse_nested_field(input: &str) -> Result<Check, ParseError> {
     } else {
         (input, None)
     };
-    
+
     let path_parts: Vec<String> = path.split('.').map(|s| s.to_string()).collect();
     if path_parts.len() < 2 {
         return Err(ParseError::Invalid);
     }
-    
+
     Ok(Check::NestedField { path: path_parts, value })
 }
 ```
 
 #### 2.2 Field Registry System
+
 **Files**: `src/check.rs`
 
 ```rust
@@ -248,7 +266,7 @@ impl FieldRegistry {
         registry.register_fields();
         registry
     }
-    
+
     fn register_fields(&mut self) {
         // Register all available fields with their types and paths
         self.register("agent.id", FieldType::OptionalString, vec!["agent", "id"]);
@@ -256,7 +274,7 @@ impl FieldRegistry {
         self.register("terminal.stdin.tty", FieldType::Boolean, vec!["terminal", "stdin", "tty"]);
         // ... more fields
     }
-    
+
     pub fn resolve_field(&self, path: &[String]) -> Option<&FieldInfo> {
         let key = path.join(".");
         self.fields.get(&key)
@@ -265,6 +283,7 @@ impl FieldRegistry {
 ```
 
 #### 2.3 Updated Evaluation Logic
+
 **Files**: `src/check.rs`, `src/main.rs`
 
 ```rust
@@ -291,7 +310,7 @@ fn evaluate(
             evaluate_legacy_trait(env, &key)
         }
     };
-    
+
     if parsed.negated {
         (result, reason, signals)
     } else {
@@ -310,10 +329,10 @@ fn evaluate_nested_field(
         Some(info) => info,
         None => return (false, Some("unknown field".to_string()), None),
     };
-    
+
     // Navigate to the field value
     let actual_value = navigate_to_field(&env.traits, &field_info.path);
-    
+
     // Compare based on field type
     let result = match field_info.field_type {
         FieldType::Boolean => {
@@ -331,49 +350,52 @@ fn evaluate_nested_field(
             true // Implementation needed
         }
     };
-    
+
     (result, Some(format!("field: {}", path.join("."))), None)
 }
 ```
 
 #### 2.4 Help Text Generation
+
 **Files**: `src/main.rs`
 
 ```rust
 fn generate_help_text(registry: &FieldRegistry) -> String {
     let mut help = String::from("Available predicates:\n\n");
-    
+
     help.push_str("Contexts:\n");
     for context in &["agent", "ide", "ci"] {
         help.push_str(&format!("  {}\n", context));
     }
-    
+
     help.push_str("\nFields:\n");
     for (field, info) in &registry.fields {
         help.push_str(&format!("  {}\n", field));
     }
-    
+
     help
 }
 ```
 
 #### 2.5 Deprecation Warnings
+
 **Files**: `src/check.rs`
 
 ```rust
 fn parse_with_warnings(input: &str) -> Result<Check, ParseError> {
     let result = parse(input)?;
-    
+
     // Warn about legacy syntax
     if input.starts_with("facet:") || input.starts_with("trait:") {
         eprintln!("Warning: Legacy syntax '{}' is deprecated. Use dot notation instead.", input);
     }
-    
+
     Ok(result)
 }
 ```
 
 ### Success Criteria
+
 - [ ] New dot notation parser handles all required syntax
 - [ ] Field registry correctly maps all fields
 - [ ] Evaluation logic works for nested structures
@@ -382,9 +404,11 @@ fn parse_with_warnings(input: &str) -> Result<Check, ParseError> {
 - [ ] All parser tests pass
 
 ### Dependencies
+
 - Phase 1 (new schema structures)
 
 ### Risk Mitigation
+
 - Extensive parser testing with edge cases
 - Gradual deprecation with clear warnings
 - Fallback to legacy evaluation if needed
@@ -394,11 +418,13 @@ fn parse_with_warnings(input: &str) -> Result<Check, ParseError> {
 ## Phase 3: Detection System
 
 ### Objective
+
 Update detectors to populate the new nested trait structure.
 
 ### Tasks
 
 #### 3.1 Update Terminal Detector
+
 **Files**: `src/detectors/terminal.rs`
 
 ```rust
@@ -446,79 +472,82 @@ impl Detector for TerminalDetector {
 ```
 
 #### 3.2 Update Agent Detector
+
 **Files**: `src/detectors/agent_declarative.rs`
 
 ```rust
 impl Detector for DeclarativeAgentDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         // Detect agent using existing logic
         if let Some(agent_id) = detect_agent_id(snap) {
             let agent_traits = AgentTraits {
                 id: Some(agent_id.clone()),
             };
-            
+
             detection.traits_patch.insert(
                 "agent".to_string(),
                 serde_json::to_value(agent_traits).unwrap(),
             );
-            
+
             detection.contexts_add.push("agent".to_string());
-            
+
             // Add evidence
             detection.evidence.push(
                 Evidence::env_var("AGENT_ID", agent_id)
                     .with_supports(vec!["agent.id".into()])
             );
         }
-        
+
         detection
     }
 }
 ```
 
 #### 3.3 Update IDE Detector
+
 **Files**: `src/detectors/ide_declarative.rs`
 
 ```rust
 impl Detector for DeclarativeIdeDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         // Detect IDE using existing logic
         if let Some(ide_id) = detect_ide_id(snap) {
             let ide_traits = IdeTraits {
                 id: Some(ide_id.clone()),
             };
-            
+
             detection.traits_patch.insert(
                 "ide".to_string(),
                 serde_json::to_value(ide_traits).unwrap(),
             );
-            
+
             detection.contexts_add.push("ide".to_string());
-            
+
             // Add evidence
             detection.evidence.push(
                 Evidence::env_var("IDE_ID", ide_id)
                     .with_supports(vec!["ide.id".into()])
             );
         }
-        
+
         detection
     }
 }
 ```
 
 #### 3.4 Update CI Detector
+
 **Files**: `src/detectors/ci_declarative.rs`
 
 ```rust
 impl Detector for DeclarativeCiDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
-        
+
         // Detect CI using existing logic
         if let Some(ci_info) = detect_ci_info(snap) {
             let ci_traits = CiTraits {
@@ -528,27 +557,28 @@ impl Detector for DeclarativeCiDetector {
                 is_pr: ci_info.is_pr,
                 branch: ci_info.branch,
             };
-            
+
             detection.traits_patch.insert(
                 "ci".to_string(),
                 serde_json::to_value(ci_traits).unwrap(),
             );
-            
+
             detection.contexts_add.push("ci".to_string());
-            
+
             // Add evidence
             detection.evidence.push(
                 Evidence::env_var("CI", "true")
                     .with_supports(vec!["ci.id".into()])
             );
         }
-        
+
         detection
     }
 }
 ```
 
 #### 3.5 Update Macro System for Nested Merging
+
 **Files**: `envsense-macros-impl/src/lib.rs`
 
 ```rust
@@ -561,6 +591,7 @@ fn generate_nested_merge_impl(input: &DeriveInput) -> TokenStream {
 ```
 
 #### 3.6 Update Engine for Context Handling
+
 **Files**: `src/engine.rs`
 
 ```rust
@@ -597,6 +628,7 @@ impl DetectionEngine {
 ```
 
 ### Success Criteria
+
 - [ ] All detectors populate nested trait structures
 - [ ] Macro system correctly merges nested objects
 - [ ] Evidence collection works with new field paths
@@ -605,10 +637,12 @@ impl DetectionEngine {
 - [ ] JSON output matches new schema structure
 
 ### Dependencies
+
 - Phase 1 (schema structures)
 - Phase 2 (field registry)
 
 ### Risk Mitigation
+
 - Extensive testing of detection logic
 - Maintain evidence collection for debugging
 - Verify JSON output structure
@@ -618,17 +652,19 @@ impl DetectionEngine {
 ## Phase 4: CLI Integration
 
 ### Objective
+
 Update CLI output rendering and user interface for new schema.
 
 ### Tasks
 
 #### 4.1 Update JSON Output
+
 **Files**: `src/main.rs`
 
 ```rust
 fn collect_snapshot() -> Snapshot {
     let env = EnvSense::detect();
-    
+
     Snapshot {
         contexts: env.contexts,  // Now Vec<String>
         traits: serde_json::to_value(env.traits).unwrap(),  // Nested structure
@@ -642,6 +678,7 @@ fn collect_snapshot() -> Snapshot {
 ```
 
 #### 4.2 Update Human-Readable Output
+
 **Files**: `src/main.rs`
 
 ```rust
@@ -656,7 +693,7 @@ fn render_human(
         Some(f) => f.split(',').map(str::trim).filter(|s| !s.is_empty()).collect(),
         None => default_fields.to_vec(),
     };
-    
+
     let mut out = String::new();
     for (i, field) in selected.iter().enumerate() {
         match *field {
@@ -673,7 +710,7 @@ fn render_human(
                 return Err(format!("unknown field: {}", field));
             }
         }
-        
+
         if i + 1 < selected.len() {
             out.push('\n');
         }
@@ -689,13 +726,13 @@ fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String
             "Traits:".to_string()
         };
         out.push_str(&heading);
-        
+
         for (context, context_traits) in map {
             out.push('\n');
             out.push_str("  ");
             out.push_str(context);
             out.push_str(":");
-            
+
             if let Value::Object(fields) = context_traits {
                 for (field, value) in fields {
                     out.push('\n');
@@ -711,6 +748,7 @@ fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String
 ```
 
 #### 4.3 Update Check Command Output
+
 **Files**: `src/main.rs`
 
 ```rust
@@ -721,7 +759,7 @@ fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bo
             mode: if mode_any { "any" } else { "all" },
             checks: results,
         };
-        
+
         if explain {
             println!("{}", serde_json::to_string_pretty(&out).unwrap());
         } else {
@@ -751,6 +789,7 @@ fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bo
 ```
 
 #### 4.4 Update Help Text
+
 **Files**: `src/main.rs`
 
 ```rust
@@ -765,17 +804,18 @@ fn check_predicate_long_help() -> &'static str {
 ```
 
 #### 4.5 Update List Command
+
 **Files**: `src/main.rs`
 
 ```rust
 fn list_checks() {
     let registry = FieldRegistry::new();
-    
+
     println!("contexts:");
     for context in &["agent", "ide", "ci"] {
         println!("  {}", context);
     }
-    
+
     println!("fields:");
     for (field, info) in &registry.fields {
         println!("  {}", field);
@@ -784,6 +824,7 @@ fn list_checks() {
 ```
 
 ### Success Criteria
+
 - [ ] JSON output matches new schema structure
 - [ ] Human-readable output shows nested traits clearly
 - [ ] Check command works with new predicate syntax
@@ -792,11 +833,13 @@ fn list_checks() {
 - [ ] All CLI tests pass
 
 ### Dependencies
+
 - Phase 1 (schema structures)
 - Phase 2 (parser & evaluation)
 - Phase 3 (detection system)
 
 ### Risk Mitigation
+
 - Extensive CLI testing
 - Verify output formats
 - Test with real-world examples
@@ -806,11 +849,13 @@ fn list_checks() {
 ## Phase 5: Migration & Cleanup
 
 ### Objective
+
 Complete migration to new schema and remove legacy code.
 
 ### Tasks
 
 #### 5.1 Migration Tools
+
 **Files**: `src/migration.rs`
 
 ```rust
@@ -835,12 +880,12 @@ impl MigrationTools {
             _ => Err("Unknown legacy predicate".to_string()),
         }
     }
-    
+
     /// Convert legacy JSON schema to new schema
     pub fn migrate_json(legacy_json: &str) -> Result<String, String> {
         let legacy: LegacyEnvSense = serde_json::from_str(legacy_json)
             .map_err(|e| format!("Invalid legacy JSON: {}", e))?;
-        
+
         let new = EnvSense::from_legacy(&legacy);
         serde_json::to_string_pretty(&new)
             .map_err(|e| format!("Failed to serialize: {}", e))
@@ -849,6 +894,7 @@ impl MigrationTools {
 ```
 
 #### 5.2 CLI Migration Commands
+
 **Files**: `src/main.rs`
 
 ```rust
@@ -867,11 +913,11 @@ struct MigrateCmd {
     /// Convert legacy predicate to new syntax
     #[arg(long, value_name = "PREDICATE")]
     predicate: Option<String>,
-    
+
     /// Convert legacy JSON to new schema
     #[arg(long, value_name = "FILE")]
     json: Option<String>,
-    
+
     /// Show migration guide
     #[arg(long)]
     guide: bool,
@@ -907,6 +953,7 @@ fn run_migrate(args: MigrateCmd) -> Result<(), i32> {
 ```
 
 #### 5.3 Remove Legacy Code
+
 **Files**: Multiple
 
 - Remove `Contexts`, `Facets`, `Traits` structs
@@ -915,6 +962,7 @@ fn run_migrate(args: MigrateCmd) -> Result<(), i32> {
 - Remove backward compatibility layers
 
 #### 5.4 Update Documentation
+
 **Files**: `README.md`, `docs/`
 
 - Update all examples to use new syntax
@@ -923,6 +971,7 @@ fn run_migrate(args: MigrateCmd) -> Result<(), i32> {
 - Create migration guide
 
 #### 5.5 Final Testing
+
 **Files**: `tests/`
 
 ```rust
@@ -935,7 +984,7 @@ fn migration_completeness() {
         "trait:is_interactive",
         // ... all legacy predicates
     ];
-    
+
     for legacy in legacy_predicates {
         let migrated = MigrationTools::migrate_predicate(legacy).unwrap();
         // Verify migrated predicate works
@@ -949,6 +998,7 @@ fn migration_completeness() {
 ```
 
 ### Success Criteria
+
 - [ ] Migration tools work correctly
 - [ ] All legacy code removed
 - [ ] Documentation updated
@@ -957,9 +1007,11 @@ fn migration_completeness() {
 - [ ] Migration guide available
 
 ### Dependencies
+
 - All previous phases
 
 ### Risk Mitigation
+
 - Comprehensive testing of migration tools
 - Gradual removal of legacy code
 - Clear communication to users
@@ -969,6 +1021,7 @@ fn migration_completeness() {
 ## Testing Strategy
 
 ### Unit Tests
+
 - **Schema**: Serialization/deserialization, conversions
 - **Parser**: All predicate syntax variations
 - **Evaluation**: Field resolution, type checking
@@ -976,16 +1029,19 @@ fn migration_completeness() {
 - **CLI**: Output formatting, error handling
 
 ### Integration Tests
+
 - **End-to-end**: Full detection pipeline
 - **Migration**: Legacy to new schema conversion
 - **Performance**: No regression in detection speed
 
 ### Snapshot Tests
+
 - **JSON Output**: Verify schema structure
 - **Human Output**: Verify formatting
 - **CLI Commands**: Verify behavior
 
 ### Manual Testing
+
 - **Real Environments**: Test in actual CI, IDE, agent environments
 - **Migration**: Test migration tools with real user data
 - **Documentation**: Verify all examples work
@@ -993,11 +1049,13 @@ fn migration_completeness() {
 ## Risk Management
 
 ### High-Risk Areas
+
 1. **Schema Changes**: Breaking changes affect all consumers
 2. **Parser Complexity**: New syntax may have edge cases
 3. **Migration**: Users may lose functionality during transition
 
 ### Mitigation Strategies
+
 1. **Gradual Migration**: Support both schemas during transition
 2. **Extensive Testing**: Comprehensive test coverage
 3. **Clear Communication**: Detailed migration guides and warnings
@@ -1006,24 +1064,33 @@ fn migration_completeness() {
 ## Success Metrics
 
 ### Technical Metrics
+
 - [ ] All tests pass
 - [ ] No performance regression
 - [ ] Schema version successfully bumped to 0.3.0
 - [ ] Zero deprecation warnings
 
 ### User Experience Metrics
+
 - [ ] Migration tools work for all use cases
 - [ ] New syntax is more intuitive (user feedback)
 - [ ] Documentation is clear and complete
 - [ ] No breaking changes for critical use cases
 
 ### Community Metrics
+
 - [ ] Successful migration of existing users
 - [ ] Positive feedback on new interface
 - [ ] No significant issues reported during transition
 
 ## Conclusion
 
-This phased approach provides a clear path to implementing the CLI streamlining changes while minimizing risk and ensuring a smooth migration for users. Each phase builds on the previous one and delivers working functionality, allowing for early feedback and course correction if needed.
+This phased approach provides a clear path to implementing the CLI streamlining
+changes while minimizing risk and ensuring a smooth migration for users. Each
+phase builds on the previous one and delivers working functionality, allowing
+for early feedback and course correction if needed.
 
-The key to success is maintaining backward compatibility during the transition period and providing clear migration tools and documentation for users. The end result will be a much more intuitive and maintainable interface that better serves the needs of the envsense community.
+The key to success is maintaining backward compatibility during the transition
+period and providing clear migration tools and documentation for users. The end
+result will be a much more intuitive and maintainable interface that better
+serves the needs of the envsense community.

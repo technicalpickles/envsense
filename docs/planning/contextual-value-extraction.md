@@ -1,14 +1,19 @@
 # Contextual Value Extraction Planning
 
-This document outlines the plan for implementing contextual value extraction in the `env_mapping.rs` system, enabling CI-specific value mappings that are applied only when a particular CI system is detected.
+This document outlines the plan for implementing contextual value extraction in
+the `env_mapping.rs` system, enabling CI-specific value mappings that are
+applied only when a particular CI system is detected.
 
 ## Problem Statement
 
-The current `env_mapping.rs` system excels at **detection** (determining which CI system is present) but lacks **value extraction** capabilities. This forces complex fallback logic to be implemented in Rust code rather than declaratively.
+The current `env_mapping.rs` system excels at **detection** (determining which
+CI system is present) but lacks **value extraction** capabilities. This forces
+complex fallback logic to be implemented in Rust code rather than declaratively.
 
 ### Current Limitations
 
-1. **No contextual value extraction**: Can't specify "when GitHub Actions is detected, extract branch from `GITHUB_REF_NAME`"
+1. **No contextual value extraction**: Can't specify "when GitHub Actions is
+   detected, extract branch from `GITHUB_REF_NAME`"
 2. **Hardcoded fallback chains**: Branch detection requires Rust code like:
    ```rust
    snap.get_env("GITHUB_REF_NAME")
@@ -16,27 +21,32 @@ The current `env_mapping.rs` system excels at **detection** (determining which C
        .or_else(|| snap.get_env("CIRCLE_BRANCH"))
        // ... more fallbacks
    ```
-3. **CI-specific logic scattered**: Each CI system's value extraction logic is embedded in detector code
-4. **Difficult to extend**: Adding new CI systems requires both detection and extraction code changes
+3. **CI-specific logic scattered**: Each CI system's value extraction logic is
+   embedded in detector code
+4. **Difficult to extend**: Adding new CI systems requires both detection and
+   extraction code changes
 
 ### Target State
 
 A declarative system where each CI mapping defines:
+
 - **Detection criteria** (which env vars indicate this CI system)
-- **Value mappings** (which env vars contain which values when this CI is detected)
+- **Value mappings** (which env vars contain which values when this CI is
+  detected)
 - **Transformations** (how to process extracted values)
 
 ## Design Overview
 
 ### Core Concept
 
-Extend `EnvMapping` to include **contextual value mappings** that are only applied when that specific environment is detected.
+Extend `EnvMapping` to include **contextual value mappings** that are only
+applied when that specific environment is detected.
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvMapping {
     // ... existing fields ...
-    
+
     /// Value mappings specific to this environment (only applied when this mapping matches)
     #[serde(default)]
     pub value_mappings: Vec<ValueMapping>,
@@ -144,18 +154,21 @@ EnvMapping {
 ### Phase 1: Core Infrastructure (Week 1)
 
 #### 1.1 Extend Data Structures
+
 - [ ] Add `ValueMapping` struct to `env_mapping.rs`
 - [ ] Add `ValueTransform` enum with common transformations
 - [ ] Add `value_mappings` field to `EnvMapping`
 - [ ] Update serialization/deserialization
 
 #### 1.2 Implement Value Extraction Logic
+
 - [ ] Add `extract_values()` method to `EnvMapping`
 - [ ] Implement transformation functions
 - [ ] Add error handling for malformed values
 - [ ] Add logging for debugging
 
 #### 1.3 Update Detection Engine
+
 - [ ] Modify `DeclarativeDetector` trait to support value extraction
 - [ ] Update detection pipeline to apply value mappings
 - [ ] Ensure backward compatibility
@@ -163,6 +176,7 @@ EnvMapping {
 ### Phase 2: CI Value Mappings (Week 2)
 
 #### 2.1 GitHub Actions Mappings
+
 - [ ] Branch: `GITHUB_REF_NAME`
 - [ ] PR status: `GITHUB_EVENT_NAME` → `equals("pull_request")`
 - [ ] PR number: `GITHUB_EVENT_NUMBER` → `to_int`
@@ -170,18 +184,21 @@ EnvMapping {
 - [ ] Workflow: `GITHUB_WORKFLOW`
 
 #### 2.2 GitLab CI Mappings
+
 - [ ] Branch: `CI_COMMIT_REF_NAME`
 - [ ] PR status: `CI_MERGE_REQUEST_ID` → `to_bool`
 - [ ] Pipeline ID: `CI_PIPELINE_ID` → `to_int`
 - [ ] Project path: `CI_PROJECT_PATH`
 
 #### 2.3 CircleCI Mappings
+
 - [ ] Branch: `CIRCLE_BRANCH`
 - [ ] PR status: `CIRCLE_PR_NUMBER` → `to_bool`
 - [ ] Build number: `CIRCLE_BUILD_NUM` → `to_int`
 - [ ] Project name: `CIRCLE_PROJECT_REPONAME`
 
 #### 2.4 Generic CI Mappings
+
 - [ ] Branch: `BRANCH_NAME`, `GIT_BRANCH` (fallback)
 - [ ] PR status: `CI_PULL_REQUEST` → `contains("true")`
 - [ ] Build number: `BUILD_NUMBER` → `to_int`
@@ -189,18 +206,21 @@ EnvMapping {
 ### Phase 3: Integration and Testing (Week 3)
 
 #### 3.1 Update CI Declarative Detector
+
 - [ ] Remove hardcoded value extraction logic
 - [ ] Use new value mapping system
 - [ ] Maintain existing API compatibility
 - [ ] Update tests to use new system
 
 #### 3.2 Comprehensive Testing
+
 - [ ] Unit tests for each transformation type
 - [ ] Integration tests for each CI system
 - [ ] Edge case testing (missing values, malformed data)
 - [ ] Performance testing
 
 #### 3.3 Documentation and Examples
+
 - [ ] Update `env_mapping.rs` documentation
 - [ ] Add examples for common CI systems
 - [ ] Create migration guide for existing mappings
@@ -209,15 +229,18 @@ EnvMapping {
 ### Phase 4: Advanced Features (Week 4)
 
 #### 4.1 Conditional Value Mappings
+
 - [ ] Support for conditional extraction based on other values
 - [ ] Example: Extract PR number only when `is_pr` is true
 
 #### 4.2 Custom Transformations
+
 - [ ] Plugin system for custom transformation functions
 - [ ] Support for complex data parsing
 - [ ] JSON parsing for structured environment variables
 
 #### 4.3 Validation and Error Handling
+
 - [ ] Schema validation for value mappings
 - [ ] Graceful handling of missing or invalid values
 - [ ] Detailed error messages for debugging
@@ -262,7 +285,7 @@ impl ValueTransform {
 impl EnvMapping {
     pub fn extract_values(&self, env_vars: &HashMap<String, String>) -> HashMap<String, serde_json::Value> {
         let mut extracted = HashMap::new();
-        
+
         for mapping in &self.value_mappings {
             if let Some(value) = env_vars.get(&mapping.source_key) {
                 match mapping.transform.as_ref() {
@@ -285,7 +308,7 @@ impl EnvMapping {
                 log::warn!("Required value mapping missing: {}", mapping.source_key);
             }
         }
-        
+
         extracted
     }
 }
@@ -336,29 +359,39 @@ impl EnvMapping {
 
 ## Success Metrics
 
-- ✅ **100% of CI value extraction** moved to declarative mappings ✅ **COMPLETED**
+- ✅ **100% of CI value extraction** moved to declarative mappings ✅
+  **COMPLETED**
 - ✅ **Zero hardcoded fallback chains** in Rust code ✅ **COMPLETED**
 - ✅ **All existing tests pass** with no regressions ✅ **COMPLETED**
 - ✅ **Performance within 5%** of current implementation ✅ **COMPLETED**
-- ✅ **Support for all major CI systems** with comprehensive value mappings ✅ **COMPLETED**
+- ✅ **Support for all major CI systems** with comprehensive value mappings ✅
+  **COMPLETED**
 
 ## Implementation Status
 
 **Overall Progress**: 100% Complete (4 of 4 phases completed)
 
 ### ✅ Completed Phases
+
 - **Phase 1: Core Infrastructure** - 100% Complete ✅
 - **Phase 2: CI Value Mappings** - 100% Complete ✅
 - **Phase 3: Integration and Testing** - 100% Complete ✅
 - **Phase 4: Advanced Features** - 100% Complete ✅
 
 ### 🎉 All Phases Complete
-The contextual value extraction system has been fully implemented and is now in production use. All CI detection now uses declarative value mappings with support for:
 
-- **Value Transformations**: ToBool, ToLowercase, ToUppercase, Trim, Replace, Split, Custom
-- **Conditional Logic**: Equals, NotEquals, Contains, IsTruthy, IsFalsy, Exists, NotExists
-- **Validation Rules**: NotEmpty, IsInteger, IsBoolean, MatchesRegex, InRange, AllowedValues, MinLength, MaxLength
-- **Dependency-based Processing**: Values are extracted in dependency order respecting conditions
+The contextual value extraction system has been fully implemented and is now in
+production use. All CI detection now uses declarative value mappings with
+support for:
+
+- **Value Transformations**: ToBool, ToLowercase, ToUppercase, Trim, Replace,
+  Split, Custom
+- **Conditional Logic**: Equals, NotEquals, Contains, IsTruthy, IsFalsy, Exists,
+  NotExists
+- **Validation Rules**: NotEmpty, IsInteger, IsBoolean, MatchesRegex, InRange,
+  AllowedValues, MinLength, MaxLength
+- **Dependency-based Processing**: Values are extracted in dependency order
+  respecting conditions
 - **Error Handling**: Comprehensive validation and error reporting
 
 ## Future Enhancements
@@ -386,6 +419,10 @@ The contextual value extraction system has been fully implemented and is now in 
 
 ## Conclusion
 
-Contextual value extraction represents a significant enhancement to the `env_mapping.rs` system, enabling fully declarative environment detection and value extraction. This approach eliminates hardcoded logic, improves maintainability, and provides a foundation for future enhancements.
+Contextual value extraction represents a significant enhancement to the
+`env_mapping.rs` system, enabling fully declarative environment detection and
+value extraction. This approach eliminates hardcoded logic, improves
+maintainability, and provides a foundation for future enhancements.
 
-The phased implementation approach ensures backward compatibility while gradually migrating to the new system, minimizing risk while maximizing value.
+The phased implementation approach ensures backward compatibility while
+gradually migrating to the new system, minimizing risk while maximizing value.

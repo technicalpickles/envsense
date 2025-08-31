@@ -1,0 +1,31 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Rust source files (handled by cargo fmt)
+*.rs
+
+# Generated files
+.cursor/
+.devcontainer/
+.specstory/
+
+# Scratch area (temporary files)
+scratch/
+
+# Git
+.git/
+
+# Node modules (if any)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test snapshots (generated test data)
+tests/snapshots/

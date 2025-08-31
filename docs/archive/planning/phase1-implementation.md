@@ -1,12 +1,15 @@
 # Phase 1 Implementation: Evidence System Unification
 
-This document provides detailed implementation steps for Phase 1 of the simplification proposal - unifying the duplicate evidence types.
+This document provides detailed implementation steps for Phase 1 of the
+simplification proposal - unifying the duplicate evidence types.
 
 ## Overview
 
-**Goal**: Eliminate duplicate evidence types and standardize naming across the codebase.
+**Goal**: Eliminate duplicate evidence types and standardize naming across the
+codebase.
 
 **Current State**: Two nearly identical evidence systems:
+
 - `src/evidence.rs`: `EvidenceItem` and `EvidenceSource`
 - `src/schema.rs`: `Evidence` and `Signal`
 
@@ -29,10 +32,12 @@ grep -r "Evidence\|Signal" src/ | grep -v "EvidenceItem\|EvidenceSource"
 ### Step 2: Choose Unified Naming
 
 Based on the analysis, we'll use the schema.rs naming convention:
+
 - `Evidence` (not `EvidenceItem`)
 - `Signal` (not `EvidenceSource`)
 
 This choice is based on:
+
 1. `Evidence` is more concise than `EvidenceItem`
 2. `Signal` is already used in the public API
 3. Schema types are the primary interface
@@ -144,6 +149,7 @@ pub struct Contexts {
 Update all detector files to use the unified evidence types:
 
 #### src/detectors/ide.rs
+
 ```rust
 use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::evidence::{Evidence, Signal}; // Updated import
@@ -153,6 +159,7 @@ use serde_json::json;
 ```
 
 #### src/detectors/ci.rs
+
 ```rust
 use crate::ci::{CiFacet, ci_traits, normalize_vendor};
 use crate::detectors::{Detection, Detector, EnvSnapshot};
@@ -164,6 +171,7 @@ use serde_json::json;
 ```
 
 #### src/detectors/agent.rs
+
 ```rust
 use crate::agent::{EnvReader, detect_agent};
 use crate::detectors::{Detection, Detector, EnvSnapshot};
@@ -178,6 +186,7 @@ use serde_json::{Value, json};
 Update all test files to use the unified evidence types:
 
 #### tests/cli.rs
+
 ```rust
 use envsense::schema::EnvSense;
 use envsense::evidence::{Evidence, Signal}; // Updated import
@@ -186,6 +195,7 @@ use envsense::evidence::{Evidence, Signal}; // Updated import
 ```
 
 #### Unit tests in detector modules
+
 ```rust
 // In src/detectors/ide.rs tests
 use crate::evidence::{Evidence, Signal}; // Updated import
@@ -198,16 +208,17 @@ use crate::evidence::{Evidence, Signal}; // Updated import
 Update any documentation that references the old evidence types:
 
 #### docs/architecture.md
+
 ```markdown
 ## Evidence Model
 
 Each `Evidence` entry contains:
 
-* `signal` – source of information (`Env`, `Tty`, `Proc`, `Fs`)
-* `key` – the specific variable or probe name
-* `value` – optional captured value
-* `supports` – contexts/facets/traits it backs
-* `confidence` – float in `[0.0, 1.0]`
+- `signal` – source of information (`Env`, `Tty`, `Proc`, `Fs`)
+- `key` – the specific variable or probe name
+- `value` – optional captured value
+- `supports` – contexts/facets/traits it backs
+- `confidence` – float in `[0.0, 1.0]`
 
 This allows `--explain` to surface reasoning for any true claim.
 ```
@@ -254,7 +265,8 @@ pub use evidence::{Evidence, Signal}; // Re-export for convenience
 - [ ] All tests pass (`cargo test`)
 - [ ] Baseline validation passes (`./scripts/compare-baseline.sh`)
 - [ ] No compilation errors (`cargo check`)
-- [ ] JSON schema generation works (`cargo test schema::tests::json_schema_generates`)
+- [ ] JSON schema generation works
+      (`cargo test schema::tests::json_schema_generates`)
 - [ ] CLI functionality unchanged (`cargo run -- info --json`)
 - [ ] All imports updated to use unified types
 - [ ] Documentation updated to reflect unified types
@@ -310,4 +322,5 @@ grep -r "struct Evidence\|enum Signal" src/
 cargo run -- info --json | jq '.evidence[0]'
 ```
 
-This implementation guide provides a step-by-step approach to safely unify the evidence system while maintaining functionality and improving code quality.
+This implementation guide provides a step-by-step approach to safely unify the
+evidence system while maintaining functionality and improving code quality.

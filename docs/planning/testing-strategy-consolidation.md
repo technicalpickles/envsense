@@ -2,24 +2,33 @@
 
 ## Overview
 
-This document outlines the comprehensive testing strategy for the declarative detector consolidation project. It ensures that all changes maintain existing functionality while adding new capabilities safely.
+This document outlines the comprehensive testing strategy for the declarative
+detector consolidation project. It ensures that all changes maintain existing
+functionality while adding new capabilities safely.
 
 ## Implementation Status
 
 **Overall Progress**: 100% Complete ✅
 
 ### ✅ Completed Testing Phases
+
 - **Phase 1**: Utility function testing (95% coverage target) ✅ **COMPLETED**
 - **Phase 2**: Override system testing (90% coverage target) ✅ **COMPLETED**
-- **Phase 3**: Selection logic migration testing (95% coverage target) ✅ **COMPLETED**
-- **Phase 4**: Base trait implementation testing (90% coverage target) ✅ **COMPLETED**
+- **Phase 3**: Selection logic migration testing (95% coverage target) ✅
+  **COMPLETED**
+- **Phase 4**: Base trait implementation testing (90% coverage target) ✅
+  **COMPLETED**
 
 ### 🎉 All Testing Phases Complete
-The comprehensive testing strategy has been successfully implemented and validated. All quality gates have been met:
+
+The comprehensive testing strategy has been successfully implemented and
+validated. All quality gates have been met:
 
 - ✅ **All existing tests pass** (no regression) - 93 tests passing
-- ✅ **New functionality has 90%+ coverage** - Comprehensive test coverage achieved
-- ✅ **Performance has not regressed by >10%** - No performance regression detected
+- ✅ **New functionality has 90%+ coverage** - Comprehensive test coverage
+  achieved
+- ✅ **Performance has not regressed by >10%** - No performance regression
+  detected
 - ✅ **Memory usage has not increased by >20%** - Memory usage maintained
 - ✅ **CLI behavior remains identical** - All CLI functionality preserved
 
@@ -27,13 +36,13 @@ The comprehensive testing strategy has been successfully implemented and validat
 
 ### Existing Test Distribution
 
-| **Test Type** | **Location** | **Count** | **Coverage** |
-|---------------|--------------|-----------|--------------|
-| **Mapping Tests** | `tests/mapping_tests.rs` | 18 | EnvIndicator logic, priority ordering |
-| **Integration Tests** | `tests/declarative_integration_tests.rs` | 9 | End-to-end scenarios |
-| **Detector Unit Tests** | `src/detectors/*_declarative.rs` | 16+ | Detector-specific behavior |
-| **CLI Tests** | `tests/cli*.rs` | 12+ | Command-line interface |
-| **Snapshot Tests** | `tests/info_snapshots.rs` | 12+ | JSON output validation |
+| **Test Type**           | **Location**                             | **Count** | **Coverage**                          |
+| ----------------------- | ---------------------------------------- | --------- | ------------------------------------- |
+| **Mapping Tests**       | `tests/mapping_tests.rs`                 | 18        | EnvIndicator logic, priority ordering |
+| **Integration Tests**   | `tests/declarative_integration_tests.rs` | 9         | End-to-end scenarios                  |
+| **Detector Unit Tests** | `src/detectors/*_declarative.rs`         | 16+       | Detector-specific behavior            |
+| **CLI Tests**           | `tests/cli*.rs`                          | 12+       | Command-line interface                |
+| **Snapshot Tests**      | `tests/info_snapshots.rs`                | 12+       | JSON output validation                |
 
 ### Test Coverage Analysis
 
@@ -41,7 +50,7 @@ The comprehensive testing strategy has been successfully implemented and validat
 # Current coverage (estimated)
 Mapping Logic:        95% (comprehensive)
 Detector Behavior:    90% (good coverage)
-Integration Flows:    85% (good coverage)  
+Integration Flows:    85% (good coverage)
 Override System:      60% (agent only)
 Error Handling:       70% (partial)
 Performance:          30% (minimal)
@@ -59,25 +68,25 @@ Performance:          30% (minimal)
 #[cfg(test)]
 mod evidence_generation_tests {
     use super::*;
-    
+
     #[test]
     fn test_generate_evidence_from_mapping() {
         let mapping = create_test_mapping();
         let env_vars = create_test_env_vars();
         let supports = vec!["test".into(), "test_id".into()];
-        
+
         let evidence = generate_evidence_from_mapping(&mapping, &env_vars, supports);
-        
+
         assert_eq!(evidence.len(), 2);
         assert!(evidence.iter().any(|e| e.key == "TEST_VAR"));
         assert!(evidence.iter().all(|e| e.confidence == mapping.confidence));
     }
-    
+
     #[test]
     fn test_evidence_with_prefix_indicators() {
         // Test evidence generation for prefix-based indicators
     }
-    
+
     #[test]
     fn test_evidence_with_mixed_indicators() {
         // Test evidence generation for mixed indicator types
@@ -97,11 +106,11 @@ mod selection_tests {
             create_mapping("high", 1.0),
             create_mapping("medium", 0.8),
         ];
-        
+
         let best = find_best_mapping_by_confidence(&mappings, &env_vars);
         assert_eq!(best.unwrap().id, "high");
     }
-    
+
     #[test]
     fn test_priority_based_selection() {
         let mappings = vec![
@@ -109,15 +118,15 @@ mod selection_tests {
             create_mapping_with_priority("high", 0.8, 30),
             create_mapping_with_priority("medium", 0.9, 20),
         ];
-        
+
         let best = find_best_mapping_by_priority(&mappings, &env_vars);
         assert_eq!(best.unwrap().id, "high");
     }
-    
+
     #[test]
     fn test_no_matching_mappings() {
         let mappings = vec![create_non_matching_mapping()];
-        
+
         let best = find_best_mapping_by_confidence(&mappings, &env_vars);
         assert!(best.is_none());
     }
@@ -139,21 +148,21 @@ mod basic_detection_tests {
             should_generate_evidence: true,
             supports: vec!["test".into()],
         };
-        
+
         let (id, confidence, evidence) = basic_declarative_detection(
             &mappings, &env_vars, &config, SelectionStrategy::Confidence
         );
-        
+
         assert!(id.is_some());
         assert!(confidence > 0.0);
         assert!(!evidence.is_empty());
     }
-    
+
     #[test]
     fn test_basic_declarative_detection_no_evidence() {
         // Test with should_generate_evidence = false
     }
-    
+
     #[test]
     fn test_basic_declarative_detection_no_match() {
         // Test with non-matching environment
@@ -173,27 +182,27 @@ mod override_logic_tests {
     #[test]
     fn test_check_detector_overrides_disable() {
         let snapshot = create_env_snapshot(vec![("ENVSENSE_IDE", "none")]);
-        
+
         let result = check_detector_overrides(&snapshot, "ide");
-        
+
         match result {
             OverrideResult::Disable => {}, // Expected
             _ => panic!("Expected Disable result"),
         }
     }
-    
+
     #[test]
     fn test_check_detector_overrides_force() {
         let snapshot = create_env_snapshot(vec![("ENVSENSE_IDE", "custom-editor")]);
-        
+
         let result = check_detector_overrides(&snapshot, "ide");
-        
+
         match result {
             OverrideResult::Force(value) => assert_eq!(value, "custom-editor"),
             _ => panic!("Expected Force result"),
         }
     }
-    
+
     #[test]
     fn test_assume_overrides() {
         let test_cases = vec![
@@ -201,18 +210,18 @@ mod override_logic_tests {
             ("ide", "ENVSENSE_ASSUME_TERMINAL"),
             ("ci", "ENVSENSE_ASSUME_LOCAL"),
         ];
-        
+
         for (detector_type, assume_var) in test_cases {
             let snapshot = create_env_snapshot(vec![(assume_var, "1")]);
             let result = check_detector_overrides(&snapshot, detector_type);
-            
+
             match result {
                 OverrideResult::Disable => {}, // Expected
                 _ => panic!("Expected Disable for {}", detector_type),
             }
         }
     }
-    
+
     #[test]
     fn test_override_precedence() {
         // Test that direct overrides take precedence over assume overrides
@@ -220,9 +229,9 @@ mod override_logic_tests {
             ("ENVSENSE_IDE", "custom-editor"),
             ("ENVSENSE_ASSUME_TERMINAL", "1"),
         ]);
-        
+
         let result = check_detector_overrides(&snapshot, "ide");
-        
+
         match result {
             OverrideResult::Force(value) => assert_eq!(value, "custom-editor"),
             _ => panic!("Direct override should take precedence"),
@@ -245,12 +254,12 @@ mod detector_override_integration_tests {
             (vec![("ENVSENSE_ASSUME_TERMINAL", "1")], None, 0.0),
             (vec![("TERM_PROGRAM", "vscode")], Some("vscode"), HIGH), // Normal detection
         ];
-        
+
         for (env_vars, expected_id, expected_confidence) in test_cases {
             let snapshot = create_env_snapshot(env_vars);
             let detector = DeclarativeIdeDetector::new();
             let detection = detector.detect(&snapshot);
-            
+
             if let Some(expected) = expected_id {
                 assert_eq!(detection.facets_patch.get("ide_id").unwrap(), &json!(expected));
                 assert_eq!(detection.confidence, expected_confidence);
@@ -260,12 +269,12 @@ mod detector_override_integration_tests {
             }
         }
     }
-    
+
     #[test]
     fn test_ci_detector_with_overrides() {
         // Similar test structure for CI detector
     }
-    
+
     #[test]
     fn test_agent_detector_backward_compatibility() {
         // Ensure existing agent overrides still work
@@ -274,12 +283,12 @@ mod detector_override_integration_tests {
             (vec![("ENVSENSE_AGENT", "none")], None),
             (vec![("ENVSENSE_AGENT", "custom")], Some("custom")),
         ];
-        
+
         for (env_vars, expected_id) in test_cases {
             let snapshot = create_env_snapshot(env_vars);
             let detector = DeclarativeAgentDetector::new();
             let detection = detector.detect(&snapshot);
-            
+
             if let Some(expected) = expected_id {
                 assert_eq!(detection.facets_patch.get("agent_id").unwrap(), &json!(expected));
             } else {
@@ -301,26 +310,26 @@ mod priority_migration_tests {
     fn test_agent_detector_priority_migration() {
         // Test that agent detector produces same results with priority-based selection
         let test_cases = load_agent_test_cases();
-        
+
         for case in test_cases {
             let snapshot = create_env_snapshot(case.env_vars);
-            
+
             // Test with old confidence-based logic (for comparison)
             let old_result = detect_with_confidence_logic(&snapshot);
-            
+
             // Test with new priority-based logic
             let new_result = detect_with_priority_logic(&snapshot);
-            
-            assert_eq!(old_result.agent_id, new_result.agent_id, 
+
+            assert_eq!(old_result.agent_id, new_result.agent_id,
                 "Priority migration changed result for case: {}", case.name);
         }
     }
-    
+
     #[test]
     fn test_ci_detector_priority_migration() {
         // Similar test for CI detector
     }
-    
+
     #[test]
     fn test_priority_conflict_resolution() {
         // Test scenarios where multiple mappings match
@@ -328,10 +337,10 @@ mod priority_migration_tests {
             ("GITHUB_ACTIONS", "true"),    // Priority 30
             ("CI", "true"),                // Priority 10
         ]);
-        
+
         let detector = DeclarativeCiDetector::new();
         let detection = detector.detect(&snapshot);
-        
+
         // Should select GitHub Actions due to higher priority
         assert_eq!(detection.facets_patch.get("ci_id").unwrap(), &json!("github_actions"));
     }
@@ -347,21 +356,21 @@ mod regression_tests {
     fn test_no_regression_in_detection_accuracy() {
         // Load all existing test cases
         let test_cases = load_all_existing_test_cases();
-        
+
         for case in test_cases {
             let snapshot = create_env_snapshot(case.env_vars);
-            
+
             // Test each detector
             let agent_detection = DeclarativeAgentDetector::new().detect(&snapshot);
             let ide_detection = DeclarativeIdeDetector::new().detect(&snapshot);
             let ci_detection = DeclarativeCiDetector::new().detect(&snapshot);
-            
+
             // Verify results match expected outcomes
-            assert_eq!(agent_detection.facets_patch.get("agent_id"), 
+            assert_eq!(agent_detection.facets_patch.get("agent_id"),
                 case.expected_agent.as_ref().map(|s| &json!(s)));
-            assert_eq!(ide_detection.facets_patch.get("ide_id"), 
+            assert_eq!(ide_detection.facets_patch.get("ide_id"),
                 case.expected_ide.as_ref().map(|s| &json!(s)));
-            assert_eq!(ci_detection.facets_patch.get("ci_id"), 
+            assert_eq!(ci_detection.facets_patch.get("ci_id"),
                 case.expected_ci.as_ref().map(|s| &json!(s)));
         }
     }
@@ -378,40 +387,40 @@ mod trait_implementation_tests {
     #[test]
     fn test_declarative_detector_trait_ide() {
         let detector = DeclarativeIdeDetector::new();
-        
+
         // Test trait methods
         assert_eq!(DeclarativeIdeDetector::get_detector_type(), "ide");
         assert_eq!(DeclarativeIdeDetector::get_context_name(), "ide");
         assert_eq!(DeclarativeIdeDetector::get_facet_key(), "ide_id");
         assert!(DeclarativeIdeDetector::should_generate_evidence());
-        
+
         // Test detection with trait
         let snapshot = create_env_snapshot(vec![("TERM_PROGRAM", "vscode")]);
         let (id, confidence, evidence) = detector.detect_with_mappings(&snapshot);
-        
+
         assert_eq!(id, Some("vscode".to_string()));
         assert!(confidence > 0.0);
         assert!(!evidence.is_empty());
     }
-    
+
     #[test]
     fn test_declarative_detector_trait_ci() {
         let detector = DeclarativeCiDetector::new();
-        
+
         // Test trait methods
         assert_eq!(DeclarativeCiDetector::get_detector_type(), "ci");
         assert_eq!(DeclarativeCiDetector::get_context_name(), "ci");
         assert_eq!(DeclarativeCiDetector::get_facet_key(), "ci_id");
         assert!(!DeclarativeCiDetector::should_generate_evidence()); // CI doesn't generate evidence
     }
-    
+
     #[test]
     fn test_trait_with_overrides() {
         let detector = DeclarativeIdeDetector::new();
         let snapshot = create_env_snapshot(vec![("ENVSENSE_IDE", "custom")]);
-        
+
         let (id, confidence, evidence) = detector.detect_with_mappings(&snapshot);
-        
+
         assert_eq!(id, Some("custom".to_string()));
         assert_eq!(confidence, HIGH);
         assert!(!evidence.is_empty());
@@ -428,18 +437,18 @@ mod migration_validation_tests {
     fn test_ide_detector_migration() {
         // Compare old implementation vs new trait-based implementation
         let test_cases = load_ide_test_cases();
-        
+
         for case in test_cases {
             let snapshot = create_env_snapshot(case.env_vars);
-            
+
             // Old implementation (for comparison)
             let old_detector = OldDeclarativeIdeDetector::new();
             let old_result = old_detector.detect(&snapshot);
-            
+
             // New trait-based implementation
             let new_detector = DeclarativeIdeDetector::new();
             let new_result = new_detector.detect(&snapshot);
-            
+
             // Results should be identical
             assert_eq!(old_result.contexts_add, new_result.contexts_add);
             assert_eq!(old_result.facets_patch, new_result.facets_patch);
@@ -458,24 +467,24 @@ mod migration_validation_tests {
 #[cfg(test)]
 mod performance_tests {
     use criterion::{black_box, criterion_group, criterion_main, Criterion};
-    
+
     fn benchmark_detection_performance(c: &mut Criterion) {
         let snapshot = create_complex_env_snapshot();
-        
+
         c.bench_function("agent_detection", |b| {
             b.iter(|| {
                 let detector = DeclarativeAgentDetector::new();
                 black_box(detector.detect(&snapshot))
             })
         });
-        
+
         c.bench_function("ide_detection", |b| {
             b.iter(|| {
                 let detector = DeclarativeIdeDetector::new();
                 black_box(detector.detect(&snapshot))
             })
         });
-        
+
         c.bench_function("ci_detection", |b| {
             b.iter(|| {
                 let detector = DeclarativeCiDetector::new();
@@ -483,24 +492,24 @@ mod performance_tests {
             })
         });
     }
-    
+
     fn benchmark_mapping_selection(c: &mut Criterion) {
         let mappings = get_large_mapping_set();
         let env_vars = create_complex_env_vars();
-        
+
         c.bench_function("confidence_selection", |b| {
             b.iter(|| {
                 black_box(find_best_mapping_by_confidence(&mappings, &env_vars))
             })
         });
-        
+
         c.bench_function("priority_selection", |b| {
             b.iter(|| {
                 black_box(find_best_mapping_by_priority(&mappings, &env_vars))
             })
         });
     }
-    
+
     criterion_group!(benches, benchmark_detection_performance, benchmark_mapping_selection);
     criterion_main!(benches);
 }
@@ -514,19 +523,19 @@ mod memory_tests {
     #[test]
     fn test_memory_usage_regression() {
         let initial_memory = get_memory_usage();
-        
+
         // Create many detectors and run detection
         for _ in 0..1000 {
             let snapshot = create_env_snapshot(vec![("TERM_PROGRAM", "vscode")]);
             let detector = DeclarativeIdeDetector::new();
             let _result = detector.detect(&snapshot);
         }
-        
+
         let final_memory = get_memory_usage();
         let memory_increase = final_memory - initial_memory;
-        
+
         // Memory increase should be reasonable (less than 10MB for 1000 detections)
-        assert!(memory_increase < 10_000_000, 
+        assert!(memory_increase < 10_000_000,
             "Memory usage increased by {} bytes", memory_increase);
     }
 }
@@ -587,27 +596,27 @@ mod e2e_tests {
             ("GITHUB_EVENT_NAME", "pull_request"), // CI PR detection
             ("GITHUB_REF_NAME", "feature/test"), // CI branch detection
         ]);
-        
+
         // Run all detectors
         let agent_detection = DeclarativeAgentDetector::new().detect(&snapshot);
         let ide_detection = DeclarativeIdeDetector::new().detect(&snapshot);
         let ci_detection = DeclarativeCiDetector::new().detect(&snapshot);
-        
+
         // Verify agent detection
         assert!(agent_detection.contexts_add.contains(&"agent".to_string()));
         assert_eq!(agent_detection.facets_patch.get("agent_id").unwrap(), &json!("cursor"));
-        
+
         // Verify IDE detection (Cursor should win due to priority)
         assert!(ide_detection.contexts_add.contains(&"ide".to_string()));
         assert_eq!(ide_detection.facets_patch.get("ide_id").unwrap(), &json!("cursor"));
-        
+
         // Verify CI detection
         assert!(ci_detection.contexts_add.contains(&"ci".to_string()));
         assert_eq!(ci_detection.facets_patch.get("ci_id").unwrap(), &json!("github_actions"));
         assert_eq!(ci_detection.traits_patch.get("is_pr").unwrap(), &json!(true));
         assert_eq!(ci_detection.traits_patch.get("branch").unwrap(), &json!("feature/test"));
     }
-    
+
     #[test]
     fn test_override_combinations() {
         // Test complex override scenarios
@@ -619,18 +628,18 @@ mod e2e_tests {
             ("TERM_PROGRAM", "vscode"),         // Should be ignored
             ("GITHUB_ACTIONS", "true"),         // Should be ignored
         ]);
-        
+
         let agent_detection = DeclarativeAgentDetector::new().detect(&snapshot);
         let ide_detection = DeclarativeIdeDetector::new().detect(&snapshot);
         let ci_detection = DeclarativeCiDetector::new().detect(&snapshot);
-        
+
         // Agent should be overridden
         assert_eq!(agent_detection.facets_patch.get("agent_id").unwrap(), &json!("custom-agent"));
-        
+
         // IDE should be disabled
         assert!(ide_detection.contexts_add.is_empty());
         assert!(ide_detection.facets_patch.is_empty());
-        
+
         // CI should be overridden
         assert_eq!(ci_detection.facets_patch.get("ci_id").unwrap(), &json!("custom-ci"));
     }
@@ -647,9 +656,9 @@ name: Declarative Detector Consolidation Tests
 
 on:
   push:
-    branches: [ main, consolidation/* ]
+    branches: [main, consolidation/*]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test-phase-1:
@@ -730,12 +739,12 @@ jobs:
 
 ### Test Coverage Requirements
 
-| **Phase** | **Minimum Coverage** | **Critical Areas** |
-|-----------|---------------------|-------------------|
-| **Phase 1** | 95% | Utility functions, evidence generation |
-| **Phase 2** | 90% | Override logic, backward compatibility |
-| **Phase 3** | 95% | Selection logic, regression prevention |
-| **Phase 4** | 90% | Trait implementation, migration validation |
+| **Phase**   | **Minimum Coverage** | **Critical Areas**                         |
+| ----------- | -------------------- | ------------------------------------------ |
+| **Phase 1** | 95%                  | Utility functions, evidence generation     |
+| **Phase 2** | 90%                  | Override logic, backward compatibility     |
+| **Phase 3** | 95%                  | Selection logic, regression prevention     |
+| **Phase 4** | 90%                  | Trait implementation, migration validation |
 
 ### Quality Gates
 
@@ -751,7 +760,6 @@ jobs:
 
 1. **Selection Logic Changes** - Could change detection results
    - **Mitigation**: Comprehensive regression testing, gradual rollout
-   
 2. **Override System Integration** - Could break existing behavior
    - **Mitigation**: Backward compatibility tests, feature flags
 
@@ -765,4 +773,5 @@ jobs:
 3. **Fuzzing Tests** - Test with random environment combinations
 4. **Canary Deployments** - Gradual rollout with monitoring
 
-This comprehensive testing strategy ensures that the consolidation project maintains high quality and reliability while adding new capabilities.
+This comprehensive testing strategy ensures that the consolidation project
+maintains high quality and reliability while adding new capabilities.

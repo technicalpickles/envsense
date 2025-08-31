@@ -1,26 +1,34 @@
 # EnvSense Documentation
 
-This directory contains the current, actively maintained documentation for the EnvSense project.
+This directory contains the current, actively maintained documentation for the
+EnvSense project.
 
 ## 📁 Current Documentation
 
 ### **Core Documentation**
+
 - **[Architecture](architecture.md)** - Current system architecture and design
 - **[Testing](testing.md)** - Testing guidelines and best practices
 - **[Extending](extending.md)** - How to extend EnvSense with new detectors
-- **[Script Integration](script-integration.md)** - Integration with external scripts
+- **[Script Integration](script-integration.md)** - Integration with external
+  scripts
 - **[Terminal Traits](terminal-traits.md)** - Terminal capability detection
 
 ### **Macro System Documentation**
-- **[Macro Migration Guide](macro-migration-guide.md)** - Complete guide for migrating to macro-based merging
-- **[Macro API Documentation](../envsense-macros/src/lib.rs)** - API documentation for the macro system
+
+- **[Macro Migration Guide](macro-migration-guide.md)** - Complete guide for
+  migrating to macro-based merging
+- **[Macro API Documentation](../envsense-macros/src/lib.rs)** - API
+  documentation for the macro system
 
 ### **Development Documentation**
+
 - **[Debugging CI](debugging-ci.md)** - CI/CD debugging and troubleshooting
 
 ## 🏗️ Architecture Overview
 
-EnvSense uses a macro-based detection engine that automatically merges detection results from multiple detectors. The system provides:
+EnvSense uses a macro-based detection engine that automatically merges detection
+results from multiple detectors. The system provides:
 
 - **Automatic field mapping** based on field names and types
 - **Type-safe merging** with compile-time validation
@@ -30,16 +38,19 @@ EnvSense uses a macro-based detection engine that automatically merges detection
 ### **Key Components**
 
 #### **Detection Engine**
+
 - Automatically merges detection results from multiple detectors
 - Uses macro-generated code for type-safe field mapping
 - Supports contexts, facets, traits, and evidence merging
 
 #### **Macro System**
+
 - `envsense-macros/` - Library crate with public API
 - `envsense-macros/envsense-macros-impl/` - Proc-macro implementation
 - Automatic field mapping based on struct field names and types
 
 #### **Detectors**
+
 - **Terminal Detector**: Detects terminal capabilities and TTY status
 - **Agent Detector**: Detects development environment agents
 - **IDE Detector**: Detects integrated development environments
@@ -87,23 +98,28 @@ cargo test macro_performance_test
 ## 📚 Historical Documentation
 
 For historical planning documents and completed work, see:
-- **[Documentation Archive](archive/)** - Completed planning and implementation documents
+
+- **[Documentation Archive](archive/)** - Completed planning and implementation
+  documents
 
 ## 🔧 Development
 
 ### **Building**
+
 ```bash
 cargo build
 cargo build --release
 ```
 
 ### **Testing**
+
 ```bash
 cargo test
 cargo test --release
 ```
 
 ### **Documentation**
+
 ```bash
 cargo doc --open
 ```

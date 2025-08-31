@@ -2,7 +2,10 @@
 
 ## Overview
 
-This document outlines the detailed implementation plan for Phase 4 of the simplification proposal: replacing the manual engine merging logic with derive macros for automatic field mapping. This is the highest-risk phase but offers the greatest potential for complexity reduction.
+This document outlines the detailed implementation plan for Phase 4 of the
+simplification proposal: replacing the manual engine merging logic with derive
+macros for automatic field mapping. This is the highest-risk phase but offers
+the greatest potential for complexity reduction.
 
 ## Current State Analysis
 
@@ -13,8 +16,10 @@ The current implementation has several complexity issues:
 1. **Manual Field Mapping**: 80+ lines of repetitive merging logic
 2. **Hardcoded Field Names**: String-based field matching prone to typos
 3. **No Compile-Time Validation**: Field mappings not validated at compile time
-4. **Difficult Maintenance**: Adding new fields requires manual updates in multiple places
-5. **Mixed Logic**: Simple boolean assignments mixed with complex enum/struct parsing
+4. **Difficult Maintenance**: Adding new fields requires manual updates in
+   multiple places
+5. **Mixed Logic**: Simple boolean assignments mixed with complex enum/struct
+   parsing
 
 ### Current Structure
 
@@ -38,7 +43,8 @@ if let Some(color_level_str) = all_traits.get("color_level").and_then(|v| v.as_s
 
 ### Core Concept
 
-Create a custom derive macro `#[derive(DetectionMerger)]` that automatically generates merging logic based on field annotations and type information.
+Create a custom derive macro `#[derive(DetectionMerger)]` that automatically
+generates merging logic based on field annotations and type information.
 
 ### Macro Design
 
@@ -49,16 +55,16 @@ Create a custom derive macro `#[derive(DetectionMerger)]` that automatically gen
 pub struct EnvSense {
     #[detection_merge(contexts = "agent")]
     pub contexts: Contexts,
-    
+
     #[detection_merge(facets = "agent_id")]
     pub facets: Facets,
-    
+
     #[detection_merge(traits = "is_interactive")]
     pub traits: Traits,
-    
+
     #[detection_merge(evidence)]
     pub evidence: Vec<Evidence>,
-    
+
     pub version: String,
     pub rules_version: String,
 }
@@ -109,12 +115,17 @@ impl DetectionMerger for EnvSense {
 
 ### Why Separate Macro Crate?
 
-The decision to create a separate `envsense-macros` crate follows Rust ecosystem best practices:
+The decision to create a separate `envsense-macros` crate follows Rust ecosystem
+best practices:
 
-1. **Ecosystem Standard**: Most major Rust projects use separate macro crates (serde_derive, tokio-macros, etc.)
-2. **Clean Separation**: Compile-time macro code is separate from runtime application code
-3. **Dependency Management**: Macro dependencies (proc-macro2, syn, quote) are different from runtime dependencies
-4. **Reusability**: Other projects can use the macros without pulling in the main crate
+1. **Ecosystem Standard**: Most major Rust projects use separate macro crates
+   (serde_derive, tokio-macros, etc.)
+2. **Clean Separation**: Compile-time macro code is separate from runtime
+   application code
+3. **Dependency Management**: Macro dependencies (proc-macro2, syn, quote) are
+   different from runtime dependencies
+4. **Reusability**: Other projects can use the macros without pulling in the
+   main crate
 5. **Build Optimization**: Macros don't need to be included in the final binary
 
 ### Repository Structure Conventions
@@ -122,16 +133,19 @@ The decision to create a separate `envsense-macros` crate follows Rust ecosystem
 Following Rust ecosystem conventions for multi-crate repositories:
 
 **Standard Layout:**
+
 - **Main crate**: `src/` directory at repository root (current structure)
 - **Macro crate**: `project-name-macros/` subdirectory
 - **Workspace root**: `Cargo.toml` at repository root defines workspace members
 
 **Examples from Major Projects:**
+
 - **Serde**: `serde/` (main) + `serde_derive/` (macros)
 - **Tokio**: `tokio/` (main) + `tokio-macros/` (macros)
 - **Thiserror**: `thiserror/` (main) + `thiserror-impl/` (macros)
 
 **Benefits:**
+
 - **Single repository**: All related code in one place
 - **Shared CI/CD**: Common testing and deployment pipeline
 - **Version coordination**: Easy to keep crates in sync
@@ -149,12 +163,14 @@ cargo init --lib
 ```
 
 **Workspace Setup:**
+
 ```bash
 # Update root Cargo.toml to add workspace configuration
 # Add [workspace] section with members = [".", "envsense-macros"]
 ```
 
 **File Structure:**
+
 ```
 envsense/
 ├── Cargo.toml              # Workspace root
@@ -193,13 +209,13 @@ use syn::{parse_macro_input, DeriveInput};
 #[proc_macro_derive(DetectionMerger)]
 pub fn derive_detection_merger(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    
+
     // Parse struct fields and generate merging logic
     let struct_name = input.ident;
     let fields = parse_fields(&input.data);
-    
+
     let merge_impl = generate_merge_impl(&struct_name, &fields);
-    
+
     TokenStream::from(quote! {
         impl DetectionMerger for #struct_name {
             #merge_impl
@@ -329,16 +345,16 @@ use envsense_macros::DetectionMerger;
 pub struct EnvSense {
     #[detection_merge(contexts = "agent")]
     pub contexts: Contexts,
-    
+
     #[detection_merge(facets = "agent_id")]
     pub facets: Facets,
-    
+
     #[detection_merge(traits = "is_interactive")]
     pub traits: Traits,
-    
+
     #[detection_merge(evidence)]
     pub evidence: Vec<Evidence>,
-    
+
     pub version: String,
     pub rules_version: String,
 }
@@ -350,7 +366,7 @@ impl DetectionEngine {
             .iter()
             .map(|detector| detector.detect(snapshot))
             .collect();
-        
+
         result.merge_detections(&detections);
         result
     }
@@ -366,9 +382,9 @@ fn test_macro_generated_merging() {
     let engine = DetectionEngine::new()
         .register(TerminalDetector::new())
         .register(AgentDetector::new());
-    
+
     let result = engine.detect();
-    
+
     // Verify all fields are properly merged
     assert!(result.contexts.agent || !result.contexts.agent); // Boolean logic
     assert!(result.traits.is_interactive || !result.traits.is_interactive);
@@ -391,9 +407,9 @@ fn test_macro_with_mock_detections() {
             confidence: 1.0,
         }
     ];
-    
+
     envsense.merge_detections(&detections);
-    
+
     assert!(envsense.contexts.agent);
     assert!(envsense.traits.is_interactive);
     assert_eq!(envsense.facets.agent_id, Some("test-agent".to_string()));
@@ -408,7 +424,7 @@ fn test_macro_with_mock_detections() {
 #[derive(DetectionMerger)]
 #[detection_merge(
     contexts_field = "contexts",
-    facets_field = "facets", 
+    facets_field = "facets",
     traits_field = "traits",
     evidence_field = "evidence"
 )]
@@ -489,39 +505,48 @@ envsense
 ## Success Metrics
 
 ### Code Reduction
+
 - **Target**: 80+ lines of manual merging logic → ~20 lines of macro annotations
-- **Measurement**: Line count comparison between current and macro-based implementations
+- **Measurement**: Line count comparison between current and macro-based
+  implementations
 
 ### Maintainability
+
 - **Target**: Adding new fields requires only struct definition changes
 - **Measurement**: Time to add new detector fields
 
 ### Performance
+
 - **Target**: No performance regression
 - **Measurement**: Benchmark comparison with current implementation
 
 ### Compile-Time Safety
+
 - **Target**: Compile-time validation of field mappings
 - **Measurement**: Compile errors for invalid field mappings
 
 ## Implementation Timeline
 
 ### Week 1: Macro Infrastructure
+
 - [ ] Create `envsense-macros` crate
 - [ ] Define `DetectionMerger` trait
 - [ ] Basic macro structure and parsing
 
 ### Week 2: Field Mapping
+
 - [ ] Parse field annotations
 - [ ] Generate basic merging logic
 - [ ] Handle different field types
 
 ### Week 3: Complex Types
+
 - [ ] Enum type support (ColorLevel)
 - [ ] Struct type support (CiFacet)
 - [ ] Type detection and validation
 
 ### Week 4: Integration
+
 - [ ] Update main crate to use macro
 - [ ] Comprehensive testing
 - [ ] Performance validation
@@ -541,11 +566,13 @@ quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
 ```
 
-**Note**: These are compile-time dependencies that won't be included in the final binary.
+**Note**: These are compile-time dependencies that won't be included in the
+final binary.
 
 ### Updated Dependencies
 
 #### Workspace Configuration
+
 ```toml
 # Cargo.toml (root - workspace configuration)
 [workspace]
@@ -565,6 +592,7 @@ envsense-macros = { path = "./envsense-macros" }
 ```
 
 #### Macro Crate Dependencies
+
 ```toml
 # envsense-macros/Cargo.toml
 [package]
@@ -583,14 +611,16 @@ syn = { version = "2.0", features = ["full"] }
 
 ## Conclusion
 
-Phase 4 represents the highest-risk but highest-reward simplification. The macro-based approach has the potential to:
+Phase 4 represents the highest-risk but highest-reward simplification. The
+macro-based approach has the potential to:
 
 1. **Reduce complexity** by 60-80% in the engine merging logic
 2. **Improve maintainability** through automatic field mapping
 3. **Enhance safety** with compile-time validation
 4. **Simplify extension** for new detector fields
 
-The incremental implementation approach with comprehensive testing and fallback strategies minimizes risk while maximizing the potential benefits.
+The incremental implementation approach with comprehensive testing and fallback
+strategies minimizes risk while maximizing the potential benefits.
 
 ## Next Steps
 

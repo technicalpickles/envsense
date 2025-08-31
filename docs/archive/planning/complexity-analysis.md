@@ -1,10 +1,12 @@
 # Complexity Analysis: EnvSense Refactored Codebase
 
-This document provides a detailed technical analysis of the complexity introduced by the refactoring, supporting the simplification proposal.
+This document provides a detailed technical analysis of the complexity
+introduced by the refactoring, supporting the simplification proposal.
 
 ## Current Architecture Overview
 
-The refactoring transformed a monolithic detection system into a pluggable architecture:
+The refactoring transformed a monolithic detection system into a pluggable
+architecture:
 
 ```
 Before: schema.rs (223 lines) - Monolithic detection logic
@@ -59,12 +61,14 @@ fn detect_from_snapshot(&self, snapshot: &EnvSnapshot) -> EnvSense {
 ```
 
 **Complexity Metrics:**
+
 - **Lines of Code**: 80+ lines of repetitive merging logic
 - **Cyclomatic Complexity**: High due to multiple conditional branches
 - **Maintainability Index**: Low due to repetitive patterns
 - **Error Prone**: Manual field mapping with no compile-time validation
 
 **Problems Identified:**
+
 1. **Repetitive Code**: Each field requires a separate `set_*` method call
 2. **No Type Safety**: String-based field names prone to typos
 3. **Difficult to Extend**: Adding new fields requires updating multiple places
@@ -108,8 +112,10 @@ pub struct Evidence {
 ```
 
 **Complexity Metrics:**
+
 - **Code Duplication**: ~30 lines of nearly identical code
-- **Naming Inconsistency**: `EvidenceSource` vs `Signal`, `EvidenceItem` vs `Evidence`
+- **Naming Inconsistency**: `EvidenceSource` vs `Signal`, `EvidenceItem` vs
+  `Evidence`
 - **Import Confusion**: Developers must choose between two similar types
 - **Maintenance Overhead**: Changes must be made in two places
 
@@ -121,7 +127,7 @@ pub struct Evidence {
 // src/detectors/ide.rs
 detection.confidence = 0.95; // Hardcoded value
 
-// src/detectors/terminal.rs  
+// src/detectors/terminal.rs
 detection.confidence = 1.0; // Different hardcoded value
 
 // src/detectors/ci.rs
@@ -129,6 +135,7 @@ detection.confidence = 0.9; // Yet another hardcoded value
 ```
 
 **Complexity Metrics:**
+
 - **Magic Numbers**: 3 different hardcoded confidence values
 - **No Reasoning**: No documentation for why values differ
 - **Inconsistent**: No clear pattern for confidence assignment
@@ -157,6 +164,7 @@ let is_tty_stderr = env_vars
 ```
 
 **Complexity Metrics:**
+
 - **Environment Pollution**: 3 additional environment variables
 - **Repetitive Logic**: Same pattern repeated 3 times
 - **Error Handling**: Complex fallback logic
@@ -178,6 +186,7 @@ let engine = DetectionEngine::new()
 ```
 
 **Complexity Metrics:**
+
 - **Boilerplate**: 4 lines of registration code
 - **Error Prone**: Easy to forget to register a detector
 - **No Validation**: No compile-time check for missing detectors
@@ -201,6 +210,7 @@ impl<'a> EnvReader for EnvSnapshotReader<'a> {
 ```
 
 **Complexity Metrics:**
+
 - **Indirection**: Additional layer between EnvSnapshot and agent detection
 - **Lifetime Complexity**: Generic lifetime parameter
 - **Code Overhead**: ~20 lines of adapter code
@@ -220,6 +230,7 @@ pub trait Detector {
 ```
 
 **Complexity Metrics:**
+
 - **Simple Interface**: 2 methods, clear contract
 - **Easy to Implement**: Straightforward trait implementation
 - **Good Abstraction**: Hides implementation details
@@ -248,14 +259,14 @@ pub trait Detector {
 
 ### Code Metrics
 
-| Component | Lines of Code | Cyclomatic Complexity | Maintainability Index |
-|-----------|---------------|----------------------|---------------------|
-| Engine Merging | 80+ | High | Low |
-| Evidence Duplication | 30 | Low | Medium |
-| Confidence Scoring | 10 | Low | Low |
-| Environment Overrides | 15 | Medium | Medium |
-| Detector Registration | 5 | Low | High |
-| Adapter Pattern | 20 | Low | Medium |
+| Component             | Lines of Code | Cyclomatic Complexity | Maintainability Index |
+| --------------------- | ------------- | --------------------- | --------------------- |
+| Engine Merging        | 80+           | High                  | Low                   |
+| Evidence Duplication  | 30            | Low                   | Medium                |
+| Confidence Scoring    | 10            | Low                   | Low                   |
+| Environment Overrides | 15            | Medium                | Medium                |
+| Detector Registration | 5             | Low                   | High                  |
+| Adapter Pattern       | 20            | Low                   | Medium                |
 
 ### Complexity Hotspots
 
@@ -267,28 +278,34 @@ pub trait Detector {
 ## Recommendations
 
 ### Phase 1: Evidence Unification (Week 1)
+
 - **Impact**: High benefit, low risk
 - **Effort**: 1-2 days
 - **ROI**: Eliminate 30 lines of duplicate code
 
 ### Phase 2: Confidence Simplification (Week 2)
+
 - **Impact**: Medium benefit, low risk
 - **Effort**: 1 day
 - **ROI**: Improve code clarity and maintainability
 
 ### Phase 3: Dependency Injection (Week 3)
+
 - **Impact**: High benefit, medium risk
 - **Effort**: 3-4 days
 - **ROI**: Improve testability and reduce environment pollution
 
 ### Phase 4: Macro-Based Merging (Week 4-5)
+
 - **Impact**: Very high benefit, high risk
 - **Effort**: 1-2 weeks
 - **ROI**: Eliminate 80+ lines of repetitive code
 
 ## Conclusion
 
-The refactoring successfully achieved its architectural goals but introduced several areas of complexity that can be systematically reduced. The proposed simplifications would:
+The refactoring successfully achieved its architectural goals but introduced
+several areas of complexity that can be systematically reduced. The proposed
+simplifications would:
 
 1. **Reduce code duplication** by 30+ lines
 2. **Eliminate repetitive logic** by 80+ lines
@@ -296,4 +313,5 @@ The refactoring successfully achieved its architectural goals but introduced sev
 4. **Enhance testability** with dependency injection
 5. **Increase type safety** with compile-time validation
 
-The incremental approach ensures we can validate each improvement while maintaining the successful architectural foundation of the refactoring.
+The incremental approach ensures we can validate each improvement while
+maintaining the successful architectural foundation of the refactoring.

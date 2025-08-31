@@ -1,6 +1,7 @@
 # Documentation Archive
 
-This directory contains completed documentation and planning materials that are no longer actively maintained but preserved for historical reference.
+This directory contains completed documentation and planning materials that are
+no longer actively maintained but preserved for historical reference.
 
 ## 📁 Structure
 
@@ -19,31 +20,39 @@ docs/archive/
 ## 📋 Completed Work
 
 ### ✅ **Phase 2: Confidence Scoring Simplification**
+
 - **Status**: Completed
 - **File**: `planning/phase2-confidence-implementation.md`
-- **Achievement**: Implemented clear confidence constants and consistent scoring across all detectors
+- **Achievement**: Implemented clear confidence constants and consistent scoring
+  across all detectors
 
 ### ✅ **Phase 3: Dependency Injection for Testability**
-- **Status**: Completed  
+
+- **Status**: Completed
 - **File**: `planning/phase3-dependency-injection.md`
-- **Achievement**: Zero-overhead dependency injection with complete test isolation
+- **Achievement**: Zero-overhead dependency injection with complete test
+  isolation
 
 ### ✅ **Phase 4: Macro-Based Engine Merging**
+
 - **Status**: Completed
 - **File**: `planning/phase4-macro-merging-implementation.md`
 - **Achievement**: 60-80% code reduction with automatic field mapping
 
 ### ✅ **Simplification Proposal**
+
 - **Status**: Completed
 - **File**: `planning/simplification-proposal.md`
 - **Achievement**: Overall project plan with 3/4 phases successfully implemented
 
 ### ⏳ **Phase 1: Evidence System Unification**
+
 - **Status**: Deferred
 - **File**: `planning/phase1-implementation.md`
 - **Reason**: Lower priority, current evidence system working well
 
 ### 📋 **Initial Implementation Plan**
+
 - **Status**: Completed
 - **File**: `initial-implementation-plan.md`
 - **Achievement**: Original project planning and architecture decisions
@@ -62,6 +71,7 @@ The completed work achieved significant improvements:
 ## 📚 Current Documentation
 
 For current, actively maintained documentation, see:
+
 - `docs/` - Current documentation
 - `docs/macro-migration-guide.md` - Macro usage guide
 - `docs/architecture.md` - Current architecture
@@ -71,6 +81,7 @@ For current, actively maintained documentation, see:
 ## 🔍 Historical Context
 
 These documents provide valuable historical context for:
+
 - **Design decisions** and their rationale
 - **Implementation approaches** that were considered
 - **Evolution** of the codebase architecture
@@ -79,6 +90,7 @@ These documents provide valuable historical context for:
 ## 📝 Usage
 
 These documents are preserved for:
+
 - **Historical reference** when understanding design decisions
 - **Learning** from the implementation process
 - **Context** for future architectural changes

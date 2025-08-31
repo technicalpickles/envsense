@@ -2,7 +2,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -32,11 +32,29 @@ jobs:
             echo "LLD not available, using default linker"
           fi
 
-      - name: Check formatting
+      - name: Check Rust formatting
         run: cargo fmt --all -- --check
+
       - name: Run clippy
         run: cargo clippy --all --locked -- -D warnings
-        
+
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Prettier formatting
+        run: npm run format:check
+
   test:
     strategy:
       matrix:
@@ -46,7 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      
+
       # Platform-specific LLD setup
       - name: Install LLD (Linux)
         if: matrix.os == 'ubuntu-latest'
