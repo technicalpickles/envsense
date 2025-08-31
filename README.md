@@ -1,16 +1,20 @@
 # envsense
 
-**envsense** is a cross-language library and CLI for detecting the runtime environment and exposing it in a structured way. It helps tools and scripts adapt their behavior based on where they are running.
+**envsense** is a cross-language library and CLI for detecting the runtime
+environment and exposing it in a structured way. It helps tools and scripts
+adapt their behavior based on where they are running.
 
 ## Motivation
 
-Most developers end up writing brittle ad-hoc checks in their shell configs or tools:
+Most developers end up writing brittle ad-hoc checks in their shell configs or
+tools:
 
-* *"If I’m in VS Code, set `EDITOR=code -w`"*
-* *"If stdout is piped, disable color and paging"*
-* *"If running in a coding agent, simplify my prompt"*
+- _"If I’m in VS Code, set `EDITOR=code -w`"_
+- _"If stdout is piped, disable color and paging"_
+- _"If running in a coding agent, simplify my prompt"_
 
-These heuristics get duplicated across dotfiles and codebases. **envsense** centralizes and standardizes this detection.
+These heuristics get duplicated across dotfiles and codebases. **envsense**
+centralizes and standardizes this detection.
 
 ---
 
@@ -76,10 +80,7 @@ Example JSON output:
 
 ```json
 {
-  "contexts": [
-    "agent",
-    "ide"
-  ],
+  "contexts": ["agent", "ide"],
   "traits": {
     "is_interactive": true,
     "is_tty_stdin": true,
@@ -103,21 +104,26 @@ Example JSON output:
 
 ### Check Command Options
 
-The `check` command evaluates predicates against the environment and exits with status 0 on success, 1 on failure.
+The `check` command evaluates predicates against the environment and exits with
+status 0 on success, 1 on failure.
 
 #### Output Control
+
 - `--json` - Output results as JSON (stable schema)
 - `-q, --quiet` - Suppress output (useful in scripts)
 - `--explain` - Show reasoning for each check result
 
 #### Evaluation Modes
+
 - `--any` - Succeed if any predicate matches (default: all must match)
 - `--all` - Require all predicates to match (default behavior)
 
 #### Discovery
+
 - `--list` - List all available predicates
 
 #### Examples
+
 ```bash
 # Basic checks
 envsense check agent                    # Exit 0 if agent detected, 1 otherwise
@@ -142,14 +148,18 @@ envsense check --list                  # Shows all contexts, facets, and traits
 The `info` command shows detailed environment information.
 
 #### Output Formats
+
 - `--json` - Output as JSON (stable schema)
 - `--raw` - Plain text without colors or headers (pipe-friendly)
 - `--no-color` - Disable color output
 
 #### Field Selection
-- `--fields <list>` - Comma-separated keys to include: `contexts`, `traits`, `facets`, `meta`
+
+- `--fields <list>` - Comma-separated keys to include: `contexts`, `traits`,
+  `facets`, `meta`
 
 #### Examples
+
 ```bash
 # Different output formats
 envsense info                          # Human-friendly with colors
@@ -174,6 +184,7 @@ envsense info --raw --fields meta      # Raw output with only metadata
 - **2** - Error (invalid arguments, parsing errors)
 
 #### Exit Code Examples
+
 ```bash
 envsense check agent && echo "Agent detected"     # Only runs if agent=true
 envsense check !agent && echo "Not in agent"      # Only runs if agent=false
@@ -182,18 +193,21 @@ envsense check --any agent ide || echo "Neither"  # Runs if neither matches
 
 ## Key Concepts
 
-* **Contexts** — broad categories of environment (`agent`, `ide`, `ci`, `container`, `remote`).
-* **Facets** — more specific identifiers (`agent_id=cursor`, `ide_id=vscode`).
-* **Traits** — capabilities or properties (`is_interactive`, `supports_hyperlinks`, `color_level`).
-* **Evidence** — why envsense believes something (env vars, TTY checks, etc.), with confidence scores.
+- **Contexts** — broad categories of environment (`agent`, `ide`, `ci`,
+  `container`, `remote`).
+- **Facets** — more specific identifiers (`agent_id=cursor`, `ide_id=vscode`).
+- **Traits** — capabilities or properties (`is_interactive`,
+  `supports_hyperlinks`, `color_level`).
+- **Evidence** — why envsense believes something (env vars, TTY checks, etc.),
+  with confidence scores.
 
 ### Ask: Which category is it?
 
-* *“Running in VS Code”* → **Context/Facet** (`ide`, `ide_id=vscode`).
-* *“Running in GitHub Actions”* → **Facet** (`ci_id=github`).
-* *“Running in CI at all”* → **Context** (`ci=true`).
-* *“Can print hyperlinks”* → **Trait** (`supports_hyperlinks=true`).
-* *“stdout is not a TTY”* → **Trait** (`is_interactive=false`).
+- _“Running in VS Code”_ → **Context/Facet** (`ide`, `ide_id=vscode`).
+- _“Running in GitHub Actions”_ → **Facet** (`ci_id=github`).
+- _“Running in CI at all”_ → **Context** (`ci=true`).
+- _“Can print hyperlinks”_ → **Trait** (`supports_hyperlinks=true`).
+- _“stdout is not a TTY”_ → **Trait** (`is_interactive=false`).
 
 ### Snippet Examples
 
@@ -282,11 +296,11 @@ And the corresponding JSON fragment:
 
 ## Language Bindings
 
-* **Rust** (Primary):
+- **Rust** (Primary):
 
   ```rust
   use envsense::detect_environment;
-  
+
   let env = detect_environment();
   if env.contexts.agent {
       println!("Agent detected");
@@ -299,7 +313,7 @@ And the corresponding JSON fragment:
   }
   ```
 
-* **Node.js** (Planned):
+- **Node.js** (Planned):
 
   ```js
   import { detect } from "envsense";
@@ -313,8 +327,10 @@ And the corresponding JSON fragment:
 
 ## Detection Strategy
 
-1. **Explicit signals** — documented env vars (e.g. `TERM_PROGRAM`, `INSIDE_EMACS`, `CI`).
-2. **Execution channel** — SSH env vars, container cgroups, devcontainer markers.
+1. **Explicit signals** — documented env vars (e.g. `TERM_PROGRAM`,
+   `INSIDE_EMACS`, `CI`).
+2. **Execution channel** — SSH env vars, container cgroups, devcontainer
+   markers.
 3. **Process ancestry** — parent process names (optional, behind a flag).
 4. **Heuristics** — last resort (file paths, working dir markers).
 
@@ -324,42 +340,42 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 
 ## Terminal Features Detected
 
-* **Interactivity**
+- **Interactivity**
+  - Shell flags (interactive mode)
+  - TTY checks for stdin/stdout/stderr
+  - Pipe/redirect detection
 
-  * Shell flags (interactive mode)
-  * TTY checks for stdin/stdout/stderr
-  * Pipe/redirect detection
-* **Colors**
+- **Colors**
+  - Honors `NO_COLOR`, `FORCE_COLOR`
+  - Detects depth: none, basic, 256, truecolor
 
-  * Honors `NO_COLOR`, `FORCE_COLOR`
-  * Detects depth: none, basic, 256, truecolor
-* **Hyperlinks (OSC 8)**
-
-  * Known supporting terminals (iTerm2, kitty, WezTerm, VS Code, etc.)
-  * Optional probe for fallback
+- **Hyperlinks (OSC 8)**
+  - Known supporting terminals (iTerm2, kitty, WezTerm, VS Code, etc.)
+  - Optional probe for fallback
 
 ---
 
 ## Project Status
 
-* **Rust implementation complete** - Core library and CLI fully functional
-* **Declarative detection system** - Environment detection using declarative patterns
-* **Comprehensive CI support** - GitHub Actions, GitLab CI, CircleCI, and more
-* **Extensible architecture** - Easy to add new detection patterns
-* **Production ready** - Used in real-world environments
+- **Rust implementation complete** - Core library and CLI fully functional
+- **Declarative detection system** - Environment detection using declarative
+  patterns
+- **Comprehensive CI support** - GitHub Actions, GitLab CI, CircleCI, and more
+- **Extensible architecture** - Easy to add new detection patterns
+- **Production ready** - Used in real-world environments
 
 ---
 
 ## Roadmap
 
-* [x] Implement baseline detectors (env vars, TTY)
-* [x] CLI output in JSON + pretty modes
-* [x] Rule engine for contexts/facets/traits
-* [x] Declarative detection system
-* [x] Comprehensive CI environment support
-* [ ] Node binding via napi-rs
-* [ ] Additional language bindings
-* [ ] Advanced value extraction patterns
+- [x] Implement baseline detectors (env vars, TTY)
+- [x] CLI output in JSON + pretty modes
+- [x] Rule engine for contexts/facets/traits
+- [x] Declarative detection system
+- [x] Comprehensive CI environment support
+- [ ] Node binding via napi-rs
+- [ ] Additional language bindings
+- [ ] Advanced value extraction patterns
 
 ---
 

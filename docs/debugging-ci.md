@@ -37,16 +37,19 @@ export RUNNER_OS=Linux
 ### 1. Compare Environments
 
 **Local Environment:**
+
 ```bash
 ./scripts/compare-environments.sh > local-output.txt
 ```
 
 **CI Environment (in container):**
+
 ```bash
 ./scripts/compare-environments.sh > ci-output.txt
 ```
 
 **Compare:**
+
 ```bash
 diff local-output.txt ci-output.txt
 ```
@@ -69,6 +72,7 @@ diff local-output.txt ci-output.txt
 Common differences to check:
 
 #### CI Detection
+
 ```bash
 # Check if CI is being detected when it shouldn't be
 ./target/debug/envsense info --json | jq '.facets.ci'
@@ -78,6 +82,7 @@ Common differences to check:
 ```
 
 #### TTY Detection
+
 ```bash
 # Check TTY status
 ./target/debug/envsense info --json | jq '.traits | {is_tty_stdin, is_tty_stdout, is_tty_stderr}'
@@ -86,6 +91,7 @@ Common differences to check:
 ```
 
 #### Environment Variable Isolation
+
 ```bash
 # Check if CI vars are leaking through
 env | grep -E "(GITHUB|CI|GITLAB)"
@@ -98,6 +104,7 @@ env | grep -E "(GITHUB|CI|GITLAB)"
 ### Issue 1: CI Detection in Non-CI Scenarios
 
 **Symptom:**
+
 ```
 Expected: contexts=[], ci_id=none
 Actual:   contexts=[ci], ci_id=github_actions
@@ -106,6 +113,7 @@ Actual:   contexts=[ci], ci_id=github_actions
 **Cause:** GitHub Actions environment variables are leaking through `env -i`
 
 **Debug:**
+
 ```bash
 # Test environment isolation
 ./scripts/compare-baseline.sh --debug plain_tty 2>&1 | grep "GITHUB\|CI"
@@ -116,6 +124,7 @@ Actual:   contexts=[ci], ci_id=github_actions
 ### Issue 2: TTY Detection Differences
 
 **Symptom:**
+
 ```
 Expected: is_tty_stdin=true, is_tty_stdout=false
 Actual:   is_tty_stdin=false, is_tty_stdout=false
@@ -124,6 +133,7 @@ Actual:   is_tty_stdin=false, is_tty_stdout=false
 **Cause:** Container environment has different TTY behavior
 
 **Debug:**
+
 ```bash
 # Check if TTY overrides are being loaded
 ./scripts/compare-baseline.sh --debug plain_tty 2>&1 | grep "ENVSENSE_TTY"
@@ -134,6 +144,7 @@ Actual:   is_tty_stdin=false, is_tty_stdout=false
 ### Issue 3: Binary Not Found
 
 **Symptom:**
+
 ```
 ERROR cursor (failed to run envsense, exit code: 127)
 ```
@@ -141,6 +152,7 @@ ERROR cursor (failed to run envsense, exit code: 127)
 **Cause:** Binary not built or not in expected location
 
 **Debug:**
+
 ```bash
 # Check binary
 ls -la target/debug/envsense
@@ -245,4 +257,5 @@ env -i \
 3. **Test locally**: Use the devcontainer to reproduce the issue
 4. **Isolate the problem**: Test individual scenarios and components
 
-The enhanced debugging tools should help identify the root cause of any CI vs local differences.
+The enhanced debugging tools should help identify the root cause of any CI vs
+local differences.

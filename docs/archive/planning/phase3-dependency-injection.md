@@ -2,15 +2,17 @@
 
 ## Overview
 
-This document outlines the detailed implementation plan for Phase 3 of the EnvSense simplification proposal. The goal is to replace environment variable overrides with proper dependency injection to improve testability and reduce complexity.
-
-
+This document outlines the detailed implementation plan for Phase 3 of the
+EnvSense simplification proposal. The goal is to replace environment variable
+overrides with proper dependency injection to improve testability and reduce
+complexity.
 
 ## Current State Analysis
 
 ### Current TTY Detection Implementation
 
-The current implementation in `src/detectors/mod.rs` uses environment variable overrides:
+The current implementation in `src/detectors/mod.rs` uses environment variable
+overrides:
 
 ```rust
 impl EnvSnapshot {
@@ -47,11 +49,13 @@ impl EnvSnapshot {
 
 ### Problems with Current Approach
 
-1. **Environment Variable Pollution**: Test environment variables leak into the global environment
+1. **Environment Variable Pollution**: Test environment variables leak into the
+   global environment
 2. **Complex Override Logic**: Parsing and fallback logic adds complexity
 3. **Poor Testability**: Hard to test individual components in isolation
 4. **Runtime Dependencies**: TTY detection is tied to system calls at runtime
-5. **Inconsistent Testing**: Different test approaches (unit vs integration) have different behaviors
+5. **Inconsistent Testing**: Different test approaches (unit vs integration)
+   have different behaviors
 
 ### Current Test Usage
 
@@ -71,14 +75,19 @@ ENVSENSE_SUPPORTS_HYPERLINKS=false
 
 ### Design Overview
 
-Replace environment variable overrides with an enum-based dependency injection system:
+Replace environment variable overrides with an enum-based dependency injection
+system:
 
-1. **TtyDetector Enum**: Simple enum with Real and Mock variants for optimal performance
+1. **TtyDetector Enum**: Simple enum with Real and Mock variants for optimal
+   performance
 2. **Real Variant**: Production implementation using system calls
 3. **Mock Variant**: Test implementation with configurable values
-4. **Updated EnvSnapshot**: Uses dependency injection instead of environment variables
+4. **Updated EnvSnapshot**: Uses dependency injection instead of environment
+   variables
 
-**Key Benefits**: Using an enum eliminates dynamic dispatch overhead and provides a simple, performant implementation while maintaining all the benefits of dependency injection.
+**Key Benefits**: Using an enum eliminates dynamic dispatch overhead and
+provides a simple, performant implementation while maintaining all the benefits
+of dependency injection.
 
 ### Architecture Changes
 
@@ -103,27 +112,27 @@ impl TtyDetector {
     pub fn real() -> Self {
         Self::Real
     }
-    
+
     /// Create a mock TTY detector with specified values
     pub fn mock(stdin: bool, stdout: bool, stderr: bool) -> Self {
         Self::Mock { stdin, stdout, stderr }
     }
-    
+
     /// Create a mock TTY detector for all TTY streams
     pub fn mock_all_tty() -> Self {
         Self::Mock { stdin: true, stdout: true, stderr: true }
     }
-    
+
     /// Create a mock TTY detector for no TTY streams
     pub fn mock_no_tty() -> Self {
         Self::Mock { stdin: false, stdout: false, stderr: false }
     }
-    
+
     /// Create a mock TTY detector for piped I/O (stdin TTY, stdout/stderr not)
     pub fn mock_piped_io() -> Self {
         Self::Mock { stdin: true, stdout: false, stderr: false }
     }
-    
+
     /// Check if stdin is a TTY
     pub fn is_tty_stdin(&self) -> bool {
         match self {
@@ -134,7 +143,7 @@ impl TtyDetector {
             Self::Mock { stdin, .. } => *stdin,
         }
     }
-    
+
     /// Check if stdout is a TTY
     pub fn is_tty_stdout(&self) -> bool {
         match self {
@@ -145,7 +154,7 @@ impl TtyDetector {
             Self::Mock { stdout, .. } => *stdout,
         }
     }
-    
+
     /// Check if stderr is a TTY
     pub fn is_tty_stderr(&self) -> bool {
         match self {
@@ -180,15 +189,15 @@ impl EnvSnapshot {
             tty_detector: TtyDetector::real(),
         }
     }
-    
+
     /// Create snapshot with mock TTY detection for testing
     pub fn for_testing(
-        env_vars: HashMap<String, String>, 
+        env_vars: HashMap<String, String>,
         tty_detector: TtyDetector
     ) -> Self {
         Self { env_vars, tty_detector }
     }
-    
+
     /// Create snapshot with mock TTY detection using convenience constructor
     pub fn with_mock_tty(
         env_vars: HashMap<String, String>,
@@ -201,20 +210,20 @@ impl EnvSnapshot {
             tty_detector: TtyDetector::mock(stdin, stdout, stderr),
         }
     }
-    
+
     /// Convenience methods that delegate to the TTY detector
     pub fn is_tty_stdin(&self) -> bool {
         self.tty_detector.is_tty_stdin()
     }
-    
+
     pub fn is_tty_stdout(&self) -> bool {
         self.tty_detector.is_tty_stdout()
     }
-    
+
     pub fn is_tty_stderr(&self) -> bool {
         self.tty_detector.is_tty_stderr()
     }
-    
+
     pub fn get_env(&self, key: &str) -> Option<&String> {
         self.env_vars.get(key)
     }
@@ -442,9 +451,9 @@ mod tests {
     fn test_env_snapshot_with_mock_tty() {
         let mut env_vars = HashMap::new();
         env_vars.insert("TERM".to_string(), "xterm-256color".to_string());
-        
+
         let snapshot = EnvSnapshot::with_mock_tty(env_vars, true, false, false);
-        
+
         assert!(snapshot.is_tty_stdin());
         assert!(!snapshot.is_tty_stdout());
         assert!(!snapshot.is_tty_stderr());
@@ -455,11 +464,11 @@ mod tests {
     fn test_terminal_detector_with_mock_tty() {
         let mut env_vars = HashMap::new();
         env_vars.insert("TERM".to_string(), "xterm-256color".to_string());
-        
+
         let snapshot = EnvSnapshot::with_mock_tty(env_vars, true, false, false);
         let detector = TerminalDetector::new();
         let detection = detector.detect(&snapshot);
-        
+
         assert_eq!(detection.traits_patch["is_tty_stdin"], json!(true));
         assert_eq!(detection.traits_patch["is_tty_stdout"], json!(false));
         assert_eq!(detection.traits_patch["is_interactive"], json!(false));
@@ -479,14 +488,14 @@ fn test_baseline_scenarios_with_dependency_injection() {
         ("github_actions", true, false, false),
         ("gitlab_ci", true, false, false),
     ];
-    
+
     for (scenario_name, stdin, stdout, stderr) in scenarios {
         let env_vars = load_scenario_env(scenario_name);
         let snapshot = EnvSnapshot::with_mock_tty(env_vars, stdin, stdout, stderr);
-        
+
         let engine = DetectionEngine::with_all_detectors();
         let result = engine.detect_from_snapshot(&snapshot);
-        
+
         // Verify result matches expected baseline
         assert_baseline_matches(scenario_name, &result);
     }
@@ -497,9 +506,11 @@ fn test_baseline_scenarios_with_dependency_injection() {
 
 ### Backward Compatibility
 
-1. **Gradual Migration**: Keep environment variable overrides working during transition
+1. **Gradual Migration**: Keep environment variable overrides working during
+   transition
 2. **Feature Flag**: Add feature flag to enable/disable dependency injection
-3. **Fallback Logic**: Fall back to environment variables if dependency injection fails
+3. **Fallback Logic**: Fall back to environment variables if dependency
+   injection fails
 
 ### Rollout Plan
 
@@ -508,33 +519,37 @@ fn test_baseline_scenarios_with_dependency_injection() {
 3. **Week 3**: Enable dependency injection by default
 4. **Week 4**: Remove environment variable overrides
 
-
-
 ## Risk Assessment
 
 ### Low Risk
+
 - **Enum Implementation**: Simple, well-understood Rust pattern
 - **Mock Implementation**: Direct boolean fields, no complexity
 - **Unit Tests**: Isolated testing with clear inputs/outputs
 - **Performance**: No dynamic dispatch, optimal performance
 
 ### Medium Risk
+
 - **Integration Tests**: May reveal edge cases in real environments
 - **Migration Effort**: Significant work to update all tests and scripts
 - **CI Compatibility**: Need to ensure CI environments work correctly
 
 ### Mitigation Strategies
 
-1. **Comprehensive Testing**: Test all scenarios with both real and mock detectors
+1. **Comprehensive Testing**: Test all scenarios with both real and mock
+   detectors
 2. **Gradual Rollout**: Implement alongside existing approach initially
-3. **Backward Compatibility**: Keep environment variable approach during transition
+3. **Backward Compatibility**: Keep environment variable approach during
+   transition
 4. **Feature Flag**: Enable/disable dependency injection during rollout
 
 ## Success Metrics
 
-1. **Code Complexity Reduction**: Remove 20+ lines of environment variable parsing logic
+1. **Code Complexity Reduction**: Remove 20+ lines of environment variable
+   parsing logic
 2. **Test Clarity**: Tests become more explicit about TTY state
-3. **Performance**: Optimal performance with enum-based approach (no dynamic dispatch)
+3. **Performance**: Optimal performance with enum-based approach (no dynamic
+   dispatch)
 4. **Maintainability**: Easier to test individual components
 5. **Documentation**: Clearer testing patterns for contributors
 6. **Migration Success**: All existing tests pass with new approach
@@ -544,7 +559,8 @@ fn test_baseline_scenarios_with_dependency_injection() {
 
 ### Phase 3.5: Extended Dependency Injection
 
-After successful implementation, consider extending to other system dependencies:
+After successful implementation, consider extending to other system
+dependencies:
 
 1. **File System Detection**: Abstract file system operations
 2. **Process Detection**: Abstract process tree traversal
@@ -560,12 +576,17 @@ After successful implementation, consider extending to other system dependencies
 
 ## Conclusion
 
-Phase 3 dependency injection will significantly improve the testability and maintainability of the EnvSense codebase. By replacing environment variable overrides with proper dependency injection using an enum-based approach, we eliminate complexity while making the code more modular and easier to test.
+Phase 3 dependency injection will significantly improve the testability and
+maintainability of the EnvSense codebase. By replacing environment variable
+overrides with proper dependency injection using an enum-based approach, we
+eliminate complexity while making the code more modular and easier to test.
 
 ### Key Benefits
 
-1. **Optimal Performance**: Enum-based design eliminates dynamic dispatch overhead
-2. **Simplified Implementation**: Clean, straightforward enum with Real and Mock variants
+1. **Optimal Performance**: Enum-based design eliminates dynamic dispatch
+   overhead
+2. **Simplified Implementation**: Clean, straightforward enum with Real and Mock
+   variants
 3. **Better Testability**: Complete isolation through mock objects
 4. **Reduced Complexity**: Remove environment variable parsing logic
 5. **Maintainable Architecture**: Clear separation of concerns
@@ -574,8 +595,11 @@ Phase 3 dependency injection will significantly improve the testability and main
 
 **Proceed with Phase 3** implementation:
 
-1. **Implementation**: Gradual rollout with thorough testing and backward compatibility
+1. **Implementation**: Gradual rollout with thorough testing and backward
+   compatibility
 2. **Timeline**: 5-day implementation plan with comprehensive testing
 3. **Risk Mitigation**: Feature flags and fallback mechanisms during transition
 
-The implementation plan provides a clear path forward with minimal risk and maximum benefit. The enum-based approach delivers optimal performance while maintaining all the architectural benefits of dependency injection.
+The implementation plan provides a clear path forward with minimal risk and
+maximum benefit. The enum-based approach delivers optimal performance while
+maintaining all the architectural benefits of dependency injection.

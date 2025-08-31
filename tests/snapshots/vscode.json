@@ -1,43 +1,32 @@
 {
-  "contexts": [
-    "ide"
-  ],
+  "contexts": ["ide"],
   "evidence": [
     {
       "confidence": 1.0,
       "key": "is_tty_stdin",
       "signal": "tty",
-      "supports": [
-        "is_tty_stdin"
-      ],
+      "supports": ["is_tty_stdin"],
       "value": "true"
     },
     {
       "confidence": 1.0,
       "key": "is_tty_stdout",
       "signal": "tty",
-      "supports": [
-        "is_tty_stdout"
-      ],
+      "supports": ["is_tty_stdout"],
       "value": "false"
     },
     {
       "confidence": 1.0,
       "key": "is_tty_stderr",
       "signal": "tty",
-      "supports": [
-        "is_tty_stderr"
-      ],
+      "supports": ["is_tty_stderr"],
       "value": "false"
     },
     {
       "confidence": 1.0,
       "key": "TERM_PROGRAM",
       "signal": "env",
-      "supports": [
-        "ide",
-        "ide_id"
-      ],
+      "supports": ["ide", "ide_id"],
       "value": "vscode"
     }
   ],

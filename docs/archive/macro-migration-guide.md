@@ -1,10 +1,13 @@
 # Macro Migration Guide
 
-This guide explains how to migrate from manual detection merging to the new macro-based approach.
+This guide explains how to migrate from manual detection merging to the new
+macro-based approach.
 
 ## Overview
 
-The macro-based approach replaces 80+ lines of manual merging logic with automatic field mapping, reducing complexity by 60-80% while maintaining full functionality.
+The macro-based approach replaces 80+ lines of manual merging logic with
+automatic field mapping, reducing complexity by 60-80% while maintaining full
+functionality.
 
 ## Before: Manual Merging
 
@@ -17,31 +20,31 @@ impl DetectionEngine {
             .iter()
             .map(|detector| detector.detect(snapshot))
             .collect();
-        
+
         // Manual merging logic (80+ lines)
         let mut all_contexts = std::collections::HashSet::new();
         let mut all_traits: HashMap<String, serde_json::Value> = HashMap::new();
         let mut all_facets: HashMap<String, serde_json::Value> = HashMap::new();
-        
+
         for detection in &detections {
             all_contexts.extend(detection.contexts_add.iter().cloned());
             all_traits.extend(detection.traits_patch.clone());
             all_facets.extend(detection.facets_patch.clone());
             result.evidence.extend(detection.evidence.clone());
         }
-        
+
         // Manual field mapping
         result.contexts.agent = all_contexts.contains("agent");
         result.contexts.ide = all_contexts.contains("ide");
         result.contexts.ci = all_contexts.contains("ci");
         result.contexts.container = all_contexts.contains("container");
         result.contexts.remote = all_contexts.contains("remote");
-        
+
         if let Some(value) = all_facets.get("agent_id").and_then(|v| v.as_str()) {
             result.facets.agent_id = Some(value.to_string());
         }
         // ... 60+ more lines of manual mapping
-        
+
         result
     }
 }
@@ -69,7 +72,7 @@ impl DetectionEngine {
             .iter()
             .map(|detector| detector.detect(snapshot))
             .collect();
-        
+
         // Automatic merging (1 line!)
         result.merge_detections(&detections);
         result
@@ -154,19 +157,20 @@ impl DetectionEngine {
 
 The macro automatically maps fields based on their names:
 
-| Field Name | Maps To | Description |
-|------------|---------|-------------|
-| `contexts` | `contexts_add` | Boolean context flags |
-| `facets` | `facets_patch` | String and struct facets |
-| `traits` | `traits_patch` | Boolean and enum traits |
-| `evidence` | `evidence` | Evidence collection |
-| Any other name | Ignored | No mapping applied |
+| Field Name     | Maps To        | Description              |
+| -------------- | -------------- | ------------------------ |
+| `contexts`     | `contexts_add` | Boolean context flags    |
+| `facets`       | `facets_patch` | String and struct facets |
+| `traits`       | `traits_patch` | Boolean and enum traits  |
+| `evidence`     | `evidence`     | Evidence collection      |
+| Any other name | Ignored        | No mapping applied       |
 
 ## Type Support
 
 The macro handles various field types automatically:
 
 ### Boolean Fields
+
 ```rust
 pub contexts: Contexts {
     pub agent: bool,    // Maps from contexts_add.contains("agent")
@@ -175,6 +179,7 @@ pub contexts: Contexts {
 ```
 
 ### String Fields
+
 ```rust
 pub facets: Facets {
     pub agent_id: Option<String>,  // Maps from facets_patch.get("agent_id")
@@ -183,6 +188,7 @@ pub facets: Facets {
 ```
 
 ### Enum Fields
+
 ```rust
 pub traits: Traits {
     pub color_level: ColorLevel,  // Maps from traits_patch.get("color_level")
@@ -190,6 +196,7 @@ pub traits: Traits {
 ```
 
 ### Struct Fields
+
 ```rust
 pub facets: Facets {
     pub ci: CiFacet,  // Maps from facets_patch.get("ci") with JSON deserialization
@@ -197,6 +204,7 @@ pub facets: Facets {
 ```
 
 ### Collection Fields
+
 ```rust
 pub evidence: Vec<Evidence>,  // Extends with evidence from all detections
 ```
@@ -204,19 +212,23 @@ pub evidence: Vec<Evidence>,  // Extends with evidence from all detections
 ## Benefits
 
 ### Code Reduction
+
 - **Before**: 80+ lines of manual merging logic
 - **After**: ~20 lines of macro annotations
 - **Reduction**: 60-80% less code
 
 ### Maintainability
+
 - **Before**: Adding new fields requires manual updates in multiple places
 - **After**: Adding new fields only requires struct definition changes
 
 ### Type Safety
+
 - **Before**: String-based field matching prone to typos
 - **After**: Compile-time validation of field mappings
 
 ### Performance
+
 - **Before**: Manual HashMap operations and string comparisons
 - **After**: Optimized generated code with same performance characteristics
 
@@ -229,6 +241,7 @@ cargo test
 ```
 
 The macro includes comprehensive tests for:
+
 - Basic field mapping
 - Complex type handling
 - Performance benchmarking
@@ -251,10 +264,13 @@ The macro includes comprehensive tests for:
 ### Getting Help
 
 If you encounter issues during migration:
+
 1. Check the macro documentation in `envsense-macros/src/lib.rs`
 2. Review the test examples in `tests/macro_*.rs`
 3. Ensure all dependencies are properly configured
 
 ## Conclusion
 
-The macro-based approach significantly reduces complexity while maintaining full functionality. The migration is straightforward and provides immediate benefits in code maintainability and type safety.
+The macro-based approach significantly reduces complexity while maintaining full
+functionality. The migration is straightforward and provides immediate benefits
+in code maintainability and type safety.

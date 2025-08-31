@@ -2,21 +2,26 @@
 
 ## Context
 
-This document outlines the practical approach to adopting LLD (LLVM's fast linker) for the envsense project, considering the recent CI instability and current project state.
+This document outlines the practical approach to adopting LLD (LLVM's fast
+linker) for the envsense project, considering the recent CI instability and
+current project state.
 
 ## Implementation Status
 
 **Overall Progress**: 100% Complete ✅
 
 ### ✅ Completed Phases
+
 - **Phase 1: Local Development Validation** - 100% Complete ✅
 - **Phase 2: Gradual CI Integration** - 100% Complete ✅
 
 ### 🎉 LLD Adoption Complete
-LLD has been successfully adopted and is now the default linker for all platforms:
+
+LLD has been successfully adopted and is now the default linker for all
+platforms:
 
 - ✅ **macOS (aarch64 and x86_64)**: LLD configured and working
-- ✅ **Linux (x86_64)**: LLD configured and working  
+- ✅ **Linux (x86_64)**: LLD configured and working
 - ✅ **Performance improvement**: Faster build times achieved
 - ✅ **CI integration**: All CI jobs use LLD
 - ✅ **Configuration**: `.cargo/config.toml` properly configured
@@ -24,11 +29,14 @@ LLD has been successfully adopted and is now the default linker for all platform
 ## Current Project State
 
 ### Recent CI Issues
+
 - Experienced rustup download failures in GitHub Actions
-- Updated CI workflow to use modern tooling (`dtolnay/rust-toolchain@stable` + `Swatinem/rust-cache@v2`)
+- Updated CI workflow to use modern tooling (`dtolnay/rust-toolchain@stable` +
+  `Swatinem/rust-cache@v2`)
 - Project uses lefthook, mise, and modern development practices
 
 ### Project Characteristics
+
 - **CLI tool**: Fast linking valuable for development iteration
 - **Library + macros**: Multiple crates benefit from faster linking
 - **Cross-platform**: macOS and Linux support needed
@@ -41,6 +49,7 @@ LLD has been successfully adopted and is now the default linker for all platform
 #### 1.1 Install and Test Locally
 
 **macOS Setup:**
+
 ```bash
 # Install LLVM (includes LLD)
 brew install llvm
@@ -54,6 +63,7 @@ cargo build --release
 ```
 
 **Linux Setup:**
+
 ```bash
 # Ubuntu/Debian
 sudo apt install clang lld
@@ -86,6 +96,7 @@ chmod +x scratch/lld-benchmark.sh
 #### 1.3 Configure Cargo for LLD
 
 Create `.cargo/config.toml` in the project root:
+
 ```toml
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
@@ -115,13 +126,13 @@ lint:
       with:
         components: rustfmt, clippy
     - uses: Swatinem/rust-cache@v2
-    
+
     # Add LLD with fallback
     - name: Install LLD
       run: |
         sudo apt update
         sudo apt install -y clang lld || echo "LLD installation failed, using default linker"
-    
+
     - name: Configure LLD
       run: |
         if command -v ld.lld >/dev/null 2>&1; then
@@ -130,7 +141,7 @@ lint:
         else
           echo "LLD not available, using default linker"
         fi
-    
+
     - name: Check formatting
       run: cargo fmt --all -- --check
     - name: Run clippy
@@ -157,21 +168,21 @@ test:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
-    
+
     # Platform-specific LLD setup
     - name: Install LLD (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt update
         sudo apt install -y clang lld || echo "LLD installation failed"
-    
+
     - name: Install LLD (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         brew install llvm || echo "LLVM installation failed"
         echo "CC=clang" >> $GITHUB_ENV
         echo "CXX=clang++" >> $GITHUB_ENV
-    
+
     - name: Configure LLD
       run: |
         if command -v ld.lld >/dev/null 2>&1; then
@@ -180,7 +191,7 @@ test:
         else
           echo "LLD not available, using default linker"
         fi
-    
+
     - name: Run tests
       run: cargo test --all --locked
 ```
@@ -190,6 +201,7 @@ test:
 #### 3.1 Performance Tracking
 
 Monitor these metrics:
+
 - **CI build times**: Compare before/after LLD adoption
 - **Local build times**: Track development iteration speed
 - **Build success rate**: Ensure no increase in failures
@@ -211,26 +223,26 @@ codegen-units = 16
 
 #### 3.3 Troubleshooting Common Issues
 
-**Issue**: Build failures with LLD
-**Solution**: Fallback to default linker temporarily
+**Issue**: Build failures with LLD **Solution**: Fallback to default linker
+temporarily
 
-**Issue**: Incompatible crates
-**Solution**: Document and create workarounds
+**Issue**: Incompatible crates **Solution**: Document and create workarounds
 
-**Issue**: Performance regression
-**Solution**: Revert and investigate
+**Issue**: Performance regression **Solution**: Revert and investigate
 
 ### Phase 4: Documentation and Team Rollout (Week 4)
 
 #### 4.1 Update Project Documentation
 
 **README.md additions:**
-```markdown
+
+````markdown
 ## Performance Optimization
 
 This project uses LLD (LLVM's fast linker) for improved build performance.
 
 ### Local Setup
+
 ```bash
 # macOS
 brew install llvm
@@ -238,12 +250,14 @@ brew install llvm
 # Linux
 sudo apt install clang lld
 ```
+````
 
 ### Configuration
+
 Create `~/.cargo/config.toml` with LLD settings (see docs/planning/lld.md)
 
-
 **AGENTS.md updates:**
+
 - Add LLD setup to development workflow
 - Include troubleshooting steps
 
@@ -255,20 +269,22 @@ Create `~/.cargo/config.toml` with LLD settings (see docs/planning/lld.md)
 ## Common Issues
 
 ### Build Failures
-If builds fail with LLD, temporarily disable:
-\`\`\`bash
-unset RUSTFLAGS
-cargo build
-\`\`\`
+
+If builds fail with LLD, temporarily disable: \`\`\`bash unset RUSTFLAGS cargo
+build \`\`\`
 
 ### Performance Issues
+
 If LLD is slower than expected:
+
 1. Check LLD version: `ld.lld --version`
 2. Verify configuration in `~/.cargo/config.toml`
 3. Consider reverting to default linker
 
 ### CI Issues
+
 If CI fails with LLD:
+
 1. Check GitHub Actions logs for LLD installation errors
 2. Verify platform-specific setup
 3. Use fallback configuration
@@ -277,16 +293,19 @@ If CI fails with LLD:
 ## Success Criteria
 
 ### Performance Targets
+
 - **Local builds**: 2-3x faster linking on Linux, 1.5-2x on macOS
 - **CI builds**: 10-20% reduction in total build time
 - **Development iteration**: Noticeably faster `cargo build` times
 
 ### Stability Targets
+
 - **Build success rate**: No increase in failures
 - **Test pass rate**: All existing tests continue to pass
 - **CLI functionality**: No regression in tool behavior
 
 ### Adoption Targets
+
 - **Local development**: LLD configured and working
 - **CI integration**: All jobs using LLD successfully
 - **Documentation**: Complete setup and troubleshooting guides
@@ -294,23 +313,25 @@ If CI fails with LLD:
 ## Risk Mitigation
 
 ### Fallback Strategy
+
 - **Graceful degradation**: CI continues with default linker if LLD fails
 - **Easy rollback**: Simple environment variable change to disable LLD
 - **Monitoring**: Track build times and failure rates
 
 ### Compatibility Testing
+
 - **Test all build types**: debug, release, test
 - **Verify all platforms**: macOS, Linux
 - **Check all crates**: main library, macros, CLI
 
 ## Timeline Summary
 
-| Week | Focus | Deliverables |
-|------|-------|--------------|
-| 1 | Local validation | LLD working locally, performance benchmarks |
-| 2 | CI integration | LLD in CI with fallback, monitoring setup |
-| 3 | Optimization | Performance tuning, issue resolution |
-| 4 | Documentation | Complete docs, team rollout |
+| Week | Focus            | Deliverables                                |
+| ---- | ---------------- | ------------------------------------------- |
+| 1    | Local validation | LLD working locally, performance benchmarks |
+| 2    | CI integration   | LLD in CI with fallback, monitoring setup   |
+| 3    | Optimization     | Performance tuning, issue resolution        |
+| 4    | Documentation    | Complete docs, team rollout                 |
 
 ## Resources
 
