@@ -1,4 +1,4 @@
-use is_terminal::IsTerminal;
+use super::stream::StreamInfo;
 
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema, PartialEq, Eq,
@@ -11,15 +11,22 @@ pub enum ColorLevel {
     Truecolor,
 }
 
+/// Traits specific to terminal capabilities and stream information
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema, PartialEq, Eq,
 )]
 pub struct TerminalTraits {
+    /// Whether the terminal is interactive (both stdin and stdout are TTYs)
+    pub interactive: bool,
+    /// The color support level of the terminal
     pub color_level: ColorLevel,
-    pub is_interactive: bool,
-    pub is_tty_stdin: bool,
-    pub is_tty_stdout: bool,
-    pub is_tty_stderr: bool,
+    /// Information about the stdin stream
+    pub stdin: StreamInfo,
+    /// Information about the stdout stream
+    pub stdout: StreamInfo,
+    /// Information about the stderr stream
+    pub stderr: StreamInfo,
+    /// Whether the terminal supports hyperlinks
     pub supports_hyperlinks: bool,
 }
 
@@ -42,22 +49,68 @@ fn map_color_level(level: Option<supports_color::ColorLevel>) -> ColorLevel {
     }
 }
 
+impl Default for TerminalTraits {
+    fn default() -> Self {
+        Self {
+            interactive: false,
+            color_level: ColorLevel::None,
+            stdin: StreamInfo::default(),
+            stdout: StreamInfo::default(),
+            stderr: StreamInfo::default(),
+            supports_hyperlinks: false,
+        }
+    }
+}
+
 impl TerminalTraits {
+    /// Detect terminal traits from the current environment
     pub fn detect() -> Self {
-        let is_tty_stdin = std::io::stdin().is_terminal();
-        let is_tty_stdout = std::io::stdout().is_terminal();
-        let is_tty_stderr = std::io::stderr().is_terminal();
-        let is_interactive = is_tty_stdin && is_tty_stdout;
+        let stdin = StreamInfo::stdin();
+        let stdout = StreamInfo::stdout();
+        let stderr = StreamInfo::stderr();
+        let interactive = stdin.tty && stdout.tty;
         let color_level = map_color_level(supports_color::on(supports_color::Stream::Stdout));
         let supports_hyperlinks = supports_hyperlinks::on(supports_hyperlinks::Stream::Stdout);
-        TerminalTraits {
+
+        Self {
+            interactive,
             color_level,
-            is_interactive,
-            is_tty_stdin,
-            is_tty_stdout,
-            is_tty_stderr,
+            stdin,
+            stdout,
+            stderr,
             supports_hyperlinks,
         }
+    }
+
+    // Legacy compatibility methods for backward compatibility
+    #[deprecated(note = "Use interactive field instead")]
+    pub fn is_interactive(&self) -> bool {
+        self.interactive
+    }
+
+    #[deprecated(note = "Use stdin.tty field instead")]
+    pub fn is_tty_stdin(&self) -> bool {
+        self.stdin.tty
+    }
+
+    #[deprecated(note = "Use stdout.tty field instead")]
+    pub fn is_tty_stdout(&self) -> bool {
+        self.stdout.tty
+    }
+
+    #[deprecated(note = "Use stderr.tty field instead")]
+    pub fn is_tty_stderr(&self) -> bool {
+        self.stderr.tty
+    }
+
+    #[deprecated(note = "Use stdin.piped field instead")]
+    pub fn is_piped_stdin(&self) -> bool {
+        self.stdin.piped
+    }
+
+    #[deprecated(note = "Use stdout.piped field instead")]
+    pub fn is_piped_stdout(&self) -> bool {
+        self.stdout.piped
     }
 }
 
@@ -74,18 +127,72 @@ mod tests {
     }
 
     #[test]
-    fn derives_piped_flags() {
+    fn default_terminal_traits() {
+        let traits = TerminalTraits::default();
+        assert!(!traits.interactive);
+        assert_eq!(traits.color_level, ColorLevel::None);
+        assert!(!traits.stdin.tty);
+        assert!(traits.stdin.piped);
+        assert!(!traits.stdout.tty);
+        assert!(traits.stdout.piped);
+        assert!(!traits.stderr.tty);
+        assert!(traits.stderr.piped);
+        assert!(!traits.supports_hyperlinks);
+    }
+
+    #[test]
+    fn terminal_traits_serialization() {
         let traits = TerminalTraits {
-            color_level: ColorLevel::None,
-            is_interactive: false,
-            is_tty_stdin: false,
-            is_tty_stdout: true,
-            is_tty_stderr: true,
+            interactive: true,
+            color_level: ColorLevel::Truecolor,
+            stdin: StreamInfo {
+                tty: true,
+                piped: false,
+            },
+            stdout: StreamInfo {
+                tty: true,
+                piped: false,
+            },
+            stderr: StreamInfo {
+                tty: true,
+                piped: false,
+            },
+            supports_hyperlinks: true,
+        };
+        let json = serde_json::to_string(&traits).unwrap();
+        assert!(json.contains("\"interactive\":true"));
+        assert!(json.contains("\"color_level\":\"truecolor\""));
+        assert!(json.contains("\"stdin\":{\"tty\":true,\"piped\":false}"));
+        assert!(json.contains("\"stdout\":{\"tty\":true,\"piped\":false}"));
+        assert!(json.contains("\"stderr\":{\"tty\":true,\"piped\":false}"));
+        assert!(json.contains("\"supports_hyperlinks\":true"));
+    }
+
+    #[test]
+    fn legacy_compatibility_methods() {
+        let traits = TerminalTraits {
+            interactive: true,
+            color_level: ColorLevel::Ansi256,
+            stdin: StreamInfo {
+                tty: true,
+                piped: false,
+            },
+            stdout: StreamInfo {
+                tty: true,
+                piped: false,
+            },
+            stderr: StreamInfo {
+                tty: false,
+                piped: true,
+            },
             supports_hyperlinks: false,
         };
-        let t: crate::schema::Traits = traits.clone().into();
-        assert!(t.is_piped_stdin);
-        assert!(!t.is_piped_stdout);
-        assert_eq!(t.is_interactive, traits.is_interactive);
+
+        assert!(traits.is_interactive());
+        assert!(traits.is_tty_stdin());
+        assert!(traits.is_tty_stdout());
+        assert!(!traits.is_tty_stderr());
+        assert!(!traits.is_piped_stdin());
+        assert!(!traits.is_piped_stdout());
     }
 }

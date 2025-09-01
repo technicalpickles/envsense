@@ -163,12 +163,12 @@ impl Default for Traits {
 impl From<TerminalTraits> for Traits {
     fn from(t: TerminalTraits) -> Self {
         Self {
-            is_interactive: t.is_interactive,
-            is_tty_stdin: t.is_tty_stdin,
-            is_tty_stdout: t.is_tty_stdout,
-            is_tty_stderr: t.is_tty_stderr,
-            is_piped_stdin: !t.is_tty_stdin,
-            is_piped_stdout: !t.is_tty_stdout,
+            is_interactive: t.interactive,
+            is_tty_stdin: t.stdin.tty,
+            is_tty_stdout: t.stdout.tty,
+            is_tty_stderr: t.stderr.tty,
+            is_piped_stdin: t.stdin.piped,
+            is_piped_stdout: t.stdout.piped,
             color_level: t.color_level,
             supports_hyperlinks: t.supports_hyperlinks,
             // CI-related traits default to None for terminal traits
