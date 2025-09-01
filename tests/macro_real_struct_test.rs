@@ -8,15 +8,15 @@ fn test_macro_integration_works() {
     let envsense = EnvSense::default();
 
     // Verify the struct has the expected fields
-    assert!(!envsense.contexts.agent);
-    assert!(!envsense.contexts.ide);
-    assert!(!envsense.contexts.ci);
-    assert!(!envsense.traits.is_interactive);
-    assert!(!envsense.traits.is_tty_stdout);
-    assert_eq!(envsense.facets.agent_id, None);
-    assert_eq!(envsense.facets.ide_id, None);
+    assert!(!envsense.contexts.contains(&"agent".to_string()));
+    assert!(!envsense.contexts.contains(&"ide".to_string()));
+    assert!(!envsense.contexts.contains(&"ci".to_string()));
+    assert!(!envsense.traits.is_interactive());
+    assert!(!envsense.traits.terminal.stdout.tty);
+    assert_eq!(envsense.traits.agent.id, None);
+    assert_eq!(envsense.traits.ide.id, None);
     assert_eq!(envsense.evidence.len(), 0);
-    assert_eq!(envsense.version, "0.2.0");
+    assert_eq!(envsense.version, "0.3.0");
     // rules_version field has been removed in schema version 0.2.0
 }
 

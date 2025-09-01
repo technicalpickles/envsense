@@ -1,5 +1,6 @@
 use crate::detectors::{Detector, EnvSnapshot};
-use crate::schema::{Contexts, EnvSense, Facets, SCHEMA_VERSION, Traits};
+use crate::schema::{EnvSense, SCHEMA_VERSION};
+use crate::traits::NestedTraits;
 use envsense_macros::DetectionMerger;
 
 pub struct DetectionEngine {
@@ -25,9 +26,8 @@ impl DetectionEngine {
 
     pub fn detect_from_snapshot(&self, snapshot: &EnvSnapshot) -> EnvSense {
         let mut result = EnvSense {
-            contexts: Contexts::default(),
-            facets: Facets::default(),
-            traits: Traits::default(),
+            contexts: Vec::new(),
+            traits: NestedTraits::default(),
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
         };
@@ -41,7 +41,7 @@ impl DetectionEngine {
                 envsense_macros::Detection {
                     contexts_add: detection.contexts_add,
                     traits_patch: detection.traits_patch,
-                    facets_patch: detection.facets_patch,
+                    facets_patch: detection.facets_patch, // Keep for compatibility, will be ignored
                     evidence: detection
                         .evidence
                         .into_iter()

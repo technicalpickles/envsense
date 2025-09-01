@@ -130,28 +130,17 @@ struct Snapshot {
 
 fn collect_snapshot() -> Snapshot {
     let env = EnvSense::detect();
-    let mut contexts = Vec::new();
-    if env.contexts.agent {
-        contexts.push("agent".to_string());
-    }
-    if env.contexts.ide {
-        contexts.push("ide".to_string());
-    }
-    if env.contexts.ci {
-        contexts.push("ci".to_string());
-    }
-    if env.contexts.container {
-        contexts.push("container".to_string());
-    }
-    if env.contexts.remote {
-        contexts.push("remote".to_string());
-    }
-    let traits_val = serde_json::to_value(env.traits).unwrap();
-    // Legacy CI traits generation removed - CI traits now come from declarative detection
+
+    // For backward compatibility, convert to legacy format for CLI output
+    let legacy_env = env.to_legacy();
+
+    let contexts = env.contexts.clone(); // New schema already has Vec<String>
+    let traits_val = serde_json::to_value(legacy_env.traits).unwrap();
+
     Snapshot {
         contexts,
         traits: traits_val,
-        facets: serde_json::to_value(env.facets).unwrap(),
+        facets: serde_json::to_value(legacy_env.facets).unwrap(),
         meta: json!({
             "schema_version": env.version,
         }),
@@ -357,14 +346,7 @@ fn evaluate(
 ) -> (bool, Option<String>, Option<BTreeMap<String, String>>) {
     let (mut result, reason, signals) = match parsed.check {
         check::Check::Context(ctx) => {
-            let value = match ctx.as_str() {
-                "agent" => env.contexts.agent,
-                "ide" => env.contexts.ide,
-                "ci" => env.contexts.ci,
-                "container" => env.contexts.container,
-                "remote" => env.contexts.remote,
-                _ => false,
-            };
+            let value = env.contexts.contains(&ctx);
             let evidence = find_evidence(env, &ctx);
             (
                 value,
@@ -374,10 +356,10 @@ fn evaluate(
         }
         check::Check::Facet { key, value } => {
             let ok = match key.as_str() {
-                "agent_id" => env.facets.agent_id.as_deref() == Some(value.as_str()),
-                "ide_id" => env.facets.ide_id.as_deref() == Some(value.as_str()),
-                "ci_id" => env.facets.ci_id.as_deref() == Some(value.as_str()),
-                "container_id" => env.facets.container_id.as_deref() == Some(value.as_str()),
+                "agent_id" => env.traits.agent.id.as_deref() == Some(value.as_str()),
+                "ide_id" => env.traits.ide.id.as_deref() == Some(value.as_str()),
+                "ci_id" => env.traits.ci.id.as_deref() == Some(value.as_str()),
+                "container_id" => false, // Not supported in new schema yet
                 _ => false,
             };
             let evidence = find_evidence(env, &key);
@@ -389,15 +371,15 @@ fn evaluate(
         }
         check::Check::Trait { key } => {
             let ok = match key.as_str() {
-                "is_interactive" => env.traits.is_interactive,
-                "is_tty_stdin" => env.traits.is_tty_stdin,
-                "is_tty_stdout" => env.traits.is_tty_stdout,
-                "is_tty_stderr" => env.traits.is_tty_stderr,
-                "is_piped_stdin" => env.traits.is_piped_stdin,
-                "is_piped_stdout" => env.traits.is_piped_stdout,
-                "supports_hyperlinks" => env.traits.supports_hyperlinks,
-                "is_ci" => env.contexts.ci,
-                "ci_pr" => env.traits.ci_pr.unwrap_or(false),
+                "is_interactive" => env.traits.is_interactive(),
+                "is_tty_stdin" => env.traits.terminal.stdin.tty,
+                "is_tty_stdout" => env.traits.terminal.stdout.tty,
+                "is_tty_stderr" => env.traits.terminal.stderr.tty,
+                "is_piped_stdin" => env.traits.terminal.stdin.piped,
+                "is_piped_stdout" => env.traits.terminal.stdout.piped,
+                "supports_hyperlinks" => env.traits.terminal.supports_hyperlinks,
+                "is_ci" => env.contexts.contains(&"ci".to_string()),
+                "ci_pr" => env.traits.ci.is_pr.unwrap_or(false),
                 _ => false,
             };
             let evidence = find_evidence(env, &key);
@@ -445,10 +427,10 @@ fn run_check(args: &CheckCmd) -> i32 {
     }
     let env = EnvSense::detect();
     if args.predicates.len() == 1 && args.predicates[0] == "ci" && !args.any && !args.all {
-        if env.contexts.ci {
+        if env.contexts.contains(&"ci".to_string()) {
             if !args.quiet {
-                let name = env.traits.ci_name.as_deref().unwrap_or("Generic CI");
-                let vendor = env.traits.ci_vendor.as_deref().unwrap_or("generic");
+                let name = env.traits.ci.name.as_deref().unwrap_or("Generic CI");
+                let vendor = env.traits.ci.vendor.as_deref().unwrap_or("generic");
                 println!("CI detected: {} ({})", name, vendor);
             }
             return 0;

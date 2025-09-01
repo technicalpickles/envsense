@@ -10,8 +10,8 @@ pub use main::EnvSense;
 pub use nested::NewEnvSense;
 
 // Schema version constants
-pub const SCHEMA_VERSION: &str = "0.2.0"; // Keep at 0.2.0 until task 1.3
-pub const LEGACY_SCHEMA_VERSION: &str = "0.2.0"; // Will be different in task 1.3
+pub const SCHEMA_VERSION: &str = "0.3.0"; // Updated for nested schema structure
+pub const LEGACY_SCHEMA_VERSION: &str = "0.2.0"; // Legacy flat schema version
 
 #[cfg(test)]
 mod tests {
@@ -20,7 +20,7 @@ mod tests {
 
     #[test]
     fn schema_version_constants() {
-        assert_eq!(SCHEMA_VERSION, "0.2.0");
+        assert_eq!(SCHEMA_VERSION, "0.3.0");
         assert_eq!(LEGACY_SCHEMA_VERSION, "0.2.0");
     }
 
@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn new_envsense_default() {
-        let new = NewEnvSense::default();
+        let new = EnvSense::default();
         assert_eq!(new.version, SCHEMA_VERSION);
         assert!(new.contexts.is_empty());
         assert_eq!(new.traits.agent.id, None);
@@ -80,7 +80,7 @@ mod tests {
             version: LEGACY_SCHEMA_VERSION.to_string(),
         };
 
-        let new = NewEnvSense::from_legacy(&legacy);
+        let new = EnvSense::from_legacy(&legacy);
 
         // Verify contexts were converted correctly
         assert!(new.contexts.contains(&"agent".to_string()));
@@ -143,7 +143,7 @@ mod tests {
             version: LEGACY_SCHEMA_VERSION.to_string(),
         };
 
-        let new = NewEnvSense::from_legacy(&legacy);
+        let new = EnvSense::from_legacy(&legacy);
 
         // Verify CI context
         assert!(new.contexts.contains(&"ci".to_string()));
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn empty_contexts_handling() {
-        let new = NewEnvSense::default();
+        let new = EnvSense::default();
         assert!(new.contexts.is_empty());
 
         let json = serde_json::to_string(&new).unwrap();
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn nested_traits_serialization() {
-        let new = NewEnvSense::default();
+        let new = EnvSense::default();
         let json = serde_json::to_string(&new.traits).unwrap();
         assert!(json.contains("\"agent\":"));
         assert!(json.contains("\"terminal\":"));
