@@ -14,9 +14,9 @@ fn main() {
 }
 
 fn is_lld_available() -> bool {
-    // Check if lld is available via clang
-    if let Ok(output) = Command::new("clang")
-        .args(&["-fuse-ld=lld", "-Wl,--version"])
+    // Check if lld is available directly
+    if let Ok(output) = Command::new("lld")
+        .arg("--version")
         .output()
     {
         output.status.success()
