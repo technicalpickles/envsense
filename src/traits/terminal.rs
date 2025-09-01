@@ -188,11 +188,11 @@ mod tests {
             supports_hyperlinks: false,
         };
 
-        assert!(traits.is_interactive());
-        assert!(traits.is_tty_stdin());
-        assert!(traits.is_tty_stdout());
-        assert!(!traits.is_tty_stderr());
-        assert!(!traits.is_piped_stdin());
-        assert!(!traits.is_piped_stdout());
+        assert!(traits.interactive);
+        assert!(traits.stdin.tty);
+        assert!(traits.stdout.tty);
+        assert!(!traits.stderr.tty);
+        assert!(!traits.stdin.piped);
+        assert!(!traits.stdout.piped);
     }
 }
