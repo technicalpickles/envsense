@@ -19,8 +19,10 @@ centralizes and standardizes this detection.
 ## Quick Start (Shell)
 
 ```bash
-# Detect and show agent status
-envsense check agent
+# Detect and show if running from an agent
+envsense check agent # => true
+# Detect and show agent id, if present
+envsense check agent.id # => cursor
 
 # Simple check for any coding agent
 envsense -q check agent && echo "Running inside a coding agent"

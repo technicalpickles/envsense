@@ -312,9 +312,9 @@ fn evaluate(
     };
 
     if parsed.negated {
-        (result, reason, signals)
-    } else {
         (!result, reason, signals)
+    } else {
+        (result, reason, signals)
     }
 }
 
@@ -377,7 +377,48 @@ fn generate_help_text(registry: &FieldRegistry) -> String {
 }
 ```
 
-#### 2.5 Deprecation Warnings
+#### 2.5 Enhanced Output Formatting
+
+**Files**: `src/check.rs`
+
+```rust
+#[derive(Debug)]
+pub enum CheckResult {
+    Boolean(bool),
+    String(String),
+    Comparison { actual: String, expected: String, matched: bool },
+}
+
+impl CheckResult {
+    pub fn format(&self, explain: bool) -> String {
+        match self {
+            CheckResult::Boolean(value) => {
+                if explain {
+                    format!("{}  # boolean result", value)
+                } else {
+                    value.to_string()
+                }
+            }
+            CheckResult::String(value) => {
+                if explain {
+                    format!("{}  # string value", value)
+                } else {
+                    value.clone()
+                }
+            }
+            CheckResult::Comparison { actual, expected, matched } => {
+                if explain {
+                    format!("{}  # {} == {}", matched, actual, expected)
+                } else {
+                    matched.to_string()
+                }
+            }
+        }
+    }
+}
+```
+
+#### 2.6 Deprecation Warnings
 
 **Files**: `src/check.rs`
 
@@ -402,6 +443,75 @@ fn parse_with_warnings(input: &str) -> Result<Check, ParseError> {
 - [ ] Legacy syntax still works with deprecation warnings
 - [ ] Help text shows new field structure
 - [ ] All parser tests pass
+- [ ] Enhanced output formatting handles different result types
+- [ ] CLI output matches README examples (boolean for contexts, values for
+      fields)
+
+### CLI Behavior Changes
+
+Based on the updated README examples, the new CLI behavior includes:
+
+#### Context Checks (Boolean Results)
+
+```bash
+envsense check agent        # => true/false (boolean result)
+envsense check ide          # => true/false (boolean result)
+envsense check ci           # => true/false (boolean result)
+```
+
+#### Field Value Checks (String Results)
+
+```bash
+envsense check agent.id     # => "cursor" (shows actual value)
+envsense check ide.id       # => "vscode" (shows actual value)
+envsense check terminal.interactive  # => true/false (boolean result)
+```
+
+#### Key Implementation Requirements
+
+1. **Context Evaluation**: `agent`, `ide`, `ci` return boolean based on presence
+2. **Field Value Display**: `agent.id` without `=value` shows the actual value
+3. **Boolean Fields**: `terminal.interactive` returns boolean result
+4. **String Fields**: `agent.id` returns string value when no comparison
+   specified
+
+#### Updated Evaluation Logic
+
+The evaluation logic needs to handle three cases:
+
+- **Context checks**: Return boolean for context presence
+- **Field existence checks**: Return boolean for field existence (when no value
+  specified)
+- **Field value comparisons**: Return boolean for value matches (when `=value`
+  specified)
+
+#### CLI Output Behavior Examples
+
+Based on the README examples, the CLI should behave as follows:
+
+```bash
+# Context checks return boolean
+envsense check agent        # => true (if agent detected)
+envsense check ide          # => false (if no IDE detected)
+
+# Field checks without comparison return actual values
+envsense check agent.id     # => "cursor" (shows actual agent ID)
+envsense check ide.id       # => "vscode" (shows actual IDE ID)
+
+# Field checks with comparison return boolean
+envsense check agent.id=cursor    # => true (if agent.id == "cursor")
+envsense check ide.id=vscode      # => true (if ide.id == "vscode")
+
+# Boolean field checks return boolean values
+envsense check terminal.interactive  # => true (if terminal is interactive)
+```
+
+#### Implementation Requirements
+
+1. **Output Formatting**: Different output formats for different check types
+2. **Value Extraction**: Ability to extract and display actual field values
+3. **Comparison Logic**: Support for both existence checks and value comparisons
+4. **Type Handling**: Proper handling of boolean vs string field types
 
 ### Dependencies
 
@@ -788,6 +898,58 @@ fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bo
 }
 ```
 
+#### 4.3.1 Enhanced Output Formatting
+
+The new CLI behavior requires enhanced output formatting to handle different
+types of results:
+
+```rust
+fn format_check_result(
+    predicate: &str,
+    result: &CheckResult,
+    explain: bool,
+) -> String {
+    match result {
+        CheckResult::Boolean(value) => {
+            if explain {
+                format!("{}  # boolean result", value)
+            } else {
+                value.to_string()
+            }
+        }
+        CheckResult::String(value) => {
+            if explain {
+                format!("{}  # string value", value)
+            } else {
+                value.clone()
+            }
+        }
+        CheckResult::Comparison { actual, expected, matched } => {
+            if explain {
+                format!("{}  # {} == {}", matched, actual, expected)
+            } else {
+                matched.to_string()
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+enum CheckResult {
+    Boolean(bool),
+    String(String),
+    Comparison { actual: String, expected: String, matched: bool },
+}
+```
+
+#### 4.3.2 Context vs Field Output
+
+The output format differs based on the check type:
+
+- **Context checks** (`agent`, `ide`, `ci`): Return boolean
+- **Field checks** (`agent.id`, `terminal.interactive`): Return actual value
+- **Field comparisons** (`agent.id=cursor`): Return boolean match result
+
 #### 4.4 Update Help Text
 
 **Files**: `src/main.rs`
@@ -1027,6 +1189,14 @@ fn migration_completeness() {
 - **Evaluation**: Field resolution, type checking
 - **Detectors**: Nested trait population
 - **CLI**: Output formatting, error handling
+
+### CLI Behavior Tests
+
+- **Context Checks**: Verify `agent`, `ide`, `ci` return boolean
+- **Field Value Display**: Verify `agent.id` shows actual value
+- **Field Comparisons**: Verify `agent.id=cursor` returns boolean match
+- **Output Formatting**: Verify different result types format correctly
+- **README Examples**: All examples in README work as documented
 
 ### Integration Tests
 
