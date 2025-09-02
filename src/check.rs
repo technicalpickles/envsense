@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use crate::schema::EnvSense;
+use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -56,6 +57,25 @@ pub enum FieldType {
     OptionalString,
     ColorLevel,
     StreamInfo,
+}
+
+/// Result types for check evaluation
+#[derive(Debug, Clone, PartialEq)]
+pub enum CheckResult {
+    Boolean(bool),
+    String(String),
+    Comparison {
+        actual: String,
+        expected: String,
+        matched: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct EvaluationResult {
+    pub result: CheckResult,
+    pub reason: Option<String>,
+    pub signals: Option<BTreeMap<String, String>>,
 }
 
 pub fn parse(input: &str) -> Result<Check, ParseError> {
@@ -329,6 +349,293 @@ impl FieldRegistry {
 
     pub fn list_all_fields(&self) -> Vec<&String> {
         self.fields.keys().collect()
+    }
+}
+
+/// Enhanced Evaluation Logic - Task 2.3 Implementation
+///
+/// Main evaluation function that handles all check types with negation support
+pub fn evaluate(env: &EnvSense, parsed: ParsedCheck, registry: &FieldRegistry) -> EvaluationResult {
+    let mut eval_result = match parsed.check {
+        Check::Context(ctx) => evaluate_context(env, &ctx),
+        Check::NestedField { path, value } => {
+            evaluate_nested_field(env, &path, value.as_deref(), registry)
+        }
+        Check::LegacyFacet { key, value } => evaluate_legacy_facet(env, &key, &value),
+        Check::LegacyTrait { key } => evaluate_legacy_trait(env, &key),
+    };
+
+    // Handle negation
+    if parsed.negated {
+        eval_result.result = match eval_result.result {
+            CheckResult::Boolean(b) => CheckResult::Boolean(!b),
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => CheckResult::Comparison {
+                actual,
+                expected,
+                matched: !matched,
+            },
+            other => other, // String results don't negate
+        };
+
+        // Update reason for negated results
+        if let Some(reason) = eval_result.reason.as_mut() {
+            *reason = format!("negated: {}", reason);
+        }
+    }
+
+    eval_result
+}
+
+/// Evaluate context checks - returns boolean indicating if context is detected
+fn evaluate_context(env: &EnvSense, context: &str) -> EvaluationResult {
+    let present = env.contexts.contains(&context.to_string());
+
+    EvaluationResult {
+        result: CheckResult::Boolean(present),
+        reason: Some(format!(
+            "context '{}' {}",
+            context,
+            if present { "detected" } else { "not detected" }
+        )),
+        signals: None,
+    }
+}
+
+/// Evaluate nested field checks - supports both value display and comparison modes
+fn evaluate_nested_field(
+    env: &EnvSense,
+    path: &[String],
+    expected_value: Option<&str>,
+    registry: &FieldRegistry,
+) -> EvaluationResult {
+    let field_info = match registry.resolve_field(path) {
+        Some(info) => info,
+        None => {
+            return EvaluationResult {
+                result: CheckResult::Boolean(false),
+                reason: Some(format!("unknown field: {}", path.join("."))),
+                signals: None,
+            };
+        }
+    };
+
+    // Navigate to the field value in the nested structure
+    let actual_value = navigate_to_field(&env.traits, &field_info.path);
+
+    match expected_value {
+        Some(expected) => {
+            // Comparison mode: return boolean match result
+            let matched = compare_field_value(&actual_value, expected, &field_info.field_type);
+            EvaluationResult {
+                result: CheckResult::Comparison {
+                    actual: format_field_value(&actual_value, &field_info.field_type),
+                    expected: expected.to_string(),
+                    matched,
+                },
+                reason: Some(format!(
+                    "field comparison: {} == {}",
+                    path.join("."),
+                    expected
+                )),
+                signals: None,
+            }
+        }
+        None => {
+            // Value display mode: return actual value
+            match &field_info.field_type {
+                FieldType::Boolean => {
+                    let bool_val = actual_value.as_bool().unwrap_or(false);
+                    EvaluationResult {
+                        result: CheckResult::Boolean(bool_val),
+                        reason: Some(format!("field value: {}", path.join("."))),
+                        signals: None,
+                    }
+                }
+                _ => {
+                    let string_val = format_field_value(&actual_value, &field_info.field_type);
+                    EvaluationResult {
+                        result: CheckResult::String(string_val),
+                        reason: Some(format!("field value: {}", path.join("."))),
+                        signals: None,
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Navigate to a specific field in the nested traits structure
+fn navigate_to_field(traits: &crate::traits::NestedTraits, path: &[String]) -> serde_json::Value {
+    let traits_value = serde_json::to_value(traits).unwrap();
+    let mut current = &traits_value;
+
+    for segment in path {
+        if let Some(obj) = current.as_object() {
+            current = obj.get(segment).unwrap_or(&serde_json::Value::Null);
+        } else {
+            return serde_json::Value::Null;
+        }
+    }
+
+    current.clone()
+}
+
+/// Compare field value with expected value based on field type
+fn compare_field_value(actual: &serde_json::Value, expected: &str, field_type: &FieldType) -> bool {
+    match field_type {
+        FieldType::Boolean => {
+            let actual_bool = actual.as_bool().unwrap_or(false);
+            let expected_bool = expected == "true";
+            actual_bool == expected_bool
+        }
+        FieldType::String | FieldType::OptionalString => {
+            actual.as_str().map(|s| s == expected).unwrap_or(false)
+        }
+        FieldType::ColorLevel => {
+            // Handle ColorLevel enum comparison
+            actual.as_str().map(|s| s == expected).unwrap_or(false)
+        }
+        FieldType::StreamInfo => {
+            // StreamInfo is an object, not directly comparable
+            false
+        }
+    }
+}
+
+/// Format field value for display based on field type
+fn format_field_value(value: &serde_json::Value, field_type: &FieldType) -> String {
+    match field_type {
+        FieldType::Boolean => value.as_bool().unwrap_or(false).to_string(),
+        FieldType::String | FieldType::OptionalString => {
+            value.as_str().unwrap_or("null").to_string()
+        }
+        FieldType::ColorLevel => value.as_str().unwrap_or("none").to_string(),
+        FieldType::StreamInfo => {
+            // Format StreamInfo object
+            if let Some(obj) = value.as_object() {
+                format!(
+                    "tty:{}, piped:{}",
+                    obj.get("tty").and_then(|v| v.as_bool()).unwrap_or(false),
+                    obj.get("piped").and_then(|v| v.as_bool()).unwrap_or(false)
+                )
+            } else {
+                "null".to_string()
+            }
+        }
+    }
+}
+
+/// Evaluate legacy facet checks for backward compatibility
+fn evaluate_legacy_facet(env: &EnvSense, key: &str, value: &str) -> EvaluationResult {
+    // Map legacy facet keys to new nested field paths
+    let (field_path, field_type) = match key {
+        "agent_id" => (
+            vec!["agent".to_string(), "id".to_string()],
+            FieldType::OptionalString,
+        ),
+        "ide_id" => (
+            vec!["ide".to_string(), "id".to_string()],
+            FieldType::OptionalString,
+        ),
+        "ci_id" => (
+            vec!["ci".to_string(), "id".to_string()],
+            FieldType::OptionalString,
+        ),
+        _ => {
+            return EvaluationResult {
+                result: CheckResult::Boolean(false),
+                reason: Some(format!("unknown legacy facet: {}", key)),
+                signals: None,
+            };
+        }
+    };
+
+    let actual_value = navigate_to_field(&env.traits, &field_path);
+    let matched = compare_field_value(&actual_value, value, &field_type);
+
+    EvaluationResult {
+        result: CheckResult::Comparison {
+            actual: format_field_value(&actual_value, &field_type),
+            expected: value.to_string(),
+            matched,
+        },
+        reason: Some(format!("legacy facet comparison: {}={}", key, value)),
+        signals: None,
+    }
+}
+
+/// Evaluate legacy trait checks for backward compatibility
+fn evaluate_legacy_trait(env: &EnvSense, key: &str) -> EvaluationResult {
+    // Map legacy trait keys to new nested field paths
+    let (field_path, _field_type) = match key {
+        "is_interactive" => (
+            vec!["terminal".to_string(), "interactive".to_string()],
+            FieldType::Boolean,
+        ),
+        "supports_hyperlinks" => (
+            vec!["terminal".to_string(), "supports_hyperlinks".to_string()],
+            FieldType::Boolean,
+        ),
+        "is_tty_stdin" => (
+            vec![
+                "terminal".to_string(),
+                "stdin".to_string(),
+                "tty".to_string(),
+            ],
+            FieldType::Boolean,
+        ),
+        "is_tty_stdout" => (
+            vec![
+                "terminal".to_string(),
+                "stdout".to_string(),
+                "tty".to_string(),
+            ],
+            FieldType::Boolean,
+        ),
+        "is_tty_stderr" => (
+            vec![
+                "terminal".to_string(),
+                "stderr".to_string(),
+                "tty".to_string(),
+            ],
+            FieldType::Boolean,
+        ),
+        "is_piped_stdin" => (
+            vec![
+                "terminal".to_string(),
+                "stdin".to_string(),
+                "piped".to_string(),
+            ],
+            FieldType::Boolean,
+        ),
+        "is_piped_stdout" => (
+            vec![
+                "terminal".to_string(),
+                "stdout".to_string(),
+                "piped".to_string(),
+            ],
+            FieldType::Boolean,
+        ),
+        _ => {
+            return EvaluationResult {
+                result: CheckResult::Boolean(false),
+                reason: Some(format!("unknown legacy trait: {}", key)),
+                signals: None,
+            };
+        }
+    };
+
+    let actual_value = navigate_to_field(&env.traits, &field_path);
+    let bool_val = actual_value.as_bool().unwrap_or(false);
+
+    EvaluationResult {
+        result: CheckResult::Boolean(bool_val),
+        reason: Some(format!("legacy trait value: {}", key)),
+        signals: None,
     }
 }
 
@@ -910,5 +1217,1118 @@ mod tests {
                 field_path
             );
         }
+    }
+
+    // Enhanced Evaluation Logic Tests - Task 2.3
+
+    fn create_test_env() -> EnvSense {
+        use crate::traits::terminal::ColorLevel;
+        use crate::traits::{
+            AgentTraits, CiTraits, IdeTraits, NestedTraits, StreamInfo, TerminalTraits,
+        };
+
+        EnvSense {
+            contexts: vec!["agent".to_string(), "terminal".to_string()],
+            traits: NestedTraits {
+                agent: AgentTraits {
+                    id: Some("cursor".to_string()),
+                },
+                ide: IdeTraits {
+                    id: Some("vscode".to_string()),
+                },
+                terminal: TerminalTraits {
+                    interactive: true,
+                    color_level: ColorLevel::Truecolor,
+                    stdin: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stdout: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stderr: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    supports_hyperlinks: true,
+                },
+                ci: CiTraits {
+                    id: None,
+                    vendor: None,
+                    name: None,
+                    is_pr: None,
+                    branch: None,
+                },
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        }
+    }
+
+    #[test]
+    fn evaluate_context_present() {
+        let env = create_test_env();
+        let result = evaluate_context(&env, "agent");
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        let reason = result.reason.unwrap();
+        assert!(reason.contains("agent"));
+        assert!(reason.contains("detected"));
+        assert!(result.signals.is_none());
+    }
+
+    #[test]
+    fn evaluate_context_absent() {
+        let env = create_test_env();
+        let result = evaluate_context(&env, "ci");
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        let reason = result.reason.unwrap();
+        assert!(reason.contains("ci"));
+        assert!(reason.contains("not detected"));
+        assert!(result.signals.is_none());
+    }
+
+    #[test]
+    fn evaluate_nested_field_boolean_value() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "interactive".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("field value: terminal.interactive")
+        );
+    }
+
+    #[test]
+    fn evaluate_nested_field_string_value() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::String("cursor".to_string()));
+        assert!(result.reason.unwrap().contains("field value: agent.id"));
+    }
+
+    #[test]
+    fn evaluate_nested_field_comparison_match() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, Some("cursor"), &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "cursor");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("field comparison: agent.id == cursor")
+        );
+    }
+
+    #[test]
+    fn evaluate_nested_field_comparison_no_match() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, Some("other"), &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "other");
+                assert!(!matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_nested_field_boolean_comparison() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "interactive".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, Some("true"), &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "true");
+                assert_eq!(expected, "true");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_nested_field_unknown_field() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["unknown".to_string(), "field".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("unknown field: unknown.field")
+        );
+    }
+
+    #[test]
+    fn evaluate_nested_field_deep_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec![
+            "terminal".to_string(),
+            "stdin".to_string(),
+            "tty".to_string(),
+        ];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("field value: terminal.stdin.tty")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_facet_match() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_facet(&env, "agent_id", "cursor");
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "cursor");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("legacy facet comparison: agent_id=cursor")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_facet_no_match() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_facet(&env, "agent_id", "other");
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "other");
+                assert!(!matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_legacy_facet_unknown() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_facet(&env, "unknown_facet", "value");
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("unknown legacy facet: unknown_facet")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_trait_true() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_trait(&env, "is_interactive");
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("legacy trait value: is_interactive")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_trait_false() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_trait(&env, "is_piped_stdin");
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("legacy trait value: is_piped_stdin")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_trait_unknown() {
+        let env = create_test_env();
+
+        let result = evaluate_legacy_trait(&env, "unknown_trait");
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("unknown legacy trait: unknown_trait")
+        );
+    }
+
+    #[test]
+    fn evaluate_main_function_context() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::Context("agent".to_string()),
+            negated: false,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        let reason = result.reason.unwrap();
+        assert!(reason.contains("agent"));
+        assert!(reason.contains("detected"));
+    }
+
+    #[test]
+    fn evaluate_main_function_nested_field() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::NestedField {
+                path: vec!["agent".to_string(), "id".to_string()],
+                value: None,
+            },
+            negated: false,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        assert_eq!(result.result, CheckResult::String("cursor".to_string()));
+    }
+
+    #[test]
+    fn evaluate_main_function_legacy_facet() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::LegacyFacet {
+                key: "agent_id".to_string(),
+                value: "cursor".to_string(),
+            },
+            negated: false,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        match result.result {
+            CheckResult::Comparison { matched, .. } => assert!(matched),
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_main_function_legacy_trait() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::LegacyTrait {
+                key: "is_interactive".to_string(),
+            },
+            negated: false,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+    }
+
+    #[test]
+    fn evaluate_negation_boolean() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::Context("agent".to_string()),
+            negated: true,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(result.reason.unwrap().contains("negated:"));
+    }
+
+    #[test]
+    fn evaluate_negation_comparison() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::NestedField {
+                path: vec!["agent".to_string(), "id".to_string()],
+                value: Some("cursor".to_string()),
+            },
+            negated: true,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "cursor");
+                assert!(!matched); // Negated
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+        assert!(result.reason.unwrap().contains("negated:"));
+    }
+
+    #[test]
+    fn evaluate_negation_string_unchanged() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let parsed = ParsedCheck {
+            check: Check::NestedField {
+                path: vec!["agent".to_string(), "id".to_string()],
+                value: None,
+            },
+            negated: true,
+        };
+
+        let result = evaluate(&env, parsed, &registry);
+
+        // String results don't negate, but reason is updated
+        assert_eq!(result.result, CheckResult::String("cursor".to_string()));
+        assert!(result.reason.unwrap().contains("negated:"));
+    }
+
+    #[test]
+    fn navigate_to_field_success() {
+        let env = create_test_env();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        let value = navigate_to_field(&env.traits, &path);
+
+        assert_eq!(value.as_str().unwrap(), "cursor");
+    }
+
+    #[test]
+    fn navigate_to_field_deep_path() {
+        let env = create_test_env();
+        let path = vec![
+            "terminal".to_string(),
+            "stdin".to_string(),
+            "tty".to_string(),
+        ];
+
+        let value = navigate_to_field(&env.traits, &path);
+
+        assert_eq!(value.as_bool().unwrap(), true);
+    }
+
+    #[test]
+    fn navigate_to_field_missing() {
+        let env = create_test_env();
+        let path = vec!["unknown".to_string(), "field".to_string()];
+
+        let value = navigate_to_field(&env.traits, &path);
+
+        assert!(value.is_null());
+    }
+
+    #[test]
+    fn compare_field_value_boolean() {
+        let value = serde_json::Value::Bool(true);
+
+        assert!(compare_field_value(&value, "true", &FieldType::Boolean));
+        assert!(!compare_field_value(&value, "false", &FieldType::Boolean));
+    }
+
+    #[test]
+    fn compare_field_value_string() {
+        let value = serde_json::Value::String("cursor".to_string());
+
+        assert!(compare_field_value(
+            &value,
+            "cursor",
+            &FieldType::OptionalString
+        ));
+        assert!(!compare_field_value(
+            &value,
+            "other",
+            &FieldType::OptionalString
+        ));
+    }
+
+    #[test]
+    fn compare_field_value_null() {
+        let value = serde_json::Value::Null;
+
+        assert!(!compare_field_value(
+            &value,
+            "anything",
+            &FieldType::OptionalString
+        ));
+        assert!(!compare_field_value(&value, "true", &FieldType::Boolean));
+    }
+
+    #[test]
+    fn format_field_value_boolean() {
+        let value = serde_json::Value::Bool(true);
+        assert_eq!(format_field_value(&value, &FieldType::Boolean), "true");
+
+        let value = serde_json::Value::Bool(false);
+        assert_eq!(format_field_value(&value, &FieldType::Boolean), "false");
+    }
+
+    #[test]
+    fn format_field_value_string() {
+        let value = serde_json::Value::String("cursor".to_string());
+        assert_eq!(
+            format_field_value(&value, &FieldType::OptionalString),
+            "cursor"
+        );
+
+        let value = serde_json::Value::Null;
+        assert_eq!(
+            format_field_value(&value, &FieldType::OptionalString),
+            "null"
+        );
+    }
+
+    #[test]
+    fn format_field_value_stream_info() {
+        use serde_json::json;
+
+        let value = json!({"tty": true, "piped": false});
+        assert_eq!(
+            format_field_value(&value, &FieldType::StreamInfo),
+            "tty:true, piped:false"
+        );
+
+        let value = json!({"tty": false, "piped": true});
+        assert_eq!(
+            format_field_value(&value, &FieldType::StreamInfo),
+            "tty:false, piped:true"
+        );
+
+        let value = serde_json::Value::Null;
+        assert_eq!(format_field_value(&value, &FieldType::StreamInfo), "null");
+    }
+
+    #[test]
+    fn check_result_equality() {
+        assert_eq!(CheckResult::Boolean(true), CheckResult::Boolean(true));
+        assert_ne!(CheckResult::Boolean(true), CheckResult::Boolean(false));
+
+        assert_eq!(
+            CheckResult::String("test".to_string()),
+            CheckResult::String("test".to_string())
+        );
+        assert_ne!(
+            CheckResult::String("test".to_string()),
+            CheckResult::String("other".to_string())
+        );
+
+        let comp1 = CheckResult::Comparison {
+            actual: "a".to_string(),
+            expected: "b".to_string(),
+            matched: false,
+        };
+        let comp2 = CheckResult::Comparison {
+            actual: "a".to_string(),
+            expected: "b".to_string(),
+            matched: false,
+        };
+        assert_eq!(comp1, comp2);
+    }
+
+    #[test]
+    fn evaluation_result_creation() {
+        let result = EvaluationResult {
+            result: CheckResult::Boolean(true),
+            reason: Some("test reason".to_string()),
+            signals: None,
+        };
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        assert_eq!(result.reason.unwrap(), "test reason");
+        assert!(result.signals.is_none());
+    }
+
+    // Additional Test Coverage - ColorLevel Field Type
+    #[test]
+    fn evaluate_color_level_field_value() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "color_level".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::String("truecolor".to_string()));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("field value: terminal.color_level")
+        );
+    }
+
+    #[test]
+    fn evaluate_color_level_field_comparison_match() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "color_level".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, Some("truecolor"), &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "truecolor");
+                assert_eq!(expected, "truecolor");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_color_level_field_comparison_no_match() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "color_level".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, Some("none"), &registry);
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "truecolor");
+                assert_eq!(expected, "none");
+                assert!(!matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    // StreamInfo Field Type Tests
+    #[test]
+    fn evaluate_stream_info_field_always_false_comparison() {
+        // Note: StreamInfo is not directly exposed as a field in the registry
+        // since we break it down into individual tty/piped boolean fields.
+        // This test verifies the StreamInfo formatting behavior instead.
+
+        // Test that StreamInfo comparison logic works correctly
+        let stream_info_value = serde_json::json!({"tty": true, "piped": false});
+        let result = compare_field_value(&stream_info_value, "anything", &FieldType::StreamInfo);
+        assert!(!result); // StreamInfo comparisons always return false
+
+        // Test with different values
+        let result = compare_field_value(&stream_info_value, "true", &FieldType::StreamInfo);
+        assert!(!result);
+
+        let result = compare_field_value(&stream_info_value, "false", &FieldType::StreamInfo);
+        assert!(!result);
+    }
+
+    #[test]
+    fn format_stream_info_with_missing_fields() {
+        use serde_json::json;
+
+        // Test StreamInfo formatting with missing fields
+        let incomplete_value = json!({"tty": true}); // Missing "piped" field
+        let formatted = format_field_value(&incomplete_value, &FieldType::StreamInfo);
+        assert_eq!(formatted, "tty:true, piped:false");
+
+        let empty_object = json!({});
+        let formatted = format_field_value(&empty_object, &FieldType::StreamInfo);
+        assert_eq!(formatted, "tty:false, piped:false");
+    }
+
+    // Edge Cases and Error Condition Tests
+    #[test]
+    fn evaluate_with_null_field_values() {
+        use crate::traits::terminal::ColorLevel;
+        use crate::traits::{
+            AgentTraits, CiTraits, IdeTraits, NestedTraits, StreamInfo, TerminalTraits,
+        };
+
+        // Create environment with null/None values
+        let env = EnvSense {
+            contexts: vec!["agent".to_string()],
+            traits: NestedTraits {
+                agent: AgentTraits { id: None }, // Null value
+                ide: IdeTraits { id: None },
+                terminal: TerminalTraits {
+                    interactive: false,
+                    color_level: ColorLevel::None,
+                    stdin: StreamInfo {
+                        tty: false,
+                        piped: false,
+                    },
+                    stdout: StreamInfo {
+                        tty: false,
+                        piped: false,
+                    },
+                    stderr: StreamInfo {
+                        tty: false,
+                        piped: false,
+                    },
+                    supports_hyperlinks: false,
+                },
+                ci: CiTraits {
+                    id: None,
+                    vendor: None,
+                    name: None,
+                    is_pr: None,
+                    branch: None,
+                },
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        };
+
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        // Test null value display
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+        assert_eq!(result.result, CheckResult::String("null".to_string()));
+
+        // Test null value comparison
+        let result = evaluate_nested_field(&env, &path, Some("cursor"), &registry);
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "null");
+                assert_eq!(expected, "cursor");
+                assert!(!matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_empty_string_vs_null_comparison() {
+        use crate::traits::terminal::ColorLevel;
+        use crate::traits::{
+            AgentTraits, CiTraits, IdeTraits, NestedTraits, StreamInfo, TerminalTraits,
+        };
+
+        // Create environment with empty string value
+        let env = EnvSense {
+            contexts: vec!["agent".to_string()],
+            traits: NestedTraits {
+                agent: AgentTraits {
+                    id: Some("".to_string()),
+                }, // Empty string
+                ide: IdeTraits { id: None },
+                terminal: TerminalTraits {
+                    interactive: true,
+                    color_level: ColorLevel::Truecolor,
+                    stdin: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stdout: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stderr: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    supports_hyperlinks: true,
+                },
+                ci: CiTraits::default(),
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        };
+
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        // Test empty string value display
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+        assert_eq!(result.result, CheckResult::String("".to_string()));
+
+        // Test empty string comparison with empty string
+        let result = evaluate_nested_field(&env, &path, Some(""), &registry);
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "");
+                assert_eq!(expected, "");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+
+        // Test empty string comparison with non-empty string
+        let result = evaluate_nested_field(&env, &path, Some("cursor"), &registry);
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "");
+                assert_eq!(expected, "cursor");
+                assert!(!matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_case_sensitive_comparisons() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["agent".to_string(), "id".to_string()];
+
+        // Test case sensitivity in string comparisons
+        let result = evaluate_nested_field(&env, &path, Some("CURSOR"), &registry);
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "cursor");
+                assert_eq!(expected, "CURSOR");
+                assert!(!matched); // Should be case sensitive
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_special_characters_in_values() {
+        use crate::traits::terminal::ColorLevel;
+        use crate::traits::{
+            AgentTraits, CiTraits, IdeTraits, NestedTraits, StreamInfo, TerminalTraits,
+        };
+
+        // Create environment with special characters
+        let env = EnvSense {
+            contexts: vec!["ci".to_string()],
+            traits: NestedTraits {
+                agent: AgentTraits { id: None },
+                ide: IdeTraits { id: None },
+                terminal: TerminalTraits {
+                    interactive: false,
+                    color_level: ColorLevel::None,
+                    stdin: StreamInfo {
+                        tty: false,
+                        piped: true,
+                    },
+                    stdout: StreamInfo {
+                        tty: false,
+                        piped: true,
+                    },
+                    stderr: StreamInfo {
+                        tty: false,
+                        piped: true,
+                    },
+                    supports_hyperlinks: false,
+                },
+                ci: CiTraits {
+                    id: Some("github-actions".to_string()),
+                    vendor: Some("GitHub".to_string()),
+                    name: Some("GitHub Actions".to_string()),
+                    is_pr: Some(true),
+                    branch: Some("feature/test-123".to_string()), // Special characters
+                },
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        };
+
+        let registry = FieldRegistry::new();
+        let path = vec!["ci".to_string(), "branch".to_string()];
+
+        // Test special characters in branch name
+        let result = evaluate_nested_field(&env, &path, Some("feature/test-123"), &registry);
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "feature/test-123");
+                assert_eq!(expected, "feature/test-123");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_boolean_string_representations() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "interactive".to_string()];
+
+        // Test various boolean string representations
+        let test_cases = vec![
+            ("true", true),
+            ("True", false), // Case sensitive
+            ("TRUE", false), // Case sensitive
+            ("false", false),
+            ("1", false), // Not "true"
+            ("0", false), // Not "true"
+            ("", false),  // Not "true"
+        ];
+
+        for (input, expected_match) in test_cases {
+            let result = evaluate_nested_field(&env, &path, Some(input), &registry);
+            match result.result {
+                CheckResult::Comparison { matched, .. } => {
+                    assert_eq!(
+                        matched, expected_match,
+                        "Failed for input '{}', expected match: {}",
+                        input, expected_match
+                    );
+                }
+                _ => panic!("Expected Comparison result for input '{}'", input),
+            }
+        }
+    }
+
+    #[test]
+    fn evaluate_multiple_contexts_scenario() {
+        use crate::traits::terminal::ColorLevel;
+        use crate::traits::{
+            AgentTraits, CiTraits, IdeTraits, NestedTraits, StreamInfo, TerminalTraits,
+        };
+
+        // Create environment with multiple contexts
+        let env = EnvSense {
+            contexts: vec![
+                "agent".to_string(),
+                "ide".to_string(),
+                "ci".to_string(),
+                "terminal".to_string(),
+            ],
+            traits: NestedTraits {
+                agent: AgentTraits {
+                    id: Some("cursor".to_string()),
+                },
+                ide: IdeTraits {
+                    id: Some("cursor".to_string()),
+                },
+                terminal: TerminalTraits {
+                    interactive: true,
+                    color_level: ColorLevel::Truecolor,
+                    stdin: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stdout: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    stderr: StreamInfo {
+                        tty: true,
+                        piped: false,
+                    },
+                    supports_hyperlinks: true,
+                },
+                ci: CiTraits {
+                    id: Some("github".to_string()),
+                    vendor: Some("github".to_string()),
+                    name: Some("GitHub Actions".to_string()),
+                    is_pr: Some(false),
+                    branch: Some("main".to_string()),
+                },
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        };
+
+        let _registry = FieldRegistry::new();
+
+        // Test all contexts are detected
+        for context in &["agent", "ide", "ci", "terminal"] {
+            let result = evaluate_context(&env, context);
+            assert_eq!(
+                result.result,
+                CheckResult::Boolean(true),
+                "Context '{}' should be detected",
+                context
+            );
+        }
+
+        // Test context not present
+        let result = evaluate_context(&env, "container");
+        assert_eq!(result.result, CheckResult::Boolean(false));
+    }
+
+    #[test]
+    fn evaluate_very_deep_field_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+
+        // Test the deepest valid path we have
+        let path = vec![
+            "terminal".to_string(),
+            "stderr".to_string(),
+            "tty".to_string(),
+        ];
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(true));
+        assert!(
+            result
+                .reason
+                .unwrap()
+                .contains("field value: terminal.stderr.tty")
+        );
+    }
+
+    #[test]
+    fn evaluate_legacy_facet_with_special_characters() {
+        use crate::traits::{AgentTraits, CiTraits, IdeTraits, NestedTraits, TerminalTraits};
+
+        // Create environment with special characters in CI ID
+        let env = EnvSense {
+            contexts: vec!["ci".to_string()],
+            traits: NestedTraits {
+                agent: AgentTraits { id: None },
+                ide: IdeTraits { id: None },
+                terminal: TerminalTraits::default(),
+                ci: CiTraits {
+                    id: Some("gitlab-ci-123".to_string()),
+                    vendor: None,
+                    name: None,
+                    is_pr: None,
+                    branch: None,
+                },
+            },
+            host: None,
+            evidence: vec![],
+            version: "0.3.0".to_string(),
+        };
+
+        let result = evaluate_legacy_facet(&env, "ci_id", "gitlab-ci-123");
+
+        match result.result {
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                assert_eq!(actual, "gitlab-ci-123");
+                assert_eq!(expected, "gitlab-ci-123");
+                assert!(matched);
+            }
+            _ => panic!("Expected Comparison result"),
+        }
+    }
+
+    #[test]
+    fn evaluate_with_signals_field() {
+        // Test that signals field is properly handled (currently always None)
+        let env = create_test_env();
+        let result = evaluate_context(&env, "agent");
+
+        assert!(result.signals.is_none());
+
+        // Test that we can create evaluation results with signals
+        let mut signals = BTreeMap::new();
+        signals.insert("test_key".to_string(), "test_value".to_string());
+
+        let result_with_signals = EvaluationResult {
+            result: CheckResult::Boolean(true),
+            reason: Some("test".to_string()),
+            signals: Some(signals.clone()),
+        };
+
+        assert_eq!(result_with_signals.signals, Some(signals));
     }
 }
