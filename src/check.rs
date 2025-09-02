@@ -3061,4 +3061,108 @@ mod tests {
             );
         }
     }
+
+    // Field Navigation Edge Cases
+    #[test]
+    fn navigate_to_field_with_invalid_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["terminal".to_string(), "nonexistent".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        // Should return Boolean(false) for unknown fields
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(result.reason.unwrap().contains("unknown field"));
+    }
+
+    #[test]
+    fn navigate_to_field_with_empty_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec![];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        // Should return Boolean(false) for empty path (invalid field)
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(result.reason.unwrap().contains("unknown field"));
+    }
+
+    #[test]
+    fn navigate_to_field_with_deep_nested_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec![
+            "terminal".to_string(),
+            "stdin".to_string(),
+            "tty".to_string(),
+        ];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        // Should navigate to nested boolean field
+        assert_eq!(result.result, CheckResult::Boolean(true));
+    }
+
+    // Field Type Comparison Edge Cases
+    #[test]
+    fn compare_boolean_field_with_invalid_string() {
+        let value = serde_json::json!(true);
+        let result = compare_field_value(&value, "invalid", &FieldType::Boolean);
+        assert!(!result); // "invalid" != "true"
+
+        let result = compare_field_value(&value, "false", &FieldType::Boolean);
+        assert!(!result); // true != false
+    }
+
+    #[test]
+    fn compare_string_field_with_case_sensitivity() {
+        let value = serde_json::json!("Cursor");
+        let result = compare_field_value(&value, "cursor", &FieldType::String);
+        assert!(!result); // Case sensitive comparison
+
+        let result = compare_field_value(&value, "Cursor", &FieldType::String);
+        assert!(result); // Exact match
+    }
+
+    #[test]
+    fn compare_optional_string_field_with_none() {
+        let value = serde_json::Value::Null;
+        let result = compare_field_value(&value, "anything", &FieldType::OptionalString);
+        assert!(!result); // null != "anything"
+
+        let result = compare_field_value(&value, "", &FieldType::OptionalString);
+        assert!(!result); // null != ""
+    }
+
+    // Error Handling Tests
+    #[test]
+    fn evaluate_unknown_field_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec!["unknown".to_string(), "field".to_string()];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(result.reason.unwrap().contains("unknown field"));
+    }
+
+    #[test]
+    fn evaluate_malformed_field_path() {
+        let env = create_test_env();
+        let registry = FieldRegistry::new();
+        let path = vec![
+            "terminal".to_string(),
+            "interactive".to_string(),
+            "extra".to_string(),
+        ];
+
+        let result = evaluate_nested_field(&env, &path, None, &registry);
+
+        // Should return Boolean(false) for unknown field path
+        assert_eq!(result.result, CheckResult::Boolean(false));
+        assert!(result.reason.unwrap().contains("unknown field"));
+    }
 }
