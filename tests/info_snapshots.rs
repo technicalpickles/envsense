@@ -116,7 +116,6 @@ fn snapshot_help_text_stability() {
     assert!(help_text.contains("Fields:"));
     assert!(help_text.contains("Examples:"));
     assert!(help_text.contains("Syntax:"));
-    assert!(help_text.contains("Legacy syntax (deprecated):"));
 
     // Verify all contexts are documented
     assert!(help_text.contains("agent                    # Check if agent context is detected"));
@@ -157,11 +156,11 @@ fn snapshot_error_messages() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("Error parsing"));
 
-    // Malformed legacy syntax error
+    // Malformed field syntax error
     let output = Command::cargo_bin("envsense")
         .unwrap()
         .env_clear()
-        .args(["check", "facet:"])
+        .args(["check", "agent."])
         .output()
         .expect("failed to run envsense");
 

@@ -382,7 +382,7 @@ fn run_check(args: CheckCmd) -> Result<(), i32> {
     let mut results = Vec::new();
 
     for predicate in &args.predicates {
-        let parsed = match check::parse_with_warnings(predicate) {
+        let parsed = match check::parse_predicate(predicate) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("Error parsing '{}': {:?}", predicate, e);

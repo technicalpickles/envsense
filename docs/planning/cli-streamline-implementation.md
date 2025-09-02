@@ -1140,7 +1140,7 @@ fn run_migrate(args: MigrateCmd) -> Result<(), i32> {
 #[test]
 fn migration_completeness() {
     // Test that all legacy predicates can be migrated
-    let legacy_predicates = vec![
+    let legacy_predicates = vec![g
         "facet:agent_id=cursor",
         "facet:ide_id=vscode",
         "trait:is_interactive",

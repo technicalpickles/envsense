@@ -197,30 +197,30 @@ fn cli_negation_with_new_output_system() {
 }
 
 #[test]
-fn cli_legacy_syntax_compatibility() {
-    // Test that legacy syntax still works with new output system
+fn cli_new_syntax_compatibility() {
+    // Test that new syntax works with output system
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "facet:agent_id=cursor"])
+        .args(["check", "agent.id=cursor"])
         .assert()
         .success()
         .stdout("true\n");
 
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "trait:is_interactive"])
+        .args(["check", "terminal.interactive"])
         .assert(); // May succeed or fail depending on environment
 
-    // Test legacy syntax with explain mode
+    // Test new syntax with explain mode
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "facet:agent_id=cursor"])
+        .args(["check", "--explain", "agent.id=cursor"])
         .assert()
         .success()
         .stdout(contains(
-            "true  # reason: legacy facet comparison: agent_id=cursor",
+            "true  # reason: field comparison: agent.id == cursor",
         ));
 }
 
@@ -264,7 +264,7 @@ fn cli_error_handling_with_new_system() {
     // Test malformed syntax
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "facet:"])
+        .args(["check", "agent."])
         .assert()
         .failure()
         .stderr(contains("Error parsing"));
@@ -342,10 +342,6 @@ fn cli_help_text_snapshot() {
         ))
         .stdout(contains(
             "field.path=value                  # Compare field value",
-        ))
-        .stdout(contains("Legacy syntax (deprecated):"))
-        .stdout(contains(
-            "facet:key=value                   # Use field.path=value instead",
         ));
 }
 
@@ -392,18 +388,18 @@ fn cli_comprehensive_error_messages() {
         .failure()
         .stdout("false\n"); // Treated as context check, returns false
 
-    // Malformed legacy syntax
+    // Malformed field syntax
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "facet:key_without_value"])
+        .args(["check", "agent."])
         .assert()
         .failure()
         .stderr(contains("Error parsing"));
 
-    // Empty facet key
+    // Empty field key
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "facet:=value"])
+        .args(["check", "agent.=value"])
         .assert()
         .failure()
         .stderr(contains("Error parsing"));

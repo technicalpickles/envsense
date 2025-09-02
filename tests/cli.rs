@@ -131,7 +131,7 @@ fn detects_vscode() {
     cmd.env_clear()
         .env("TERM_PROGRAM", "vscode")
         .env("TERM_PROGRAM_VERSION", "1.75.0")
-        .args(["check", "facet:ide_id=vscode"])
+        .args(["check", "ide.id=vscode"])
         .assert()
         .success()
         .stdout("true\n");
@@ -143,7 +143,7 @@ fn detects_vscode_insiders() {
     cmd.env_clear()
         .env("TERM_PROGRAM", "vscode")
         .env("TERM_PROGRAM_VERSION", "1.75.0-insider")
-        .args(["check", "facet:ide_id=vscode-insiders"])
+        .args(["check", "ide.id=vscode-insiders"])
         .assert()
         .success()
         .stdout("true\n");
@@ -156,7 +156,7 @@ fn detects_cursor() {
         .env("TERM_PROGRAM", "vscode")
         .env("TERM_PROGRAM_VERSION", "1.75.0")
         .env("CURSOR_TRACE_ID", "xyz")
-        .args(["check", "facet:ide_id=cursor"])
+        .args(["check", "ide.id=cursor"])
         .assert()
         .success()
         .stdout("true\n");
@@ -292,7 +292,7 @@ fn check_comprehensive_exit_codes() {
 
     // Parse error should return error code
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear().args(["check", "facet:"]).assert().code(2); // Parse error
+    cmd.env_clear().args(["check", "ide."]).assert().code(2); // Parse error
 }
 
 #[test]
@@ -366,32 +366,30 @@ fn check_field_registry_integration() {
 }
 
 #[test]
-fn check_legacy_compatibility_comprehensive() {
-    // Test that all legacy syntax still works with warnings
+fn check_new_syntax_comprehensive() {
+    // Test that all new syntax works correctly
 
-    // Legacy facet syntax
+    // New field syntax
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "facet:agent_id=cursor"])
+        .args(["check", "agent.id=cursor"])
         .assert()
         .success()
-        .stdout("true\n")
-        .stderr(contains("Warning: Legacy syntax"));
+        .stdout("true\n");
 
-    // Legacy trait syntax
+    // New field syntax without value
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
-        .args(["check", "trait:is_interactive"])
+        .args(["check", "terminal.interactive"])
         .assert()
-        .stderr(contains("Warning: Legacy syntax"));
+        .stderr(predicates::str::is_empty());
 
-    // Mixed legacy and new syntax
+    // Mixed new syntax
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "agent", "facet:agent_id=cursor"])
+        .args(["check", "agent", "agent.id=cursor"])
         .assert()
-        .success()
-        .stderr(contains("Warning: Legacy syntax"));
+        .success();
 }
