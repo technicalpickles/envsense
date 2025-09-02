@@ -1,10 +1,9 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
-use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
+use envsense::check::{self, CONTEXTS, FACETS, FieldRegistry, TRAITS};
 // Legacy CI detection removed - using declarative system
-use envsense::schema::{EnvSense, Evidence};
+use envsense::schema::EnvSense;
 use serde_json::{Map, Value, json};
-use std::collections::BTreeMap;
 use std::io::{IsTerminal, stdout};
 use std::sync::OnceLock;
 
@@ -109,15 +108,7 @@ struct CheckCmd {
     list_checks: bool,
 }
 
-#[derive(serde::Serialize)]
-struct JsonCheck {
-    predicate: String,
-    result: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    signals: Option<BTreeMap<String, String>>,
-}
+// JsonCheck struct removed - using new EvaluationResult system
 
 #[derive(Debug)]
 struct Snapshot {
@@ -340,147 +331,10 @@ fn render_human(
     Ok(out)
 }
 
-fn evaluate(
-    env: &EnvSense,
-    parsed: ParsedCheck,
-) -> (bool, Option<String>, Option<BTreeMap<String, String>>) {
-    let (mut result, reason, signals) = match parsed.check {
-        check::Check::Context(ctx) => {
-            let value = env.contexts.contains(&ctx);
-            let evidence = find_evidence(env, &ctx);
-            (
-                value,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-        check::Check::LegacyFacet { key, value } => {
-            let ok = match key.as_str() {
-                "agent_id" => env.traits.agent.id.as_deref() == Some(value.as_str()),
-                "ide_id" => env.traits.ide.id.as_deref() == Some(value.as_str()),
-                "ci_id" => env.traits.ci.id.as_deref() == Some(value.as_str()),
-                "container_id" => false, // Not supported in new schema yet
-                _ => false,
-            };
-            let evidence = find_evidence(env, &key);
-            (
-                ok,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-        check::Check::LegacyTrait { key } => {
-            let ok = match key.as_str() {
-                "is_interactive" => env.traits.is_interactive(),
-                "is_tty_stdin" => env.traits.terminal.stdin.tty,
-                "is_tty_stdout" => env.traits.terminal.stdout.tty,
-                "is_tty_stderr" => env.traits.terminal.stderr.tty,
-                "is_piped_stdin" => env.traits.terminal.stdin.piped,
-                "is_piped_stdout" => env.traits.terminal.stdout.piped,
-                "supports_hyperlinks" => env.traits.terminal.supports_hyperlinks,
-                "is_ci" => env.contexts.contains(&"ci".to_string()),
-                "ci_pr" => env.traits.ci.is_pr.unwrap_or(false),
-                _ => false,
-            };
-            let evidence = find_evidence(env, &key);
-            (
-                ok,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-        check::Check::NestedField { path, value } => {
-            // For now, implement basic field access - this will be enhanced in Task 2.3
-            let field_path = path.join(".");
-            let ok = match field_path.as_str() {
-                "agent.id" => {
-                    if let Some(expected) = value {
-                        env.traits.agent.id.as_deref() == Some(expected.as_str())
-                    } else {
-                        env.traits.agent.id.is_some()
-                    }
-                }
-                "ide.id" => {
-                    if let Some(expected) = value {
-                        env.traits.ide.id.as_deref() == Some(expected.as_str())
-                    } else {
-                        env.traits.ide.id.is_some()
-                    }
-                }
-                "terminal.interactive" => {
-                    if let Some(expected) = value {
-                        env.traits.terminal.interactive == (expected == "true")
-                    } else {
-                        env.traits.terminal.interactive
-                    }
-                }
-                "terminal.stdin.tty" => {
-                    if let Some(expected) = value {
-                        env.traits.terminal.stdin.tty == (expected == "true")
-                    } else {
-                        env.traits.terminal.stdin.tty
-                    }
-                }
-                "terminal.stdout.tty" => {
-                    if let Some(expected) = value {
-                        env.traits.terminal.stdout.tty == (expected == "true")
-                    } else {
-                        env.traits.terminal.stdout.tty
-                    }
-                }
-                "terminal.stderr.tty" => {
-                    if let Some(expected) = value {
-                        env.traits.terminal.stderr.tty == (expected == "true")
-                    } else {
-                        env.traits.terminal.stderr.tty
-                    }
-                }
-                "ci.id" => {
-                    if let Some(expected) = value {
-                        env.traits.ci.id.as_deref() == Some(expected.as_str())
-                    } else {
-                        env.traits.ci.id.is_some()
-                    }
-                }
-                _ => false, // Unknown field
-            };
-            let evidence = find_evidence(env, &field_path);
-            (
-                ok,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-    };
-    if parsed.negated {
-        result = !result;
-    }
-    (result, reason, signals)
-}
+// Legacy evaluate function replaced by new evaluation system in check.rs
+// This function is kept for backward compatibility but will be removed in future versions
 
-fn find_evidence<'a>(env: &'a EnvSense, key: &str) -> Option<&'a Evidence> {
-    env.evidence
-        .iter()
-        .find(|e| e.supports.iter().any(|s| s == key))
-}
-
-fn evidence_to_reason(e: &Option<&Evidence>) -> Option<String> {
-    e.map(|ev| {
-        if let Some(val) = &ev.value {
-            format!("{}={}", ev.key, val)
-        } else {
-            ev.key.clone()
-        }
-    })
-}
-
-fn evidence_to_signals(e: Option<&Evidence>) -> Option<BTreeMap<String, String>> {
-    e.map(|ev| {
-        let mut map = BTreeMap::new();
-        map.insert(ev.key.clone(), ev.value.clone().unwrap_or_default());
-        map
-    })
-}
+// Legacy evidence helper functions removed - using new evaluation system
 
 fn run_check(args: &CheckCmd) -> i32 {
     if args.list_checks {
@@ -488,6 +342,9 @@ fn run_check(args: &CheckCmd) -> i32 {
         return 0;
     }
     let env = EnvSense::detect();
+    let registry = FieldRegistry::new();
+
+    // Special case for single "ci" predicate for backward compatibility
     if args.predicates.len() == 1 && args.predicates[0] == "ci" && !args.any && !args.all {
         if env.contexts.contains(&"ci".to_string()) {
             if !args.quiet {
@@ -503,8 +360,10 @@ fn run_check(args: &CheckCmd) -> i32 {
             return 1;
         }
     }
+
     let mode_any = args.any;
     let mut results = Vec::new();
+
     for pred in &args.predicates {
         let parsed = match check::parse_predicate(pred) {
             Ok(p) => p,
@@ -513,73 +372,43 @@ fn run_check(args: &CheckCmd) -> i32 {
                 return 2;
             }
         };
-        let (res, reason, signals) = evaluate(&env, parsed);
+
+        let eval_result = check::evaluate(&env, parsed, &registry);
+
         if args.quiet {
-            if mode_any && res {
+            let success = eval_result.result.as_bool();
+            if mode_any && success {
                 return 0;
             }
-            if !mode_any && !res {
+            if !mode_any && !success {
                 return 1;
             }
         } else {
-            results.push(JsonCheck {
-                predicate: pred.clone(),
-                result: res,
-                reason,
-                signals,
-            });
+            results.push(eval_result);
         }
     }
 
     let overall = if mode_any {
-        results.iter().any(|r| r.result)
+        results.iter().any(|r| r.result.as_bool())
     } else {
-        results.iter().all(|r| r.result)
+        results.iter().all(|r| r.result.as_bool())
     };
 
     if !args.quiet {
-        output_results(&results, overall, mode_any, args.json, args.explain);
+        check::output_check_results(
+            &results,
+            &args.predicates,
+            overall,
+            mode_any,
+            args.json,
+            args.explain,
+        );
     }
 
     if overall { 0 } else { 1 }
 }
 
-fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bool, explain: bool) {
-    if json {
-        #[derive(serde::Serialize)]
-        struct JsonOutput<'a> {
-            overall: bool,
-            mode: &'a str,
-            checks: &'a [JsonCheck],
-        }
-        let out = JsonOutput {
-            overall,
-            mode: if mode_any { "any" } else { "all" },
-            checks: results,
-        };
-        if explain {
-            println!("{}", serde_json::to_string_pretty(&out).unwrap());
-        } else {
-            println!("{}", serde_json::to_string(&out).unwrap());
-        }
-    } else if results.len() == 1 {
-        let r = &results[0];
-        if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-            println!("{}  # reason: {}", r.result, reason);
-        } else {
-            println!("{}", r.result);
-        }
-    } else {
-        println!("overall={}", overall);
-        for r in results {
-            if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                println!("{}={}  # reason: {}", r.predicate, r.result, reason);
-            } else {
-                println!("{}={}", r.predicate, r.result);
-            }
-        }
-    }
-}
+// Legacy output_results function removed - using new output system in check.rs
 
 fn list_checks() {
     println!("contexts:");

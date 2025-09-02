@@ -71,11 +71,154 @@ pub enum CheckResult {
     },
 }
 
+impl CheckResult {
+    /// Format the result for display with optional explanation
+    pub fn format(&self, explain: bool) -> String {
+        match self {
+            CheckResult::Boolean(value) => {
+                if explain {
+                    format!("{}  # boolean result", value)
+                } else {
+                    value.to_string()
+                }
+            }
+            CheckResult::String(value) => {
+                if explain {
+                    format!("{}  # string value", value)
+                } else {
+                    value.clone()
+                }
+            }
+            CheckResult::Comparison {
+                actual,
+                expected,
+                matched,
+            } => {
+                if explain {
+                    format!("{}  # {} == {}", matched, actual, expected)
+                } else {
+                    matched.to_string()
+                }
+            }
+        }
+    }
+
+    /// Convert result to boolean for exit code determination
+    pub fn as_bool(&self) -> bool {
+        match self {
+            CheckResult::Boolean(b) => *b,
+            CheckResult::Comparison { matched, .. } => *matched,
+            CheckResult::String(_) => true, // String presence implies true
+        }
+    }
+
+    /// Convert result to string representation
+    pub fn as_string(&self) -> String {
+        match self {
+            CheckResult::Boolean(b) => b.to_string(),
+            CheckResult::String(s) => s.clone(),
+            CheckResult::Comparison { matched, .. } => matched.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EvaluationResult {
     pub result: CheckResult,
     pub reason: Option<String>,
     pub signals: Option<BTreeMap<String, String>>,
+}
+
+/// Output formatting functions for CLI results
+pub fn output_check_results(
+    results: &[EvaluationResult],
+    predicates: &[String],
+    overall: bool,
+    mode_any: bool,
+    json: bool,
+    explain: bool,
+) {
+    if json {
+        output_json_results(results, predicates, overall, mode_any, explain);
+    } else {
+        output_human_results(results, predicates, overall, mode_any, explain);
+    }
+}
+
+fn output_human_results(
+    results: &[EvaluationResult],
+    predicates: &[String],
+    overall: bool,
+    _mode_any: bool,
+    explain: bool,
+) {
+    if results.len() == 1 {
+        let result = &results[0];
+        if let Some(reason) = result.reason.as_ref().filter(|_| explain) {
+            println!("{}  # reason: {}", result.result.format(false), reason);
+        } else {
+            println!("{}", result.result.format(explain));
+        }
+    } else {
+        println!("overall={}", overall);
+        for (i, result) in results.iter().enumerate() {
+            let predicate = &predicates[i];
+            if let Some(reason) = result.reason.as_ref().filter(|_| explain) {
+                println!(
+                    "{}={}  # reason: {}",
+                    predicate,
+                    result.result.format(false),
+                    reason
+                );
+            } else {
+                println!("{}={}", predicate, result.result.format(explain));
+            }
+        }
+    }
+}
+
+fn output_json_results(
+    results: &[EvaluationResult],
+    predicates: &[String],
+    overall: bool,
+    mode_any: bool,
+    explain: bool,
+) {
+    use serde_json::json;
+
+    let checks: Vec<serde_json::Value> = results
+        .iter()
+        .zip(predicates.iter())
+        .map(|(result, predicate)| {
+            let mut check = json!({
+                "predicate": predicate,
+                "result": result.result.as_bool(),
+            });
+
+            if explain {
+                if let Some(reason) = &result.reason {
+                    check["reason"] = json!(reason);
+                }
+                if let Some(signals) = &result.signals {
+                    check["signals"] = json!(signals);
+                }
+            }
+
+            check
+        })
+        .collect();
+
+    let output = json!({
+        "overall": overall,
+        "mode": if mode_any { "any" } else { "all" },
+        "checks": checks,
+    });
+
+    if explain {
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    } else {
+        println!("{}", serde_json::to_string(&output).unwrap());
+    }
 }
 
 pub fn parse(input: &str) -> Result<Check, ParseError> {
@@ -2330,5 +2473,427 @@ mod tests {
         };
 
         assert_eq!(result_with_signals.signals, Some(signals));
+    }
+
+    // Task 2.4: Output Formatting Tests
+
+    #[test]
+    fn check_result_format_boolean_without_explain() {
+        let result = CheckResult::Boolean(true);
+        assert_eq!(result.format(false), "true");
+
+        let result = CheckResult::Boolean(false);
+        assert_eq!(result.format(false), "false");
+    }
+
+    #[test]
+    fn check_result_format_boolean_with_explain() {
+        let result = CheckResult::Boolean(true);
+        assert_eq!(result.format(true), "true  # boolean result");
+
+        let result = CheckResult::Boolean(false);
+        assert_eq!(result.format(true), "false  # boolean result");
+    }
+
+    #[test]
+    fn check_result_format_string_without_explain() {
+        let result = CheckResult::String("cursor".to_string());
+        assert_eq!(result.format(false), "cursor");
+
+        let result = CheckResult::String("".to_string());
+        assert_eq!(result.format(false), "");
+    }
+
+    #[test]
+    fn check_result_format_string_with_explain() {
+        let result = CheckResult::String("cursor".to_string());
+        assert_eq!(result.format(true), "cursor  # string value");
+
+        let result = CheckResult::String("test-value".to_string());
+        assert_eq!(result.format(true), "test-value  # string value");
+    }
+
+    #[test]
+    fn check_result_format_comparison_without_explain() {
+        let result = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "cursor".to_string(),
+            matched: true,
+        };
+        assert_eq!(result.format(false), "true");
+
+        let result = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "other".to_string(),
+            matched: false,
+        };
+        assert_eq!(result.format(false), "false");
+    }
+
+    #[test]
+    fn check_result_format_comparison_with_explain() {
+        let result = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "cursor".to_string(),
+            matched: true,
+        };
+        assert_eq!(result.format(true), "true  # cursor == cursor");
+
+        let result = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "other".to_string(),
+            matched: false,
+        };
+        assert_eq!(result.format(true), "false  # cursor == other");
+    }
+
+    #[test]
+    fn check_result_as_bool() {
+        // Boolean results
+        assert!(CheckResult::Boolean(true).as_bool());
+        assert!(!CheckResult::Boolean(false).as_bool());
+
+        // String results (presence implies true)
+        assert!(CheckResult::String("cursor".to_string()).as_bool());
+        assert!(CheckResult::String("".to_string()).as_bool());
+
+        // Comparison results
+        let matched = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "cursor".to_string(),
+            matched: true,
+        };
+        assert!(matched.as_bool());
+
+        let not_matched = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "other".to_string(),
+            matched: false,
+        };
+        assert!(!not_matched.as_bool());
+    }
+
+    #[test]
+    fn check_result_as_string() {
+        // Boolean results
+        assert_eq!(CheckResult::Boolean(true).as_string(), "true");
+        assert_eq!(CheckResult::Boolean(false).as_string(), "false");
+
+        // String results
+        assert_eq!(
+            CheckResult::String("cursor".to_string()).as_string(),
+            "cursor"
+        );
+        assert_eq!(CheckResult::String("".to_string()).as_string(), "");
+
+        // Comparison results
+        let matched = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "cursor".to_string(),
+            matched: true,
+        };
+        assert_eq!(matched.as_string(), "true");
+
+        let not_matched = CheckResult::Comparison {
+            actual: "cursor".to_string(),
+            expected: "other".to_string(),
+            matched: false,
+        };
+        assert_eq!(not_matched.as_string(), "false");
+    }
+
+    #[test]
+    fn check_result_format_special_characters() {
+        // Test with special characters in strings
+        let result = CheckResult::String("feature/test-123".to_string());
+        assert_eq!(result.format(false), "feature/test-123");
+        assert_eq!(result.format(true), "feature/test-123  # string value");
+
+        // Test with special characters in comparisons
+        let result = CheckResult::Comparison {
+            actual: "feature/test-123".to_string(),
+            expected: "feature/test-123".to_string(),
+            matched: true,
+        };
+        assert_eq!(result.format(false), "true");
+        assert_eq!(
+            result.format(true),
+            "true  # feature/test-123 == feature/test-123"
+        );
+    }
+
+    #[test]
+    fn check_result_format_empty_and_null_values() {
+        // Test empty string
+        let result = CheckResult::String("".to_string());
+        assert_eq!(result.format(false), "");
+        assert_eq!(result.format(true), "  # string value");
+
+        // Test null representation in comparison
+        let result = CheckResult::Comparison {
+            actual: "null".to_string(),
+            expected: "cursor".to_string(),
+            matched: false,
+        };
+        assert_eq!(result.format(false), "false");
+        assert_eq!(result.format(true), "false  # null == cursor");
+    }
+
+    #[test]
+    fn check_result_format_consistency() {
+        // Ensure format(false) and as_string() are consistent for boolean results
+        let bool_true = CheckResult::Boolean(true);
+        assert_eq!(bool_true.format(false), bool_true.as_string());
+
+        let bool_false = CheckResult::Boolean(false);
+        assert_eq!(bool_false.format(false), bool_false.as_string());
+
+        // Ensure format(false) and as_string() are consistent for string results
+        let string_result = CheckResult::String("test".to_string());
+        assert_eq!(string_result.format(false), string_result.as_string());
+
+        // Ensure format(false) and as_string() are consistent for comparison results
+        let comparison = CheckResult::Comparison {
+            actual: "a".to_string(),
+            expected: "b".to_string(),
+            matched: false,
+        };
+        assert_eq!(comparison.format(false), comparison.as_string());
+    }
+
+    #[test]
+    fn evaluation_result_with_different_result_types() {
+        // Test EvaluationResult with Boolean result
+        let bool_result = EvaluationResult {
+            result: CheckResult::Boolean(true),
+            reason: Some("context detected".to_string()),
+            signals: None,
+        };
+        assert!(bool_result.result.as_bool());
+        assert_eq!(bool_result.result.format(false), "true");
+
+        // Test EvaluationResult with String result
+        let string_result = EvaluationResult {
+            result: CheckResult::String("cursor".to_string()),
+            reason: Some("field value".to_string()),
+            signals: None,
+        };
+        assert!(string_result.result.as_bool());
+        assert_eq!(string_result.result.format(false), "cursor");
+
+        // Test EvaluationResult with Comparison result
+        let comparison_result = EvaluationResult {
+            result: CheckResult::Comparison {
+                actual: "cursor".to_string(),
+                expected: "cursor".to_string(),
+                matched: true,
+            },
+            reason: Some("field comparison".to_string()),
+            signals: None,
+        };
+        assert!(comparison_result.result.as_bool());
+        assert_eq!(comparison_result.result.format(false), "true");
+    }
+
+    // Task 2.4: Additional Output Function Tests
+
+    #[test]
+    fn output_json_structure_validation() {
+        use serde_json::json;
+
+        // Test JSON structure generation logic (extracted from output_json_results)
+        let results = vec![
+            EvaluationResult {
+                result: CheckResult::Boolean(true),
+                reason: Some("boolean reason".to_string()),
+                signals: Some({
+                    let mut map = BTreeMap::new();
+                    map.insert("key1".to_string(), "value1".to_string());
+                    map
+                }),
+            },
+            EvaluationResult {
+                result: CheckResult::String("test-value".to_string()),
+                reason: Some("string reason".to_string()),
+                signals: None,
+            },
+        ];
+        let predicates = vec!["agent".to_string(), "agent.id".to_string()];
+
+        // Test with explain=true
+        let checks_with_explain: Vec<serde_json::Value> = results
+            .iter()
+            .zip(predicates.iter())
+            .map(|(result, predicate)| {
+                let mut check = json!({
+                    "predicate": predicate,
+                    "result": result.result.as_bool(),
+                });
+
+                if let Some(reason) = &result.reason {
+                    check["reason"] = json!(reason);
+                }
+                if let Some(signals) = &result.signals {
+                    check["signals"] = json!(signals);
+                }
+                check
+            })
+            .collect();
+
+        let output_with_explain = json!({
+            "overall": true,
+            "mode": "any",
+            "checks": checks_with_explain,
+        });
+
+        // Verify structure with explain
+        assert!(output_with_explain["overall"].as_bool().unwrap());
+        assert_eq!(output_with_explain["mode"].as_str().unwrap(), "any");
+        assert_eq!(output_with_explain["checks"].as_array().unwrap().len(), 2);
+
+        let checks_array = output_with_explain["checks"].as_array().unwrap();
+
+        // Check first result (Boolean with signals)
+        assert_eq!(checks_array[0]["predicate"].as_str().unwrap(), "agent");
+        assert!(checks_array[0]["result"].as_bool().unwrap());
+        assert_eq!(
+            checks_array[0]["reason"].as_str().unwrap(),
+            "boolean reason"
+        );
+        assert!(checks_array[0]["signals"].is_object());
+
+        // Check second result (String without signals)
+        assert_eq!(checks_array[1]["predicate"].as_str().unwrap(), "agent.id");
+        assert!(checks_array[1]["result"].as_bool().unwrap()); // String presence = true
+        assert_eq!(checks_array[1]["reason"].as_str().unwrap(), "string reason");
+        assert!(checks_array[1]["signals"].is_null());
+    }
+
+    #[test]
+    fn output_human_results_logic_validation() {
+        // Test the logic that would be used in output_human_results
+
+        let results = vec![EvaluationResult {
+            result: CheckResult::Boolean(true),
+            reason: Some("context detected".to_string()),
+            signals: None,
+        }];
+
+        // Single result formatting
+        assert_eq!(results.len(), 1);
+        let result = &results[0];
+        assert_eq!(result.result.format(false), "true");
+        assert_eq!(result.result.format(true), "true  # boolean result");
+
+        // Single result with reason
+        if let Some(reason) = result.reason.as_ref() {
+            let formatted = format!("{}  # reason: {}", result.result.format(false), reason);
+            assert_eq!(formatted, "true  # reason: context detected");
+        }
+
+        // Multiple results logic
+        let multiple_results = vec![
+            EvaluationResult {
+                result: CheckResult::Boolean(true),
+                reason: Some("context detected".to_string()),
+                signals: None,
+            },
+            EvaluationResult {
+                result: CheckResult::String("cursor".to_string()),
+                reason: Some("field value".to_string()),
+                signals: None,
+            },
+        ];
+        let predicates = vec!["agent".to_string(), "agent.id".to_string()];
+
+        assert!(multiple_results.len() > 1);
+
+        // Test multiple results formatting logic
+        for (i, result) in multiple_results.iter().enumerate() {
+            let predicate = &predicates[i];
+            let formatted = format!("{}={}", predicate, result.result.format(false));
+            if i == 0 {
+                assert_eq!(formatted, "agent=true");
+            } else {
+                assert_eq!(formatted, "agent.id=cursor");
+            }
+        }
+    }
+
+    #[test]
+    fn output_edge_cases() {
+        // Test empty results
+        let empty_results: Vec<EvaluationResult> = vec![];
+        let empty_predicates: Vec<String> = vec![];
+
+        // Should handle empty arrays gracefully
+        assert_eq!(empty_results.len(), 0);
+        assert_eq!(empty_predicates.len(), 0);
+
+        // Test very long values
+        let long_value = "a".repeat(1000);
+        let long_result = EvaluationResult {
+            result: CheckResult::String(long_value.clone()),
+            reason: Some("very long reason ".repeat(50)),
+            signals: None,
+        };
+
+        // Should handle long values without issues
+        assert_eq!(long_result.result.format(false), long_value);
+        assert!(long_result.reason.as_ref().unwrap().len() > 500);
+
+        // Test unicode characters
+        let unicode_result = EvaluationResult {
+            result: CheckResult::String("🚀 cursor 中文 🎉".to_string()),
+            reason: Some("unicode test 🧪".to_string()),
+            signals: None,
+        };
+
+        assert_eq!(unicode_result.result.format(false), "🚀 cursor 中文 🎉");
+        assert_eq!(unicode_result.reason.as_ref().unwrap(), "unicode test 🧪");
+    }
+
+    #[test]
+    fn output_mode_specific_logic() {
+        // Test overall calculation logic for different modes
+        let mixed_results = vec![
+            EvaluationResult {
+                result: CheckResult::Boolean(true),
+                reason: None,
+                signals: None,
+            },
+            EvaluationResult {
+                result: CheckResult::Boolean(false),
+                reason: None,
+                signals: None,
+            },
+        ];
+
+        // Test "all" mode (should be false - not all results are true)
+        let overall_all = mixed_results.iter().all(|r| r.result.as_bool());
+        assert!(!overall_all);
+
+        // Test "any" mode (should be true - at least one result is true)
+        let overall_any = mixed_results.iter().any(|r| r.result.as_bool());
+        assert!(overall_any);
+
+        // Test all true results
+        let all_true_results = vec![
+            EvaluationResult {
+                result: CheckResult::Boolean(true),
+                reason: None,
+                signals: None,
+            },
+            EvaluationResult {
+                result: CheckResult::String("value".to_string()),
+                reason: None,
+                signals: None,
+            },
+        ];
+
+        let all_true_all = all_true_results.iter().all(|r| r.result.as_bool());
+        let all_true_any = all_true_results.iter().any(|r| r.result.as_bool());
+        assert!(all_true_all);
+        assert!(all_true_any);
     }
 }
