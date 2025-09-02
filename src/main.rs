@@ -1,37 +1,13 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
-use envsense::check::{self, CONTEXTS, FACETS, FieldRegistry, TRAITS};
+use envsense::check::{self, FieldRegistry};
 // Legacy CI detection removed - using declarative system
 use envsense::schema::EnvSense;
 use serde_json::{Map, Value, json};
 use std::io::{IsTerminal, stdout};
-use std::sync::OnceLock;
 
 fn check_predicate_long_help() -> &'static str {
-    static HELP: OnceLock<String> = OnceLock::new();
-    HELP.get_or_init(|| {
-        let mut s = String::from("Predicates to evaluate\n\n");
-        s.push_str("Contexts:\n");
-        for c in CONTEXTS {
-            s.push_str("    ");
-            s.push_str(c);
-            s.push('\n');
-        }
-        s.push_str("Facets:\n");
-        for f in FACETS {
-            s.push_str("    facet:");
-            s.push_str(f);
-            s.push_str("=<VALUE>\n");
-        }
-        s.push_str("Traits:\n");
-        for t in TRAITS {
-            s.push_str("    trait:");
-            s.push_str(t);
-            s.push('\n');
-        }
-        s
-    })
-    .as_str()
+    check::check_predicate_long_help()
 }
 
 #[derive(Parser)]
@@ -411,18 +387,9 @@ fn run_check(args: &CheckCmd) -> i32 {
 // Legacy output_results function removed - using new output system in check.rs
 
 fn list_checks() {
-    println!("contexts:");
-    for c in CONTEXTS {
-        println!("  {}", c);
-    }
-    println!("facets:");
-    for f in FACETS {
-        println!("  {}", f);
-    }
-    println!("traits:");
-    for t in TRAITS {
-        println!("  {}", t);
-    }
+    let registry = FieldRegistry::new();
+    let help_text = check::generate_help_text(&registry);
+    println!("{}", help_text);
 }
 
 fn detect_color_choice() -> ColorChoice {

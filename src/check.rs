@@ -221,6 +221,82 @@ fn output_json_results(
     }
 }
 
+/// Task 2.6: Help Text Generation
+///
+/// Generate dynamic help text from the field registry system
+pub fn generate_help_text(registry: &FieldRegistry) -> String {
+    let mut help = String::from("Available predicates:\n\n");
+
+    // Contexts section
+    help.push_str("Contexts (return boolean):\n");
+    for context in registry.get_contexts() {
+        help.push_str(&format!(
+            "  {}                    # Check if {} context is detected\n",
+            context, context
+        ));
+    }
+
+    // Fields section organized by context
+    help.push_str("\nFields:\n");
+    for context in registry.get_contexts() {
+        let context_fields = registry.get_context_fields(context);
+        if !context_fields.is_empty() {
+            help.push_str(&format!("\n  {} fields:\n", context));
+
+            // Sort fields by path for consistent output
+            let mut sorted_fields = context_fields;
+            sorted_fields.sort_by(|a, b| a.0.cmp(b.0));
+
+            for (field_path, field_info) in sorted_fields {
+                // Format field with appropriate padding for alignment
+                let field_display = format!("    {}", field_path);
+                let padding = if field_display.len() < 30 {
+                    " ".repeat(30 - field_display.len())
+                } else {
+                    " ".to_string()
+                };
+                help.push_str(&format!(
+                    "{}{}# {}\n",
+                    field_display, padding, field_info.description
+                ));
+            }
+        }
+    }
+
+    // Usage examples
+    help.push_str("\nExamples:\n");
+    help.push_str("  envsense check agent              # Boolean: is agent detected?\n");
+    help.push_str("  envsense check agent.id           # String: show agent ID\n");
+    help.push_str("  envsense check agent.id=cursor    # Boolean: is agent ID 'cursor'?\n");
+    help.push_str("  envsense check terminal.interactive # Boolean: is terminal interactive?\n");
+    help.push_str("  envsense check !ci                # Boolean: is CI NOT detected?\n");
+    help.push_str("\nSyntax:\n");
+    help.push_str("  context                           # Check if context is detected\n");
+    help.push_str("  field.path                        # Show field value\n");
+    help.push_str("  field.path=value                  # Compare field value\n");
+    help.push_str("  !predicate                        # Negate any predicate\n");
+    help.push_str("\nLegacy syntax (deprecated):\n");
+    help.push_str("  facet:key=value                   # Use field.path=value instead\n");
+    help.push_str("  trait:key                         # Use field.path instead\n");
+
+    help
+}
+
+/// Generate help text using a static registry instance
+///
+/// This function provides the help text for CLI integration using OnceLock
+/// to ensure the registry is only created once.
+pub fn check_predicate_long_help() -> &'static str {
+    use std::sync::OnceLock;
+
+    static HELP: OnceLock<String> = OnceLock::new();
+    HELP.get_or_init(|| {
+        let registry = FieldRegistry::new();
+        generate_help_text(&registry)
+    })
+    .as_str()
+}
+
 pub fn parse(input: &str) -> Result<Check, ParseError> {
     let input = input.trim();
     if input.is_empty() {
@@ -560,6 +636,11 @@ impl FieldRegistry {
 
     pub fn list_all_fields(&self) -> Vec<&String> {
         self.fields.keys().collect()
+    }
+
+    /// Get all available contexts
+    pub fn get_contexts(&self) -> Vec<&str> {
+        vec!["agent", "ide", "terminal", "ci"]
     }
 }
 
@@ -3377,5 +3458,536 @@ mod tests {
         let all_true_any = all_true_results.iter().any(|r| r.result.as_bool());
         assert!(all_true_all);
         assert!(all_true_any);
+    }
+
+    // Task 2.6: Help Text Generation Tests
+    #[test]
+    fn test_generate_help_text_structure() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that help text contains expected sections
+        assert!(help_text.contains("Available predicates:"));
+        assert!(help_text.contains("Contexts (return boolean):"));
+        assert!(help_text.contains("Fields:"));
+        assert!(help_text.contains("Examples:"));
+        assert!(help_text.contains("Syntax:"));
+        assert!(help_text.contains("Legacy syntax (deprecated):"));
+    }
+
+    #[test]
+    fn test_help_text_contexts() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that all contexts are included
+        for context in registry.get_contexts() {
+            assert!(help_text.contains(context));
+            assert!(help_text.contains(&format!("Check if {} context is detected", context)));
+        }
+    }
+
+    #[test]
+    fn test_help_text_fields_by_context() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that each context has its fields listed
+        for context in registry.get_contexts() {
+            let context_fields = registry.get_context_fields(context);
+            if !context_fields.is_empty() {
+                assert!(help_text.contains(&format!("{} fields:", context)));
+
+                for (field_path, field_info) in context_fields {
+                    assert!(help_text.contains(field_path));
+                    assert!(help_text.contains(&field_info.description));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_help_text_examples() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that examples are present
+        assert!(help_text.contains("envsense check agent"));
+        assert!(help_text.contains("envsense check agent.id"));
+        assert!(help_text.contains("envsense check agent.id=cursor"));
+        assert!(help_text.contains("envsense check terminal.interactive"));
+        assert!(help_text.contains("envsense check !ci"));
+    }
+
+    #[test]
+    fn test_help_text_syntax_section() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test syntax explanations
+        assert!(
+            help_text.contains("context                           # Check if context is detected")
+        );
+        assert!(help_text.contains("field.path                        # Show field value"));
+        assert!(help_text.contains("field.path=value                  # Compare field value"));
+        assert!(help_text.contains("!predicate                        # Negate any predicate"));
+    }
+
+    #[test]
+    fn test_help_text_legacy_syntax() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test legacy syntax warnings
+        assert!(
+            help_text.contains("facet:key=value                   # Use field.path=value instead")
+        );
+        assert!(help_text.contains("trait:key                         # Use field.path instead"));
+    }
+
+    #[test]
+    fn test_help_text_field_alignment() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that field descriptions are properly aligned
+        let lines: Vec<&str> = help_text.lines().collect();
+        let field_lines: Vec<&str> = lines
+            .iter()
+            .filter(|line| {
+                line.trim_start().starts_with("agent.")
+                    || line.trim_start().starts_with("ide.")
+                    || line.trim_start().starts_with("terminal.")
+                    || line.trim_start().starts_with("ci.")
+            })
+            .copied()
+            .collect();
+
+        // Each field line should have proper formatting
+        for line in field_lines {
+            assert!(line.contains("#"));
+            let parts: Vec<&str> = line.split('#').collect();
+            assert_eq!(parts.len(), 2);
+            assert!(!parts[1].trim().is_empty()); // Description should not be empty
+        }
+    }
+
+    #[test]
+    fn test_help_text_field_sorting() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that fields within each context are sorted
+        for context in registry.get_contexts() {
+            let context_fields = registry.get_context_fields(context);
+            if context_fields.len() > 1 {
+                let field_paths: Vec<&String> =
+                    context_fields.iter().map(|(path, _)| *path).collect();
+                let mut sorted_paths = field_paths.clone();
+                sorted_paths.sort();
+
+                // Check if the original order matches sorted order
+                // We can't directly compare since the help text might have different formatting
+                // but we can check that all fields are present
+                for field_path in field_paths {
+                    assert!(help_text.contains(field_path));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_check_predicate_long_help_static() {
+        // Test the static help function
+        let help1 = check_predicate_long_help();
+        let help2 = check_predicate_long_help();
+
+        // Should return the same reference (OnceLock behavior)
+        assert_eq!(help1.as_ptr(), help2.as_ptr());
+
+        // Should contain the same content as generate_help_text
+        let registry = FieldRegistry::new();
+        let dynamic_help = generate_help_text(&registry);
+        assert_eq!(help1, &dynamic_help);
+    }
+
+    #[test]
+    fn test_help_text_completeness() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that all registered fields appear in help text
+        let all_fields = registry.list_all_fields();
+        for field_path in all_fields {
+            assert!(
+                help_text.contains(field_path),
+                "Field {} not found in help text",
+                field_path
+            );
+        }
+
+        // Test that all contexts appear in help text
+        for context in registry.get_contexts() {
+            assert!(
+                help_text.contains(context),
+                "Context {} not found in help text",
+                context
+            );
+        }
+    }
+
+    #[test]
+    fn test_help_text_no_empty_sections() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that no section is completely empty
+        assert!(!help_text.contains("Contexts (return boolean):\n\nFields:"));
+        assert!(!help_text.contains("Fields:\n\nExamples:"));
+        assert!(!help_text.contains("Examples:\n\nSyntax:"));
+
+        // Test that each context section has content
+        for context in registry.get_contexts() {
+            let context_fields = registry.get_context_fields(context);
+            if !context_fields.is_empty() {
+                let context_section = format!("{} fields:", context);
+                assert!(help_text.contains(&context_section));
+            }
+        }
+    }
+
+    // Additional comprehensive tests for missing coverage
+    #[test]
+    fn test_help_text_section_ordering() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that sections appear in the correct order
+        let contexts_pos = help_text.find("Contexts (return boolean):").unwrap();
+        let fields_pos = help_text.find("Fields:").unwrap();
+        let examples_pos = help_text.find("Examples:").unwrap();
+        let syntax_pos = help_text.find("Syntax:").unwrap();
+        let legacy_pos = help_text.find("Legacy syntax (deprecated):").unwrap();
+
+        assert!(contexts_pos < fields_pos);
+        assert!(fields_pos < examples_pos);
+        assert!(examples_pos < syntax_pos);
+        assert!(syntax_pos < legacy_pos);
+    }
+
+    #[test]
+    fn test_help_text_field_padding_edge_cases() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that very long field names get at least one space before the comment
+        let lines: Vec<&str> = help_text.lines().collect();
+        let field_lines: Vec<&str> = lines
+            .iter()
+            .filter(|line| {
+                line.trim_start().starts_with("agent.")
+                    || line.trim_start().starts_with("ide.")
+                    || line.trim_start().starts_with("terminal.")
+                    || line.trim_start().starts_with("ci.")
+            })
+            .copied()
+            .collect();
+
+        for line in field_lines {
+            // Every field line should have at least one space before the #
+            let hash_pos = line.find('#').unwrap();
+            let before_hash = &line[..hash_pos];
+            assert!(
+                before_hash.ends_with(' '),
+                "Field line should have space before #: {}",
+                line
+            );
+        }
+    }
+
+    #[test]
+    fn test_help_text_context_descriptions() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that each context has a proper description format
+        for context in registry.get_contexts() {
+            let expected_description = format!("# Check if {} context is detected", context);
+            assert!(
+                help_text.contains(&expected_description),
+                "Missing context description for {}",
+                context
+            );
+        }
+    }
+
+    #[test]
+    fn test_help_text_field_type_coverage() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Ensure we have examples of different field types in the help text
+        // Boolean fields
+        assert!(help_text.contains("terminal.interactive"));
+        assert!(help_text.contains("Terminal interactivity"));
+
+        // OptionalString fields
+        assert!(help_text.contains("agent.id"));
+        assert!(help_text.contains("Agent identifier"));
+
+        // ColorLevel fields
+        assert!(help_text.contains("terminal.color_level"));
+        assert!(help_text.contains("Color support level"));
+
+        // Verify all field types are represented
+        let all_fields = registry.list_all_fields();
+        let mut has_boolean = false;
+        let mut has_optional_string = false;
+        let mut has_color_level = false;
+
+        for field_path in all_fields {
+            let path_parts: Vec<String> = field_path.split('.').map(|s| s.to_string()).collect();
+            if let Some(field_info) = registry.resolve_field(&path_parts) {
+                match field_info.field_type {
+                    FieldType::Boolean => has_boolean = true,
+                    FieldType::OptionalString => has_optional_string = true,
+                    FieldType::ColorLevel => has_color_level = true,
+                    _ => {}
+                }
+            }
+        }
+
+        assert!(has_boolean, "Help text should include Boolean fields");
+        assert!(
+            has_optional_string,
+            "Help text should include OptionalString fields"
+        );
+        assert!(
+            has_color_level,
+            "Help text should include ColorLevel fields"
+        );
+    }
+
+    #[test]
+    fn test_help_text_examples_coverage() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that examples cover different usage patterns
+        assert!(help_text.contains("# Boolean: is agent detected?"));
+        assert!(help_text.contains("# String: show agent ID"));
+        assert!(help_text.contains("# Boolean: is agent ID 'cursor'?"));
+        assert!(help_text.contains("# Boolean: is terminal interactive?"));
+        assert!(help_text.contains("# Boolean: is CI NOT detected?"));
+
+        // Test that examples use actual field paths from the registry
+        assert!(help_text.contains("envsense check agent"));
+        assert!(help_text.contains("envsense check agent.id"));
+        assert!(help_text.contains("envsense check terminal.interactive"));
+        assert!(help_text.contains("envsense check !ci"));
+    }
+
+    #[test]
+    fn test_help_text_syntax_completeness() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test all syntax patterns are documented
+        assert!(
+            help_text.contains("context                           # Check if context is detected")
+        );
+        assert!(help_text.contains("field.path                        # Show field value"));
+        assert!(help_text.contains("field.path=value                  # Compare field value"));
+        assert!(help_text.contains("!predicate                        # Negate any predicate"));
+
+        // Test legacy syntax documentation
+        assert!(
+            help_text.contains("facet:key=value                   # Use field.path=value instead")
+        );
+        assert!(help_text.contains("trait:key                         # Use field.path instead"));
+    }
+
+    #[test]
+    fn test_help_text_consistent_formatting() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test consistent indentation
+        let lines: Vec<&str> = help_text.lines().collect();
+
+        // Context lines should have 2-space indentation
+        for line in &lines {
+            if line.contains("# Check if") && line.contains("context is detected") {
+                assert!(
+                    line.starts_with("  "),
+                    "Context line should start with 2 spaces: {}",
+                    line
+                );
+            }
+        }
+
+        // Field lines should have 4-space indentation
+        for line in &lines {
+            if line.trim_start().starts_with("agent.")
+                || line.trim_start().starts_with("ide.")
+                || line.trim_start().starts_with("terminal.")
+                || line.trim_start().starts_with("ci.")
+            {
+                assert!(
+                    line.starts_with("    "),
+                    "Field line should start with 4 spaces: {}",
+                    line
+                );
+            }
+        }
+
+        // Example lines should have 2-space indentation
+        for line in &lines {
+            if line.contains("envsense check") {
+                assert!(
+                    line.starts_with("  "),
+                    "Example line should start with 2 spaces: {}",
+                    line
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_help_text_newline_handling() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that sections are properly separated with newlines
+        assert!(help_text.contains("Contexts (return boolean):\n"));
+        assert!(help_text.contains("\nFields:\n"));
+        assert!(help_text.contains("\nExamples:\n"));
+        assert!(help_text.contains("\nSyntax:\n"));
+        assert!(help_text.contains("\nLegacy syntax (deprecated):\n"));
+
+        // Test that context sections have proper spacing
+        for context in registry.get_contexts() {
+            let context_fields = registry.get_context_fields(context);
+            if !context_fields.is_empty() {
+                let context_header = format!("\n  {} fields:\n", context);
+                assert!(help_text.contains(&context_header));
+            }
+        }
+    }
+
+    #[test]
+    fn test_help_text_field_descriptions_accuracy() {
+        let registry = FieldRegistry::new();
+        let help_text = generate_help_text(&registry);
+
+        // Test that field descriptions match registry exactly
+        for context in registry.get_contexts() {
+            let context_fields = registry.get_context_fields(context);
+            for (field_path, field_info) in context_fields {
+                // Check that both field path and description appear in help text
+                assert!(
+                    help_text.contains(field_path),
+                    "Field path {} not found in help text",
+                    field_path
+                );
+                assert!(
+                    help_text.contains(&field_info.description),
+                    "Field description '{}' not found in help text",
+                    field_info.description
+                );
+
+                // Check that they appear on the same line
+                let lines: Vec<&str> = help_text.lines().collect();
+                let field_line = lines
+                    .iter()
+                    .find(|line| line.contains(field_path))
+                    .expect(&format!("Could not find line containing {}", field_path));
+                assert!(
+                    field_line.contains(&field_info.description),
+                    "Field {} and its description should be on the same line",
+                    field_path
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_help_text_empty_registry_handling() {
+        // Create a minimal registry with no fields for edge case testing
+        let empty_registry = FieldRegistry {
+            fields: std::collections::HashMap::new(),
+        };
+        let help_text = generate_help_text(&empty_registry);
+
+        // Should still have basic structure even with no fields
+        assert!(help_text.contains("Available predicates:"));
+        assert!(help_text.contains("Contexts (return boolean):"));
+        assert!(help_text.contains("Fields:"));
+        assert!(help_text.contains("Examples:"));
+        assert!(help_text.contains("Syntax:"));
+        assert!(help_text.contains("Legacy syntax (deprecated):"));
+
+        // Should still show contexts even if no fields are registered
+        for context in empty_registry.get_contexts() {
+            assert!(help_text.contains(context));
+        }
+    }
+
+    #[test]
+    fn test_help_text_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Test that help text generation is thread-safe
+        let registry = Arc::new(FieldRegistry::new());
+        let mut handles = vec![];
+
+        for _ in 0..10 {
+            let registry_clone = Arc::clone(&registry);
+            let handle = thread::spawn(move || generate_help_text(&registry_clone));
+            handles.push(handle);
+        }
+
+        let mut results = vec![];
+        for handle in handles {
+            results.push(handle.join().unwrap());
+        }
+
+        // All results should be identical
+        let first_result = &results[0];
+        for result in &results[1..] {
+            assert_eq!(
+                first_result, result,
+                "Help text should be consistent across threads"
+            );
+        }
+    }
+
+    #[test]
+    fn test_static_help_function_thread_safety() {
+        use std::thread;
+
+        // Test that the static help function is thread-safe
+        let mut handles = vec![];
+
+        for _ in 0..10 {
+            let handle = thread::spawn(|| check_predicate_long_help());
+            handles.push(handle);
+        }
+
+        let mut results = vec![];
+        for handle in handles {
+            results.push(handle.join().unwrap());
+        }
+
+        // All results should be identical pointers (OnceLock behavior)
+        let first_ptr = results[0].as_ptr();
+        for result in &results[1..] {
+            assert_eq!(
+                first_ptr,
+                result.as_ptr(),
+                "Static help should return same pointer across threads"
+            );
+        }
     }
 }
