@@ -3,7 +3,7 @@
 # benchmark-performance.sh
 #
 # Purpose: Performance benchmarking and regression testing for envsense
-# Created: 2024-01-15
+# Created: 2025-09-02
 # Used for: Performance monitoring and regression detection
 #
 # This script measures performance metrics for key operations and can be used

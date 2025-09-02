@@ -3,7 +3,7 @@
 # validate-simple.sh
 #
 # Purpose: Simple validation of envsense CLI functionality
-# Created: 2024-01-15
+# Created: 2025-09-02
 # Used for: Basic validation testing
 
 echo "Starting simple validation..."
