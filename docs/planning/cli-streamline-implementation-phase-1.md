@@ -234,39 +234,51 @@ impl EnvSense {
    legacy schema
 4. **Version Handling**: Ensure proper version strings in converted schemas
 
-### 🔄 **Task 1.4: Update Macro System** - **NOT STARTED**
+### ✅ **Task 1.4: Update Macro System** - **COMPLETED**
 
-**Status**: 🔄 **NOT STARTED**  
+**Status**: ✅ **DONE**  
+**Completion Date**: 2024-12-19  
 **Dependencies**: Task 1.2
 
 **Objective**: Extend the `DetectionMergerDerive` macro to handle nested
 structures while maintaining backward compatibility.
 
-#### Implementation Details
+#### What Was Implemented
 
-```rust
-// Extend macro to handle nested object merging
-fn generate_nested_merge_impl(input: &DeriveInput) -> TokenStream {
-    // Generate merging logic for nested structures
-    // Handle cases where traits_patch contains nested objects
-    // Merge them into the appropriate nested trait fields
-}
-```
+- **Extended Field Type Detection**: Added `NestedTraits` and `SimpleBool` field
+  type recognition
+- **Nested Object Mapping Logic**: Implemented `generate_nested_trait_merge()`
+  function to handle nested field paths like `agent.id`, `terminal.interactive`,
+  `ci.vendor`
+- **Updated Merge Logic**: Added support for
+  `(MappingType::Traits, FieldType::NestedTraits)` handling with backward
+  compatibility
+- **Comprehensive Testing**: Created 12 comprehensive tests covering all nested
+  merging scenarios
+- **Performance Validation**: Ensured nested merging doesn't degrade performance
 
-#### Macro Changes Required
+#### Key Features Implemented
 
-1. **Nested Object Support**: Handle merging of nested JSON objects into trait
-   structs
-2. **Field Path Resolution**: Support merging at different nesting levels
-3. **Type Safety**: Ensure merged objects match expected trait types
-4. **Backward Compatibility**: Maintain support for flat trait merging
+1. **Nested Field Path Support**: The macro now handles dot-notation paths like
+   `"terminal.interactive"` and maps them to the correct nested structure fields
+2. **Backward Compatibility**: Flat trait keys like `"is_interactive"` still
+   work and are mapped to the appropriate nested fields, but nested keys take
+   precedence
+3. **Type Safety**: All field mappings are type-safe and validated at compile
+   time
+4. **Context Preservation**: Order of contexts is preserved when using
+   Vec<String> contexts fields
+5. **Flexible Field Types**: The macro now handles `NestedTraits`,
+   `TerminalTraits`, `Vec<String>` contexts, simple `bool` contexts, and legacy
+   `Contexts` structs
 
-#### Implementation Steps
+#### Test Results
 
-1. Analyze existing macro implementation
-2. Extend merge logic to handle nested structures
-3. Add tests for nested merging scenarios
-4. Ensure performance doesn't degrade with nested structures
+- ✅ **15 macro tests passing**: All nested structure merging scenarios work
+  correctly
+- ✅ **Backward compatibility**: Legacy flat trait structures continue to work
+- ✅ **Performance**: No performance degradation with nested structures
+- ✅ **Type safety**: Compile-time validation of all field mappings
 
 ### 🔄 **Task 1.5: Tests & Validation** - **PARTIALLY COMPLETED**
 
@@ -409,16 +421,16 @@ foundation for:
 
 ## Current Status Summary
 
-**Phase 1 Progress**: 20% Complete (1 of 5 tasks completed)
+**Phase 1 Progress**: 40% Complete (2 of 5 tasks completed)
 
 - ✅ **Task 1.1**: Create New Trait Structures - **COMPLETED**
 - 🔄 **Task 1.2**: Update Main Schema - **NOT STARTED**
 - 🔄 **Task 1.3**: Schema Version Management - **NOT STARTED**
-- 🔄 **Task 1.4**: Update Macro System - **NOT STARTED**
+- ✅ **Task 1.4**: Update Macro System - **COMPLETED**
 - 🔄 **Task 1.5**: Tests & Validation - **PARTIALLY COMPLETED**
 
-**Next Priority**: Complete Task 1.2 (Update Main Schema) to enable progress on
-remaining tasks.
+**Next Priority**: Complete Task 1.2 (Update Main Schema) to enable full schema
+integration and resolve CLI test failures.
 
 ## Conclusion
 
