@@ -22,8 +22,8 @@ code in this repository.
 
 - `cargo run -- info --json` - JSON output of detected environment
 - `cargo run -- check agent` - Check if running in coding agent
-- `cargo run -- check facet:ide_id=cursor` - Check for Cursor specifically
-- `cargo run -- check trait:is_interactive` - Check if interactive terminal
+- `cargo run -- check ide.id=cursor` - Check for Cursor specifically
+- `cargo run -- check terminal.interactive` - Check if interactive terminal
 
 ### Snapshot Testing
 
@@ -66,16 +66,17 @@ code in this repository.
 - `agent_id`, `ide_id`, `ci_id` with string values
 - Special `ci` facet with vendor/name/pr/branch details
 
-**Traits** - Terminal capabilities:
+**Traits** - Specific identifiers and capabilities:
 
-- `is_interactive`, `color_level`, `supports_hyperlinks`
+- `agent.id`, `ide.id`, `ci.id` with string values
+- `terminal.interactive`, `terminal.supports_hyperlinks`
 - TTY detection for stdin/stdout/stderr
 
 **Evidence** - Detection reasoning with confidence scores
 
 ### Schema Stability
 
-The JSON output schema is stable (version 0.1.0). Field names and enum values in
+The JSON output schema is stable (version 0.3.0). Field names and enum values in
 `CONTRACT.md` must not break without version bump. All consumer-visible keys use
 `snake_case`.
 

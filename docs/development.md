@@ -26,10 +26,11 @@ cargo test --package envsense-macros
 
 When making breaking schema changes (like removing fields):
 
-1. Bump `SCHEMA_VERSION` in `src/schema.rs`
+1. Bump `SCHEMA_VERSION` in `src/schema.rs` (currently 0.3.0)
 2. Update tests to expect new version
 3. Run `cargo insta accept` to update snapshots
 4. Verify all tests pass
+5. **Note**: Schema version 0.3.0 removed legacy `facet:` and `trait:` syntax
 
 ## Development Workflow
 

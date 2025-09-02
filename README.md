@@ -9,7 +9,7 @@ adapt their behavior based on where they are running.
 Most developers end up writing brittle ad-hoc checks in their shell configs or
 tools:
 
-- _"If I’m in VS Code, set `EDITOR=code -w`"_
+- _"If I'm in VS Code, set `EDITOR=code -w`"_
 - _"If stdout is piped, disable color and paging"_
 - _"If running in a coding agent, simplify my prompt"_
 
@@ -34,6 +34,11 @@ envsense -q check agent.id=cursor && echo "Cursor detected"
 envsense -q check ide.id=vscode && echo "VS Code"
 envsense -q check ide.id=vscode-insiders && echo "VS Code Insiders"
 
+# Check if running in GitHub Actions
+envsense -q check ci.id=github && echo "GitHub Actions"
+
+# Check if terminal is interactive
+envsense -q check terminal.interactive && echo "Interactive terminal"
 
 # Check multiple conditions (any must match)
 envsense check --any agent ide && echo "Running in agent or IDE"
@@ -91,13 +96,13 @@ Example JSON output:
       },
       "stderr": {
         "tty": true,
-        "pipped": false
+        "piped": false
       },
       "supports_hyperlinks": true
     }
   },
   "evidence": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }
 ```
 
@@ -195,18 +200,18 @@ envsense check --any agent ide || echo "Neither"  # Runs if neither matches
 ## Key Concepts
 
 - **Contexts** — broad categories of environment (`agent`, `ide`, `ci`).
-- **Traits** — identifiers, capabilities or properties (`is_interactive`,
-  `supports_hyperlinks`, `color_level`).
+- **Traits** — identifiers, capabilities or properties (`terminal.interactive`,
+  `terminal.supports_hyperlinks`, `terminal.color_level`).
 - **Evidence** — why envsense believes something (env vars, TTY checks, etc.),
   with confidence scores.
 
 ### Ask: Which category is it?
 
-- _“Running in VS Code”_ → **Context/Trait** (`ide`, `ide.id=vscode`).
-- _“Running in GitHub Actions”_ → **Trait** (`ci.id=github`).
-- _“Running in CI at all”_ → **Context** (`ci`).
-- _“Can print hyperlinks”_ → **Trait** (`terminal.supports_hyperlinks=true`).
-- _“stdout is not a TTY”_ → **Trait** (`terminal.interactive=false`).
+- _"Running in VS Code"_ → **Context/Trait** (`ide`, `ide.id=vscode`).
+- _"Running in GitHub Actions"_ → **Trait** (`ci.id=github`).
+- _"Running in CI at all"_ → **Context** (`ci`).
+- _"Can print hyperlinks"_ → **Trait** (`terminal.supports_hyperlinks=true`).
+- _"stdout is not a TTY"_ → **Trait** (`terminal.interactive=false`).
 
 ### Snippet Examples
 
@@ -214,7 +219,7 @@ envsense check --any agent ide || echo "Neither"  # Runs if neither matches
 # Context: any CI
 envsense check ci && echo "In CI"
 
-# Facet: specifically GitHub Actions
+# Trait: specifically GitHub Actions
 envsense check ci.id=github && echo "In GitHub Actions"
 
 # Trait: non-interactive
@@ -233,18 +238,16 @@ envsense check agent
 envsense check ide
 envsense check ci
 
-# Facets (specific identifiers)
-
-# Traits (capabilities/properties)
+# Traits (specific identifiers and capabilities)
 envsense check agent.id=cursor
 envsense check ide.id=vscode
 envsense check ci.id=github
 envsense check terminal.interactive
-envsense check terminal.support_colors
+envsense check terminal.supports_colors
 
 # Negation (prefix with !)
 envsense check !agent
-envsense check !termina.interactive
+envsense check !terminal.interactive
 envsense check !ide.id=vscode
 ```
 
@@ -256,13 +259,13 @@ envsense check !ide.id=vscode
   use envsense::detect_environment;
 
   let env = detect_environment();
-  if env.contexts.agent {
+  if env.contexts.contains("agent") {
       println!("Agent detected");
   }
-  if env.facets.ide_id.as_deref() == Some("cursor") {
+  if env.traits.agent.id.as_deref() == Some("cursor") {
       println!("Cursor detected");
   }
-  if !env.traits.is_interactive {
+  if !env.traits.terminal.interactive {
       println!("Non-interactive session");
   }
   ```
@@ -272,9 +275,9 @@ envsense check !ide.id=vscode
   ```js
   import { detect } from "envsense";
   const ctx = await detect();
-  if (ctx.contexts.agent) console.log("Agent detected");
-  if (ctx.facets.ide_id === "cursor") console.log("Cursor detected");
-  if (!ctx.traits.is_interactive) console.log("Non-interactive session");
+  if (ctx.contexts.includes("agent")) console.log("Agent detected");
+  if (ctx.traits.agent.id === "cursor") console.log("Cursor detected");
+  if (!ctx.traits.terminal.interactive) console.log("Non-interactive session");
   ```
 
 ## Detection Strategy
@@ -298,6 +301,21 @@ Precedence is: user override > explicit > channel > ancestry > heuristics.
 - **Hyperlinks (OSC 8)**
   - Known supporting terminals (iTerm2, kitty, WezTerm, VS Code, etc.)
   - Optional probe for fallback
+
+## Migration from v0.2.0
+
+If you're upgrading from envsense v0.2.0, the syntax has been simplified:
+
+| Old Syntax                  | New Syntax                     | Notes               |
+| --------------------------- | ------------------------------ | ------------------- |
+| `facet:agent_id=cursor`     | `agent.id=cursor`              | Direct mapping      |
+| `facet:ide_id=vscode`       | `ide.id=vscode`                | IDE context         |
+| `facet:ci_id=github`        | `ci.id=github`                 | CI context          |
+| `trait:is_interactive`      | `terminal.interactive`         | Boolean field       |
+| `trait:supports_hyperlinks` | `terminal.supports_hyperlinks` | Terminal capability |
+
+For a complete migration guide, see
+[docs/migration-guide.md](docs/migration-guide.md).
 
 ## Project Status
 

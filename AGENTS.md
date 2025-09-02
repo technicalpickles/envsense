@@ -15,11 +15,11 @@ runtime environments.
 ## Schema considerations
 
 - The JSON schema defined in `src/schema.rs` is the contract for all consumers.
-- Keep contexts, facets, traits, and evidence distinct.
+- Keep contexts, traits, and evidence distinct.
 - Changing the schema requires updating the `SCHEMA_VERSION` field and
   accompanying tests.
-- Current schema version: `0.2.0` (CI detection moved from nested facets to flat
-  traits).
+- Current schema version: `0.3.0` (migrated from legacy `facet:` and `trait:`
+  syntax to dot notation).
 
 ## CLI behavior
 
