@@ -116,29 +116,24 @@ impl Detector for TerminalDetector {
             .traits_patch
             .insert("color_level".to_string(), json!(color_level_str));
 
-        // Add evidence for TTY detection with nested field paths
-        detection.evidence.push(
-            Evidence::tty_trait("terminal.stdin.tty", terminal_traits.stdin.tty)
-                .with_supports(vec!["terminal.stdin.tty".into()])
-                .with_confidence(TERMINAL),
-        );
-        detection.evidence.push(
-            Evidence::tty_trait("terminal.stdout.tty", terminal_traits.stdout.tty)
-                .with_supports(vec!["terminal.stdout.tty".into()])
-                .with_confidence(TERMINAL),
-        );
-        detection.evidence.push(
-            Evidence::tty_trait("terminal.stderr.tty", terminal_traits.stderr.tty)
-                .with_supports(vec!["terminal.stderr.tty".into()])
-                .with_confidence(TERMINAL),
-        );
+        // Add evidence for TTY detection with nested field paths using helper methods
+        detection.evidence.push(Evidence::terminal_stream_tty(
+            "stdin",
+            terminal_traits.stdin.tty,
+        ));
+        detection.evidence.push(Evidence::terminal_stream_tty(
+            "stdout",
+            terminal_traits.stdout.tty,
+        ));
+        detection.evidence.push(Evidence::terminal_stream_tty(
+            "stderr",
+            terminal_traits.stderr.tty,
+        ));
 
         // Add evidence for interactive detection
-        detection.evidence.push(
-            Evidence::tty_trait("terminal.interactive", terminal_traits.interactive)
-                .with_supports(vec!["terminal.interactive".into()])
-                .with_confidence(TERMINAL),
-        );
+        detection
+            .evidence
+            .push(Evidence::terminal_interactive(terminal_traits.interactive));
 
         detection
     }

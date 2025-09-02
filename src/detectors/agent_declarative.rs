@@ -47,18 +47,19 @@ impl DeclarativeAgentDetector {
                     agent_id = Some(mapping.id.clone());
                     confidence = mapping.confidence;
 
-                    // Add evidence for this detection
+                    // Add evidence for this detection using helper methods
                     for (key, value) in mapping.get_evidence(&snap.env_vars) {
                         let evidence_item = if let Some(val) = value {
-                            Evidence::env_var(key, val)
+                            // Check if this mapping also provides host information
+                            if mapping.facets.contains_key("host") {
+                                Evidence::agent_with_host_detection(key, val)
+                            } else {
+                                Evidence::agent_detection(key, val)
+                            }
                         } else {
-                            Evidence::env_presence(key)
+                            Evidence::env_presence(key).with_supports(vec!["agent.id".into()])
                         };
-                        evidence.push(
-                            evidence_item
-                                .with_supports(vec!["agent.id".into()])
-                                .with_confidence(mapping.confidence),
-                        );
+                        evidence.push(evidence_item.with_confidence(mapping.confidence));
                     }
 
                     // Add any facets from the mapping
@@ -97,15 +98,11 @@ impl DeclarativeAgentDetector {
                         // Add evidence for host detection
                         for (key, value) in mapping.get_evidence(&snap.env_vars) {
                             let evidence_item = if let Some(val) = value {
-                                Evidence::env_var(key, val)
+                                Evidence::env_var(key, val).with_supports(vec!["host".into()])
                             } else {
-                                Evidence::env_presence(key)
+                                Evidence::env_presence(key).with_supports(vec!["host".into()])
                             };
-                            evidence.push(
-                                evidence_item
-                                    .with_supports(vec!["host".into()])
-                                    .with_confidence(mapping.confidence),
-                            );
+                            evidence.push(evidence_item.with_confidence(mapping.confidence));
                         }
                         break;
                     }
@@ -438,8 +435,7 @@ mod tests {
         assert!(detection.contexts_add.contains(&"agent".to_string()));
         assert!(detection.traits_patch.contains_key("agent"));
 
-        // NOTE: Override evidence currently still uses legacy field paths from utils::check_generic_overrides
-        // This needs to be updated in a separate task when the utils module is updated for nested structure
+        // NOTE: Override evidence now uses nested field paths after utils::check_generic_overrides was updated
         let override_evidence: Vec<_> = detection
             .evidence
             .iter()
@@ -451,19 +447,14 @@ mod tests {
             "Should have override evidence"
         );
 
-        // Current implementation still uses legacy field paths for overrides
-        // This is expected until utils::check_generic_overrides is updated
+        // Override evidence now uses nested field paths after utils::check_generic_overrides was updated
         for evidence in override_evidence {
             assert!(
-                evidence.supports.contains(&"agent".to_string())
-                    && evidence.supports.contains(&"agent_id".to_string()),
-                "Override evidence currently uses legacy field paths: {:?}",
+                evidence.supports.contains(&"agent.id".to_string()),
+                "Override evidence should use nested field paths: {:?}",
                 evidence.supports
             );
         }
-
-        // TODO: When utils::check_generic_overrides is updated for nested structure,
-        // this test should be updated to expect ["agent.id"] instead of ["agent", "agent_id"]
     }
 
     // =============================================================================
