@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -32,6 +33,29 @@ pub enum ParseError {
     InvalidFieldPath,
     #[error("malformed comparison")]
     MalformedComparison,
+}
+
+/// Field Registry System for centralized field type and path management
+#[derive(Debug, Clone)]
+pub struct FieldRegistry {
+    fields: HashMap<String, FieldInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldInfo {
+    pub field_type: FieldType,
+    pub path: Vec<String>,
+    pub description: String,
+    pub context: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FieldType {
+    Boolean,
+    String,
+    OptionalString,
+    ColorLevel,
+    StreamInfo,
 }
 
 pub fn parse(input: &str) -> Result<Check, ParseError> {
@@ -134,6 +158,179 @@ pub const TRAITS: &[&str] = &[
     "is_ci",
     "ci_pr",
 ];
+
+impl Default for FieldRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FieldRegistry {
+    pub fn new() -> Self {
+        let mut registry = Self {
+            fields: HashMap::new(),
+        };
+        registry.register_all_fields();
+        registry
+    }
+
+    fn register_all_fields(&mut self) {
+        // Agent fields
+        self.register(
+            "agent.id",
+            FieldType::OptionalString,
+            vec!["agent", "id"],
+            "Agent identifier",
+            "agent",
+        );
+
+        // IDE fields
+        self.register(
+            "ide.id",
+            FieldType::OptionalString,
+            vec!["ide", "id"],
+            "IDE identifier",
+            "ide",
+        );
+
+        // Terminal fields
+        self.register(
+            "terminal.interactive",
+            FieldType::Boolean,
+            vec!["terminal", "interactive"],
+            "Terminal interactivity",
+            "terminal",
+        );
+        self.register(
+            "terminal.color_level",
+            FieldType::ColorLevel,
+            vec!["terminal", "color_level"],
+            "Color support level",
+            "terminal",
+        );
+        self.register(
+            "terminal.stdin.tty",
+            FieldType::Boolean,
+            vec!["terminal", "stdin", "tty"],
+            "Stdin is TTY",
+            "terminal",
+        );
+        self.register(
+            "terminal.stdout.tty",
+            FieldType::Boolean,
+            vec!["terminal", "stdout", "tty"],
+            "Stdout is TTY",
+            "terminal",
+        );
+        self.register(
+            "terminal.stderr.tty",
+            FieldType::Boolean,
+            vec!["terminal", "stderr", "tty"],
+            "Stderr is TTY",
+            "terminal",
+        );
+        self.register(
+            "terminal.stdin.piped",
+            FieldType::Boolean,
+            vec!["terminal", "stdin", "piped"],
+            "Stdin is piped",
+            "terminal",
+        );
+        self.register(
+            "terminal.stdout.piped",
+            FieldType::Boolean,
+            vec!["terminal", "stdout", "piped"],
+            "Stdout is piped",
+            "terminal",
+        );
+        self.register(
+            "terminal.stderr.piped",
+            FieldType::Boolean,
+            vec!["terminal", "stderr", "piped"],
+            "Stderr is piped",
+            "terminal",
+        );
+        self.register(
+            "terminal.supports_hyperlinks",
+            FieldType::Boolean,
+            vec!["terminal", "supports_hyperlinks"],
+            "Hyperlink support",
+            "terminal",
+        );
+
+        // CI fields
+        self.register(
+            "ci.id",
+            FieldType::OptionalString,
+            vec!["ci", "id"],
+            "CI system identifier",
+            "ci",
+        );
+        self.register(
+            "ci.vendor",
+            FieldType::OptionalString,
+            vec!["ci", "vendor"],
+            "CI vendor",
+            "ci",
+        );
+        self.register(
+            "ci.name",
+            FieldType::OptionalString,
+            vec!["ci", "name"],
+            "CI system name",
+            "ci",
+        );
+        self.register(
+            "ci.is_pr",
+            FieldType::OptionalString,
+            vec!["ci", "is_pr"],
+            "Is pull request",
+            "ci",
+        );
+        self.register(
+            "ci.branch",
+            FieldType::OptionalString,
+            vec!["ci", "branch"],
+            "Branch name",
+            "ci",
+        );
+    }
+
+    fn register(
+        &mut self,
+        field_path: &str,
+        field_type: FieldType,
+        path: Vec<&str>,
+        description: &str,
+        context: &str,
+    ) {
+        self.fields.insert(
+            field_path.to_string(),
+            FieldInfo {
+                field_type,
+                path: path.into_iter().map(|s| s.to_string()).collect(),
+                description: description.to_string(),
+                context: context.to_string(),
+            },
+        );
+    }
+
+    pub fn resolve_field(&self, path: &[String]) -> Option<&FieldInfo> {
+        let key = path.join(".");
+        self.fields.get(&key)
+    }
+
+    pub fn get_context_fields(&self, context: &str) -> Vec<(&String, &FieldInfo)> {
+        self.fields
+            .iter()
+            .filter(|(_, info)| info.context == context)
+            .collect()
+    }
+
+    pub fn list_all_fields(&self) -> Vec<&String> {
+        self.fields.keys().collect()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -438,5 +635,280 @@ mod tests {
             parse_predicate("!invalid.field"),
             Err(ParseError::InvalidFieldPath)
         );
+    }
+
+    // Field Registry Tests
+    #[test]
+    fn field_registry_creation() {
+        let registry = FieldRegistry::new();
+        let fields = registry.list_all_fields();
+
+        // Should have all expected fields registered
+        assert!(!fields.is_empty());
+        assert!(fields.len() >= 15); // At least the fields we registered
+    }
+
+    #[test]
+    fn field_registry_agent_fields() {
+        let registry = FieldRegistry::new();
+
+        // Test agent field resolution
+        let agent_id = registry.resolve_field(&vec!["agent".to_string(), "id".to_string()]);
+        assert!(agent_id.is_some());
+        let field_info = agent_id.unwrap();
+        assert_eq!(field_info.field_type, FieldType::OptionalString);
+        assert_eq!(field_info.context, "agent");
+        assert_eq!(field_info.description, "Agent identifier");
+        assert_eq!(field_info.path, vec!["agent", "id"]);
+    }
+
+    #[test]
+    fn field_registry_ide_fields() {
+        let registry = FieldRegistry::new();
+
+        // Test IDE field resolution
+        let ide_id = registry.resolve_field(&vec!["ide".to_string(), "id".to_string()]);
+        assert!(ide_id.is_some());
+        let field_info = ide_id.unwrap();
+        assert_eq!(field_info.field_type, FieldType::OptionalString);
+        assert_eq!(field_info.context, "ide");
+        assert_eq!(field_info.description, "IDE identifier");
+    }
+
+    #[test]
+    fn field_registry_terminal_fields() {
+        let registry = FieldRegistry::new();
+
+        // Test terminal boolean fields
+        let interactive =
+            registry.resolve_field(&vec!["terminal".to_string(), "interactive".to_string()]);
+        assert!(interactive.is_some());
+        assert_eq!(interactive.unwrap().field_type, FieldType::Boolean);
+        assert_eq!(interactive.unwrap().context, "terminal");
+
+        // Test terminal color level field
+        let color_level =
+            registry.resolve_field(&vec!["terminal".to_string(), "color_level".to_string()]);
+        assert!(color_level.is_some());
+        assert_eq!(color_level.unwrap().field_type, FieldType::ColorLevel);
+
+        // Test terminal stream fields
+        let stdin_tty = registry.resolve_field(&vec![
+            "terminal".to_string(),
+            "stdin".to_string(),
+            "tty".to_string(),
+        ]);
+        assert!(stdin_tty.is_some());
+        assert_eq!(stdin_tty.unwrap().field_type, FieldType::Boolean);
+        assert_eq!(stdin_tty.unwrap().description, "Stdin is TTY");
+
+        let stdout_piped = registry.resolve_field(&vec![
+            "terminal".to_string(),
+            "stdout".to_string(),
+            "piped".to_string(),
+        ]);
+        assert!(stdout_piped.is_some());
+        assert_eq!(stdout_piped.unwrap().field_type, FieldType::Boolean);
+        assert_eq!(stdout_piped.unwrap().description, "Stdout is piped");
+
+        // Test hyperlinks support
+        let hyperlinks = registry.resolve_field(&vec![
+            "terminal".to_string(),
+            "supports_hyperlinks".to_string(),
+        ]);
+        assert!(hyperlinks.is_some());
+        assert_eq!(hyperlinks.unwrap().field_type, FieldType::Boolean);
+    }
+
+    #[test]
+    fn field_registry_ci_fields() {
+        let registry = FieldRegistry::new();
+
+        // Test all CI fields
+        let ci_id = registry.resolve_field(&vec!["ci".to_string(), "id".to_string()]);
+        assert!(ci_id.is_some());
+        assert_eq!(ci_id.unwrap().field_type, FieldType::OptionalString);
+        assert_eq!(ci_id.unwrap().context, "ci");
+
+        let ci_vendor = registry.resolve_field(&vec!["ci".to_string(), "vendor".to_string()]);
+        assert!(ci_vendor.is_some());
+        assert_eq!(ci_vendor.unwrap().field_type, FieldType::OptionalString);
+        assert_eq!(ci_vendor.unwrap().description, "CI vendor");
+
+        let ci_name = registry.resolve_field(&vec!["ci".to_string(), "name".to_string()]);
+        assert!(ci_name.is_some());
+        assert_eq!(ci_name.unwrap().field_type, FieldType::OptionalString);
+
+        let ci_is_pr = registry.resolve_field(&vec!["ci".to_string(), "is_pr".to_string()]);
+        assert!(ci_is_pr.is_some());
+        assert_eq!(ci_is_pr.unwrap().field_type, FieldType::OptionalString);
+
+        let ci_branch = registry.resolve_field(&vec!["ci".to_string(), "branch".to_string()]);
+        assert!(ci_branch.is_some());
+        assert_eq!(ci_branch.unwrap().field_type, FieldType::OptionalString);
+        assert_eq!(ci_branch.unwrap().description, "Branch name");
+    }
+
+    #[test]
+    fn field_registry_context_filtering() {
+        let registry = FieldRegistry::new();
+
+        // Test context-based field filtering
+        let agent_fields = registry.get_context_fields("agent");
+        assert_eq!(agent_fields.len(), 1);
+        assert!(
+            agent_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "agent.id")
+        );
+
+        let ide_fields = registry.get_context_fields("ide");
+        assert_eq!(ide_fields.len(), 1);
+        assert!(ide_fields.iter().any(|(path, _)| path.as_str() == "ide.id"));
+
+        let terminal_fields = registry.get_context_fields("terminal");
+        assert!(terminal_fields.len() >= 8); // At least 8 terminal fields
+        assert!(
+            terminal_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "terminal.interactive")
+        );
+        assert!(
+            terminal_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "terminal.color_level")
+        );
+        assert!(
+            terminal_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "terminal.stdin.tty")
+        );
+        assert!(
+            terminal_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "terminal.supports_hyperlinks")
+        );
+
+        let ci_fields = registry.get_context_fields("ci");
+        assert_eq!(ci_fields.len(), 5);
+        assert!(ci_fields.iter().any(|(path, _)| path.as_str() == "ci.id"));
+        assert!(
+            ci_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "ci.vendor")
+        );
+        assert!(
+            ci_fields
+                .iter()
+                .any(|(path, _)| path.as_str() == "ci.branch")
+        );
+    }
+
+    #[test]
+    fn field_registry_unknown_field() {
+        let registry = FieldRegistry::new();
+
+        // Test unknown field resolution
+        let unknown = registry.resolve_field(&vec!["unknown".to_string(), "field".to_string()]);
+        assert!(unknown.is_none());
+
+        let partial_unknown =
+            registry.resolve_field(&vec!["agent".to_string(), "unknown".to_string()]);
+        assert!(partial_unknown.is_none());
+    }
+
+    #[test]
+    fn field_registry_unknown_context() {
+        let registry = FieldRegistry::new();
+
+        // Test unknown context filtering
+        let unknown_fields = registry.get_context_fields("unknown");
+        assert!(unknown_fields.is_empty());
+    }
+
+    #[test]
+    fn field_registry_field_type_validation() {
+        let registry = FieldRegistry::new();
+
+        // Test that field types are correctly assigned
+        let boolean_fields = registry
+            .list_all_fields()
+            .iter()
+            .filter_map(|path| {
+                registry.resolve_field(&path.split('.').map(|s| s.to_string()).collect::<Vec<_>>())
+            })
+            .filter(|info| info.field_type == FieldType::Boolean)
+            .count();
+        assert!(boolean_fields >= 7); // At least 7 boolean fields (interactive + 6 stream fields)
+
+        let optional_string_fields = registry
+            .list_all_fields()
+            .iter()
+            .filter_map(|path| {
+                registry.resolve_field(&path.split('.').map(|s| s.to_string()).collect::<Vec<_>>())
+            })
+            .filter(|info| info.field_type == FieldType::OptionalString)
+            .count();
+        assert!(optional_string_fields >= 7); // At least 7 optional string fields (agent.id, ide.id, 5 CI fields)
+
+        let color_level_fields = registry
+            .list_all_fields()
+            .iter()
+            .filter_map(|path| {
+                registry.resolve_field(&path.split('.').map(|s| s.to_string()).collect::<Vec<_>>())
+            })
+            .filter(|info| info.field_type == FieldType::ColorLevel)
+            .count();
+        assert_eq!(color_level_fields, 1); // Exactly 1 color level field
+    }
+
+    #[test]
+    fn field_registry_completeness() {
+        let registry = FieldRegistry::new();
+        let all_fields = registry.list_all_fields();
+
+        // Verify all expected fields are present
+        let expected_fields = vec![
+            "agent.id",
+            "ide.id",
+            "terminal.interactive",
+            "terminal.color_level",
+            "terminal.stdin.tty",
+            "terminal.stdout.tty",
+            "terminal.stderr.tty",
+            "terminal.stdin.piped",
+            "terminal.stdout.piped",
+            "terminal.stderr.piped",
+            "terminal.supports_hyperlinks",
+            "ci.id",
+            "ci.vendor",
+            "ci.name",
+            "ci.is_pr",
+            "ci.branch",
+        ];
+
+        for expected in expected_fields {
+            assert!(
+                all_fields.iter().any(|field| field.as_str() == expected),
+                "Missing expected field: {}",
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn field_registry_path_consistency() {
+        let registry = FieldRegistry::new();
+
+        // Test that field paths are consistent with field names
+        for field_path in registry.list_all_fields() {
+            let path_parts: Vec<String> = field_path.split('.').map(|s| s.to_string()).collect();
+            let field_info = registry.resolve_field(&path_parts).unwrap();
+            assert_eq!(
+                field_info.path, path_parts,
+                "Path mismatch for field: {}",
+                field_path
+            );
+        }
     }
 }
