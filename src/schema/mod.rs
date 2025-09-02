@@ -10,7 +10,7 @@ pub use main::EnvSense;
 pub use nested::NewEnvSense;
 
 // Schema version constants
-pub const SCHEMA_VERSION: &str = "0.2.0"; // Current schema version
+pub const SCHEMA_VERSION: &str = "0.3.0"; // Current schema version
 pub const LEGACY_SCHEMA_VERSION: &str = "0.2.0"; // Legacy flat schema version
 
 #[cfg(test)]
