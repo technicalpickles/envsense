@@ -425,8 +425,18 @@ fn run_check(args: &CheckCmd) -> i32 {
 
 fn list_checks() {
     let registry = FieldRegistry::new();
-    let help_text = check::generate_help_text(&registry);
-    println!("{}", help_text);
+
+    println!("contexts:");
+    for context in registry.get_contexts() {
+        println!("  {}", context);
+    }
+
+    println!("fields:");
+    let mut fields: Vec<_> = registry.list_all_fields();
+    fields.sort();
+    for field in fields {
+        println!("  {}", field);
+    }
 }
 
 fn detect_color_choice() -> ColorChoice {
