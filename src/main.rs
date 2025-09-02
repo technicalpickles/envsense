@@ -98,16 +98,10 @@ struct Snapshot {
 fn collect_snapshot() -> Snapshot {
     let env = EnvSense::detect();
 
-    // For backward compatibility, convert to legacy format for CLI output
-    let legacy_env = env.to_legacy();
-
-    let contexts = env.contexts.clone(); // New schema already has Vec<String>
-    let traits_val = serde_json::to_value(legacy_env.traits).unwrap();
-
     Snapshot {
-        contexts,
-        traits: traits_val,
-        facets: serde_json::to_value(legacy_env.facets).unwrap(),
+        contexts: env.contexts, // Now Vec<String> instead of Contexts struct
+        traits: serde_json::to_value(env.traits).unwrap(), // Nested structure
+        facets: json!({}),      // Empty for new schema (backward compatibility)
         meta: json!({
             "schema_version": env.version,
         }),
@@ -153,13 +147,68 @@ fn colorize_value(v: &str, color: bool) -> String {
     }
 }
 
+fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String) {
+    if let Value::Object(map) = traits {
+        if raw {
+            // For raw output, flatten the nested structure
+            let mut all_items: Vec<(String, String)> = Vec::new();
+            for (context, context_traits) in map {
+                if let Value::Object(fields) = context_traits {
+                    for (field, value) in fields {
+                        all_items.push((format!("{}.{}", context, field), value_to_string(value)));
+                    }
+                }
+            }
+            all_items.sort_by(|a, b| a.0.cmp(&b.0));
+            for (j, (k, v)) in all_items.into_iter().enumerate() {
+                if j > 0 {
+                    out.push('\n');
+                }
+                out.push_str(&format!("{} = {}", k, v));
+            }
+        } else {
+            let heading = if color {
+                "Traits:".bold().cyan().to_string()
+            } else {
+                "Traits:".to_string()
+            };
+            out.push_str(&heading);
+
+            // Sort contexts for consistent output
+            let mut contexts: Vec<_> = map.keys().collect();
+            contexts.sort();
+
+            for context in contexts {
+                if let Some(Value::Object(fields)) = map.get(context) {
+                    out.push('\n');
+                    out.push_str("  ");
+                    out.push_str(context);
+                    out.push(':');
+
+                    // Sort fields within each context
+                    let mut field_items: Vec<_> = fields.iter().collect();
+                    field_items.sort_by(|a, b| a.0.cmp(b.0));
+
+                    for (field, value) in field_items {
+                        out.push('\n');
+                        out.push_str("    ");
+                        out.push_str(field);
+                        out.push_str(" = ");
+                        out.push_str(&colorize_value(&value_to_string(value), color));
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn render_human(
     snapshot: &Snapshot,
     fields: Option<&str>,
     color: bool,
     raw: bool,
 ) -> Result<String, String> {
-    let default_fields = ["contexts", "traits", "facets"];
+    let default_fields = ["contexts", "traits"];
     let selected: Vec<&str> = match fields {
         Some(f) => f
             .split(',')
@@ -201,37 +250,7 @@ fn render_human(
                 }
             }
             "traits" => {
-                let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.traits
-                {
-                    map.iter()
-                        .map(|(k, v)| (k.clone(), value_to_string(v)))
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-                items.sort_by(|a, b| a.0.cmp(&b.0));
-                if raw {
-                    for (j, (k, v)) in items.into_iter().enumerate() {
-                        if j > 0 {
-                            out.push('\n');
-                        }
-                        out.push_str(&format!("{} = {}", k, v));
-                    }
-                } else {
-                    let heading = if color {
-                        "Traits:".bold().cyan().to_string()
-                    } else {
-                        "Traits:".to_string()
-                    };
-                    out.push_str(&heading);
-                    for (k, v) in items {
-                        out.push('\n');
-                        out.push_str("  ");
-                        out.push_str(&k);
-                        out.push_str(" = ");
-                        out.push_str(&colorize_value(&v, color));
-                    }
-                }
+                render_nested_traits(&snapshot.traits, color, raw, &mut out);
             }
             "facets" => {
                 let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.facets
