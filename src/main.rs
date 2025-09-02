@@ -460,6 +460,7 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
     let snapshot = collect_snapshot();
     if args.json {
         let mut v = json!({
+            "version": snapshot.meta["schema_version"],
             "contexts": snapshot.contexts,
             "traits": snapshot.traits,
             "facets": snapshot.facets,
