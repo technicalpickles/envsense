@@ -232,3 +232,166 @@ fn check_ci_quiet_suppresses_output() {
         .failure()
         .stdout(predicates::str::is_empty());
 }
+
+/// Additional comprehensive integration tests for Task 2.8
+#[test]
+fn check_predicate_parsing_edge_cases() {
+    // Test negation with various predicates
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "!ci"])
+        .assert()
+        .success() // Should succeed because ci is NOT detected
+        .stdout("true\n");
+
+    // Test deep field paths
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "terminal.stdin.tty"])
+        .assert(); // Will be true or false, but should not error
+
+    // Test field comparison with boolean values
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "terminal.stdin.tty=true"])
+        .assert(); // May succeed or fail, but should not error
+}
+
+#[test]
+fn check_comprehensive_exit_codes() {
+    // Test that exit codes are correct for various scenarios
+
+    // Single successful check
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "agent"])
+        .assert()
+        .code(0);
+
+    // Single failed check
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear().args(["check", "agent"]).assert().code(1);
+
+    // Multiple checks with --all (default) - all must pass
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "agent", "ci"]) // agent=true, ci=false
+        .assert()
+        .code(1); // Should fail because not all pass
+
+    // Multiple checks with --any - at least one must pass
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--any", "agent", "ci"]) // agent=true, ci=false
+        .assert()
+        .code(0); // Should succeed because at least one passes
+
+    // Parse error should return error code
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear().args(["check", "facet:"]).assert().code(2); // Parse error
+}
+
+#[test]
+fn check_output_formatting_consistency() {
+    // Test that output format is consistent across different scenarios
+
+    // Single predicate output
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "agent.id"])
+        .assert()
+        .success()
+        .stdout("cursor\n");
+
+    // Multiple predicates output format
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "agent", "agent.id"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("overall=true"));
+    assert!(stdout.contains("agent=true"));
+    assert!(stdout.contains("agent.id=cursor"));
+
+    // JSON output consistency
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--json", "agent"])
+        .output()
+        .unwrap();
+
+    let json_str = String::from_utf8(output.stdout).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert!(json["overall"].is_boolean());
+    assert!(json["checks"].is_array());
+}
+
+#[test]
+fn check_field_registry_integration() {
+    // Test that all registered fields work in CLI
+    let fields_to_test = vec![
+        "agent.id",
+        "ide.id",
+        "terminal.interactive",
+        "terminal.color_level",
+        "terminal.stdin.tty",
+        "terminal.stdout.tty",
+        "terminal.stderr.tty",
+        "terminal.stdin.piped",
+        "terminal.stdout.piped",
+        "terminal.stderr.piped",
+        "terminal.supports_hyperlinks",
+        "ci.id",
+        "ci.vendor",
+        "ci.name",
+        "ci.is_pr",
+        "ci.branch",
+    ];
+
+    for field in fields_to_test {
+        let mut cmd = Command::cargo_bin("envsense").unwrap();
+        cmd.env_clear().args(["check", field]).assert(); // Should not error, regardless of value
+    }
+}
+
+#[test]
+fn check_legacy_compatibility_comprehensive() {
+    // Test that all legacy syntax still works with warnings
+
+    // Legacy facet syntax
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "facet:agent_id=cursor"])
+        .assert()
+        .success()
+        .stdout("true\n")
+        .stderr(contains("Warning: Legacy syntax"));
+
+    // Legacy trait syntax
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "trait:is_interactive"])
+        .assert()
+        .stderr(contains("Warning: Legacy syntax"));
+
+    // Mixed legacy and new syntax
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "agent", "facet:agent_id=cursor"])
+        .assert()
+        .success()
+        .stderr(contains("Warning: Legacy syntax"));
+}

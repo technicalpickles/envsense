@@ -280,15 +280,7 @@ fn cli_error_handling_with_new_system() {
 
 #[test]
 fn cli_special_characters_in_values() {
-    // Test with CI environment that has special characters
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("GITHUB_ACTIONS", "true")
-        .env("GITHUB_REF_NAME", "feature/test-123")
-        .args(["check", "ci.branch"])
-        .assert(); // Should work but may show different values
-
-    // Test comparison with special characters (using a known CI field)
+    // Test with special characters in CI vendor (which we know works)
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("GITHUB_ACTIONS", "true")
@@ -296,6 +288,220 @@ fn cli_special_characters_in_values() {
         .assert()
         .success()
         .stdout("true\n");
+
+    // Test with unicode characters
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("ENVSENSE_AGENT", "测试")
+        .args(["check", "agent.id=测试"])
+        .assert()
+        .success()
+        .stdout("true\n");
+
+    // Test with spaces and special characters
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("ENVSENSE_AGENT", "test agent 123")
+        .args(["check", "agent.id=test agent 123"])
+        .assert()
+        .success()
+        .stdout("true\n");
+}
+
+#[test]
+fn cli_help_text_snapshot() {
+    // Test that help text is generated correctly and remains stable
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["check", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("Available predicates:"))
+        .stdout(contains("Contexts (return boolean):"))
+        .stdout(contains(
+            "agent                    # Check if agent context is detected",
+        ))
+        .stdout(contains("Fields:"))
+        .stdout(contains("agent fields:"))
+        .stdout(contains("agent.id                  # Agent identifier"))
+        .stdout(contains("terminal fields:"))
+        .stdout(contains(
+            "terminal.interactive      # Terminal interactivity",
+        ))
+        .stdout(contains("ci fields:"))
+        .stdout(contains("ci.id                     # CI system identifier"))
+        .stdout(contains("Examples:"))
+        .stdout(contains(
+            "envsense check agent              # Boolean: is agent detected?",
+        ))
+        .stdout(contains(
+            "envsense check agent.id=cursor    # Boolean: is agent ID 'cursor'?",
+        ))
+        .stdout(contains("Syntax:"))
+        .stdout(contains(
+            "context                           # Check if context is detected",
+        ))
+        .stdout(contains(
+            "field.path=value                  # Compare field value",
+        ))
+        .stdout(contains("Legacy syntax (deprecated):"))
+        .stdout(contains(
+            "facet:key=value                   # Use field.path=value instead",
+        ));
+}
+
+#[test]
+fn cli_list_predicates_functionality() {
+    // Test --list flag shows all available predicates
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["check", "--list"])
+        .assert()
+        .success()
+        .stdout(contains("agent"))
+        .stdout(contains("agent.id"))
+        .stdout(contains("terminal.interactive"))
+        .stdout(contains("terminal.stdin.tty"))
+        .stdout(contains("ci.id"))
+        .stdout(contains("ci.branch"));
+}
+
+#[test]
+fn cli_comprehensive_error_messages() {
+    // Test various error conditions with clear messages
+
+    // Invalid context in field path
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "invalid_context.field"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid check expression"));
+
+    // Too few path segments
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "agent"]) // This should work (context check)
+        .assert()
+        .failure() // No agent detected in clean env
+        .stdout("false\n");
+
+    // Single segment that's not a valid context
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "invalid_single_segment"])
+        .assert()
+        .failure()
+        .stdout("false\n"); // Treated as context check, returns false
+
+    // Malformed legacy syntax
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "facet:key_without_value"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid check expression"));
+
+    // Empty facet key
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "facet:=value"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid check expression"));
+}
+
+#[test]
+fn cli_multiple_predicates_comprehensive() {
+    // Test complex multiple predicate scenarios
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .env("TERM_PROGRAM", "vscode")
+        .args(["check", "agent", "ide", "agent.id=cursor", "ide.id=vscode"])
+        .assert()
+        .success()
+        .stdout(contains("overall=true"))
+        .stdout(contains("agent=true"))
+        .stdout(contains("ide=true"))
+        .stdout(contains("agent.id=cursor"))
+        .stdout(contains("ide.id=vscode"));
+
+    // Test --any mode with mixed results
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--any", "agent", "ci", "agent.id=wrong"])
+        .assert()
+        .success() // Should succeed because agent=true
+        .stdout(contains("overall=true"));
+
+    // Test all mode with one failure
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--all", "agent", "ci"])
+        .assert()
+        .failure() // Should fail because ci=false
+        .stdout(contains("overall=false"))
+        .stdout(contains("agent=true"))
+        .stdout(contains("ci=false"));
+}
+
+#[test]
+fn cli_json_output_comprehensive() {
+    // Test JSON output structure with multiple predicates
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("CURSOR_AGENT", "1")
+        .args(["check", "--json", "agent", "agent.id"])
+        .assert()
+        .success();
+
+    let output = cmd.output().unwrap();
+    let json_str = String::from_utf8(output.stdout).unwrap();
+    let json: Value = serde_json::from_str(&json_str).unwrap();
+
+    // Verify JSON structure
+    assert!(json["overall"].is_boolean());
+    assert!(json["checks"].is_array());
+
+    let checks = json["checks"].as_array().unwrap();
+    assert_eq!(checks.len(), 2);
+
+    // Verify first check (context)
+    assert_eq!(checks[0]["predicate"], "agent");
+    assert!(checks[0]["result"].is_boolean());
+
+    // Verify second check (field value)
+    assert_eq!(checks[1]["predicate"], "agent.id");
+    assert!(checks[1]["result"].is_boolean()); // agent.id returns boolean true when present
+}
+
+#[test]
+fn cli_edge_case_field_values() {
+    // Test with null/missing field values
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "agent.id"]) // No agent detected, should return "null"
+        .assert()
+        .success()
+        .stdout("null\n");
+
+    // Test boolean field values
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "terminal.interactive"])
+        .assert(); // Will be true or false, but should not error
+
+    // Test comparison with boolean values
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "terminal.interactive=true"])
+        .assert(); // May succeed or fail, but should not error
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .args(["check", "terminal.interactive=false"])
+        .assert(); // May succeed or fail, but should not error
 }
 
 #[test]

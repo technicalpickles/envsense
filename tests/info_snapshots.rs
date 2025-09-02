@@ -97,6 +97,91 @@ fn snapshot_gitlab_ci() {
     assert_json_snapshot!("gitlab_ci", json);
 }
 
+/// Additional snapshot tests for Task 2.8
+#[test]
+fn snapshot_help_text_stability() {
+    // Test that help text remains stable across changes
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .args(["check", "--help"])
+        .output()
+        .expect("failed to run envsense check --help");
+
+    assert!(output.status.success());
+    let help_text = String::from_utf8(output.stdout).unwrap();
+
+    // Verify key sections are present
+    assert!(help_text.contains("Available predicates:"));
+    assert!(help_text.contains("Contexts (return boolean):"));
+    assert!(help_text.contains("Fields:"));
+    assert!(help_text.contains("Examples:"));
+    assert!(help_text.contains("Syntax:"));
+    assert!(help_text.contains("Legacy syntax (deprecated):"));
+
+    // Verify all contexts are documented
+    assert!(help_text.contains("agent                    # Check if agent context is detected"));
+    assert!(help_text.contains("ide                    # Check if ide context is detected"));
+    assert!(
+        help_text.contains("terminal                    # Check if terminal context is detected")
+    );
+    assert!(help_text.contains("ci                    # Check if ci context is detected"));
+
+    // Verify field categories are present
+    assert!(help_text.contains("agent fields:"));
+    assert!(help_text.contains("ide fields:"));
+    assert!(help_text.contains("terminal fields:"));
+    assert!(help_text.contains("ci fields:"));
+
+    // Verify examples cover different usage patterns
+    assert!(help_text.contains("envsense check agent              # Boolean: is agent detected?"));
+    assert!(help_text.contains("envsense check agent.id           # String: show agent ID"));
+    assert!(
+        help_text.contains("envsense check agent.id=cursor    # Boolean: is agent ID 'cursor'?")
+    );
+    assert!(help_text.contains("envsense check !ci                # Boolean: is CI NOT detected?"));
+}
+
+#[test]
+fn snapshot_error_messages() {
+    // Test that error messages are consistent and helpful
+
+    // Invalid field path error
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .env_clear()
+        .args(["check", "invalid.field"])
+        .output()
+        .expect("failed to run envsense");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("invalid check expression"));
+
+    // Malformed legacy syntax error
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .env_clear()
+        .args(["check", "facet:"])
+        .output()
+        .expect("failed to run envsense");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("invalid check expression"));
+
+    // Empty predicate error
+    let output = Command::cargo_bin("envsense")
+        .unwrap()
+        .env_clear()
+        .args(["check", ""])
+        .output()
+        .expect("failed to run envsense");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("invalid check expression"));
+}
+
 #[test]
 fn snapshot_tmux() {
     let json = run_info_json_tty(&[("TERM", "screen-256color"), ("TMUX", "1")]);
