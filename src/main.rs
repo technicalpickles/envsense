@@ -49,39 +49,38 @@ struct InfoArgs {
 }
 
 #[derive(Args, Clone)]
-struct CheckCmd {
+pub struct CheckCmd {
+    /// Predicates to evaluate
     #[arg(
         value_name = "PREDICATE",
-        num_args = 1..,
         help = "Predicates to evaluate",
-        long_help = check_predicate_long_help(),
-        required_unless_present = "list_checks"
+        long_help = check_predicate_long_help()
     )]
-    predicates: Vec<String>,
+    pub predicates: Vec<String>,
 
-    /// Succeed if any predicate matches (default: all must match)
-    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "all")]
-    any: bool,
+    /// Show explanations for results
+    #[arg(short, long)]
+    pub explain: bool,
 
-    /// Require all predicates to match (default)
-    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "any")]
-    all: bool,
-
-    /// Suppress output
-    #[arg(short, long, alias = "silent", action = clap::ArgAction::SetTrue)]
-    quiet: bool,
-
-    /// Output JSON (stable schema)
+    /// Output results as JSON
     #[arg(long)]
-    json: bool,
+    pub json: bool,
 
-    /// Explain reasoning
-    #[arg(long)]
-    explain: bool,
+    /// Suppress output (useful in scripts)
+    #[arg(short, long)]
+    pub quiet: bool,
+
+    /// Use ANY mode (default is ALL)
+    #[arg(long, conflicts_with = "all")]
+    pub any: bool,
+
+    /// Require all predicates to match (default behavior)
+    #[arg(long, conflicts_with = "any")]
+    pub all: bool,
 
     /// List available predicates
-    #[arg(long = "list", action = clap::ArgAction::SetTrue)]
-    list_checks: bool,
+    #[arg(long)]
+    pub list: bool,
 }
 
 // JsonCheck struct removed - using new EvaluationResult system
@@ -349,11 +348,17 @@ fn render_human(
 
 // Legacy evidence helper functions removed - using new evaluation system
 
-fn run_check(args: &CheckCmd) -> i32 {
-    if args.list_checks {
+fn run_check(args: CheckCmd) -> Result<(), i32> {
+    if args.list {
         list_checks();
-        return 0;
+        return Ok(());
     }
+
+    if args.predicates.is_empty() {
+        eprintln!("Error: no predicates specified");
+        return Err(1);
+    }
+
     let env = EnvSense::detect();
     let registry = FieldRegistry::new();
 
@@ -365,45 +370,34 @@ fn run_check(args: &CheckCmd) -> i32 {
                 let vendor = env.traits.ci.vendor.as_deref().unwrap_or("generic");
                 println!("CI detected: {} ({})", name, vendor);
             }
-            return 0;
+            return Ok(());
         } else {
             if !args.quiet {
                 println!("No CI detected");
             }
-            return 1;
+            return Err(1);
         }
     }
 
-    let mode_any = args.any;
     let mut results = Vec::new();
 
-    for pred in &args.predicates {
-        let parsed = match check::parse_with_warnings(pred) {
+    for predicate in &args.predicates {
+        let parsed = match check::parse_with_warnings(predicate) {
             Ok(p) => p,
-            Err(_) => {
-                eprintln!("invalid check expression");
-                return 2;
+            Err(e) => {
+                eprintln!("Error parsing '{}': {:?}", predicate, e);
+                return Err(2);
             }
         };
 
         let eval_result = check::evaluate(&env, parsed, &registry);
-
-        if args.quiet {
-            let success = eval_result.result.as_bool();
-            if mode_any && success {
-                return 0;
-            }
-            if !mode_any && !success {
-                return 1;
-            }
-        } else {
-            results.push(eval_result);
-        }
+        results.push(eval_result);
     }
 
-    let overall = if mode_any {
+    let overall = if args.any {
         results.iter().any(|r| r.result.as_bool())
     } else {
+        // Default is ALL mode, --all flag is explicit but same behavior
         results.iter().all(|r| r.result.as_bool())
     };
 
@@ -412,13 +406,13 @@ fn run_check(args: &CheckCmd) -> i32 {
             &results,
             &args.predicates,
             overall,
-            mode_any,
+            args.any,
             args.json,
             args.explain,
         );
     }
 
-    if overall { 0 } else { 1 }
+    if overall { Ok(()) } else { Err(1) }
 }
 
 // Legacy output_results function removed - using new output system in check.rs
@@ -510,8 +504,9 @@ fn main() {
             }
         }
         Some(Commands::Check(args)) => {
-            let code = run_check(&args);
-            std::process::exit(code);
+            if let Err(code) = run_check(args) {
+                std::process::exit(code);
+            }
         }
         None => {}
     }

@@ -155,7 +155,7 @@ fn snapshot_error_messages() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("invalid check expression"));
+    assert!(stderr.contains("Error parsing"));
 
     // Malformed legacy syntax error
     let output = Command::cargo_bin("envsense")
@@ -167,7 +167,7 @@ fn snapshot_error_messages() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("invalid check expression"));
+    assert!(stderr.contains("Error parsing"));
 
     // Empty predicate error
     let output = Command::cargo_bin("envsense")
@@ -179,7 +179,7 @@ fn snapshot_error_messages() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("invalid check expression"));
+    assert!(stderr.contains("Error parsing"));
 }
 
 #[test]

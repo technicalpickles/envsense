@@ -147,11 +147,11 @@ fn cli_any_vs_all_mode_output() {
         .success()
         .stdout(contains("overall=true"));
 
-    // Test --all mode with mixed results (should fail)
+    // Test default ALL mode with mixed results (should fail)
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "--all", "agent", "nonexistent"])
+        .args(["check", "agent", "nonexistent"])
         .assert()
         .failure()
         .stdout(contains("overall=false"));
@@ -259,7 +259,7 @@ fn cli_error_handling_with_new_system() {
         .args(["check", "invalid.field"])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 
     // Test malformed syntax
     let mut cmd = Command::cargo_bin("envsense").unwrap();
@@ -267,7 +267,7 @@ fn cli_error_handling_with_new_system() {
         .args(["check", "facet:"])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 
     // Test empty predicate
     let mut cmd = Command::cargo_bin("envsense").unwrap();
@@ -275,7 +275,7 @@ fn cli_error_handling_with_new_system() {
         .args(["check", ""])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 }
 
 #[test]
@@ -374,7 +374,7 @@ fn cli_comprehensive_error_messages() {
         .args(["check", "invalid_context.field"])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 
     // Too few path segments
     let mut cmd = Command::cargo_bin("envsense").unwrap();
@@ -398,7 +398,7 @@ fn cli_comprehensive_error_messages() {
         .args(["check", "facet:key_without_value"])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 
     // Empty facet key
     let mut cmd = Command::cargo_bin("envsense").unwrap();
@@ -406,7 +406,7 @@ fn cli_comprehensive_error_messages() {
         .args(["check", "facet:=value"])
         .assert()
         .failure()
-        .stderr(contains("invalid check expression"));
+        .stderr(contains("Error parsing"));
 }
 
 #[test]
