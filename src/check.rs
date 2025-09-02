@@ -253,6 +253,74 @@ pub fn parse_predicate(input: &str) -> Result<ParsedCheck, ParseError> {
     Ok(ParsedCheck { check, negated })
 }
 
+/// Parse predicate with deprecation warnings for legacy syntax
+///
+/// This function provides the same parsing functionality as `parse_predicate`
+/// but additionally emits deprecation warnings to stderr when legacy syntax
+/// is detected, along with migration suggestions.
+pub fn parse_with_warnings(input: &str) -> Result<ParsedCheck, ParseError> {
+    let result = parse_predicate(input)?;
+
+    // Issue deprecation warnings for legacy syntax
+    match &result.check {
+        Check::LegacyFacet { key, value } => {
+            let suggested = migrate_legacy_facet(key, value);
+            eprintln!(
+                "Warning: Legacy syntax 'facet:{}={}' is deprecated. Use '{}' instead.",
+                key, value, suggested
+            );
+        }
+        Check::LegacyTrait { key } => {
+            let suggested = migrate_legacy_trait(key);
+            eprintln!(
+                "Warning: Legacy syntax 'trait:{}' is deprecated. Use '{}' instead.",
+                key, suggested
+            );
+        }
+        _ => {} // No warning for new syntax
+    }
+
+    Ok(result)
+}
+
+/// Migrate legacy facet syntax to new dot notation syntax
+///
+/// Maps known legacy facet keys to their equivalent dot notation paths.
+/// For unknown keys, provides a best-effort suggestion.
+fn migrate_legacy_facet(key: &str, value: &str) -> String {
+    match key {
+        "agent_id" => format!("agent.id={}", value),
+        "ide_id" => format!("ide.id={}", value),
+        "ci_id" => format!("ci.id={}", value),
+        "ci_vendor" => format!("ci.vendor={}", value),
+        "ci_name" => format!("ci.name={}", value),
+        "ci_branch" => format!("ci.branch={}", value),
+        "container_id" => format!("container.id={}", value), // Future extension
+        _ => format!("unknown.{}={}", key, value),           // Best effort for unknown keys
+    }
+}
+
+/// Migrate legacy trait syntax to new dot notation syntax
+///
+/// Maps known legacy trait keys to their equivalent dot notation paths.
+/// For unknown keys, provides a best-effort suggestion.
+fn migrate_legacy_trait(key: &str) -> String {
+    match key {
+        "is_interactive" => "terminal.interactive".to_string(),
+        "supports_color" => "terminal.color_level".to_string(),
+        "supports_hyperlinks" => "terminal.supports_hyperlinks".to_string(),
+        "is_tty_stdin" => "terminal.stdin.tty".to_string(),
+        "is_tty_stdout" => "terminal.stdout.tty".to_string(),
+        "is_tty_stderr" => "terminal.stderr.tty".to_string(),
+        "is_piped_stdin" => "terminal.stdin.piped".to_string(),
+        "is_piped_stdout" => "terminal.stdout.piped".to_string(),
+        "is_piped_stderr" => "terminal.stderr.piped".to_string(),
+        "is_ci" => "ci".to_string(), // Context check
+        "ci_pr" => "ci.is_pr".to_string(),
+        _ => format!("unknown.{}", key), // Best effort for unknown keys
+    }
+}
+
 fn parse_nested_field(input: &str) -> Result<Check, ParseError> {
     let (path_str, value) = if let Some((path, val)) = input.split_once('=') {
         (path, Some(val.trim().to_string()))
@@ -2659,6 +2727,420 @@ mod tests {
             matched: false,
         };
         assert_eq!(comparison.format(false), comparison.as_string());
+    }
+
+    // Task 2.5: Deprecation Warnings and Migration Support Tests
+
+    #[test]
+    fn migrate_legacy_facet_known_keys() {
+        // Test all known legacy facet migrations
+        assert_eq!(
+            migrate_legacy_facet("agent_id", "cursor"),
+            "agent.id=cursor"
+        );
+        assert_eq!(migrate_legacy_facet("ide_id", "vscode"), "ide.id=vscode");
+        assert_eq!(migrate_legacy_facet("ci_id", "github"), "ci.id=github");
+        assert_eq!(
+            migrate_legacy_facet("ci_vendor", "GitHub"),
+            "ci.vendor=GitHub"
+        );
+        assert_eq!(
+            migrate_legacy_facet("ci_name", "GitHub Actions"),
+            "ci.name=GitHub Actions"
+        );
+        assert_eq!(migrate_legacy_facet("ci_branch", "main"), "ci.branch=main");
+        assert_eq!(
+            migrate_legacy_facet("container_id", "docker"),
+            "container.id=docker"
+        );
+    }
+
+    #[test]
+    fn migrate_legacy_facet_unknown_keys() {
+        // Test unknown key handling
+        assert_eq!(
+            migrate_legacy_facet("unknown_key", "value"),
+            "unknown.unknown_key=value"
+        );
+        assert_eq!(
+            migrate_legacy_facet("custom_facet", "test"),
+            "unknown.custom_facet=test"
+        );
+    }
+
+    #[test]
+    fn migrate_legacy_facet_special_values() {
+        // Test with special characters and edge cases in values
+        assert_eq!(
+            migrate_legacy_facet("ci_branch", "feature/test-123"),
+            "ci.branch=feature/test-123"
+        );
+        assert_eq!(
+            migrate_legacy_facet("agent_id", "cursor-ai"),
+            "agent.id=cursor-ai"
+        );
+        assert_eq!(
+            migrate_legacy_facet("ci_name", "GitHub Actions CI"),
+            "ci.name=GitHub Actions CI"
+        );
+        assert_eq!(migrate_legacy_facet("ide_id", ""), "ide.id=");
+    }
+
+    #[test]
+    fn migrate_legacy_trait_known_keys() {
+        // Test all known legacy trait migrations
+        assert_eq!(
+            migrate_legacy_trait("is_interactive"),
+            "terminal.interactive"
+        );
+        assert_eq!(
+            migrate_legacy_trait("supports_color"),
+            "terminal.color_level"
+        );
+        assert_eq!(
+            migrate_legacy_trait("supports_hyperlinks"),
+            "terminal.supports_hyperlinks"
+        );
+        assert_eq!(migrate_legacy_trait("is_tty_stdin"), "terminal.stdin.tty");
+        assert_eq!(migrate_legacy_trait("is_tty_stdout"), "terminal.stdout.tty");
+        assert_eq!(migrate_legacy_trait("is_tty_stderr"), "terminal.stderr.tty");
+        assert_eq!(
+            migrate_legacy_trait("is_piped_stdin"),
+            "terminal.stdin.piped"
+        );
+        assert_eq!(
+            migrate_legacy_trait("is_piped_stdout"),
+            "terminal.stdout.piped"
+        );
+        assert_eq!(
+            migrate_legacy_trait("is_piped_stderr"),
+            "terminal.stderr.piped"
+        );
+        assert_eq!(migrate_legacy_trait("is_ci"), "ci");
+        assert_eq!(migrate_legacy_trait("ci_pr"), "ci.is_pr");
+    }
+
+    #[test]
+    fn migrate_legacy_trait_unknown_keys() {
+        // Test unknown key handling
+        assert_eq!(
+            migrate_legacy_trait("unknown_trait"),
+            "unknown.unknown_trait"
+        );
+        assert_eq!(migrate_legacy_trait("custom_check"), "unknown.custom_check");
+    }
+
+    #[test]
+    fn parse_with_warnings_new_syntax_no_warning() {
+        // Test that new syntax doesn't trigger warnings
+        // Note: We can't easily test stderr output in unit tests, but we can test
+        // that the function works correctly and returns the same result as parse_predicate
+
+        // Context syntax
+        let result = parse_with_warnings("agent").unwrap();
+        let expected = parse_predicate("agent").unwrap();
+        assert_eq!(result.check, expected.check);
+        assert_eq!(result.negated, expected.negated);
+
+        // Nested field syntax
+        let result = parse_with_warnings("agent.id=cursor").unwrap();
+        let expected = parse_predicate("agent.id=cursor").unwrap();
+        assert_eq!(result.check, expected.check);
+        assert_eq!(result.negated, expected.negated);
+
+        // Nested field without value
+        let result = parse_with_warnings("terminal.interactive").unwrap();
+        let expected = parse_predicate("terminal.interactive").unwrap();
+        assert_eq!(result.check, expected.check);
+        assert_eq!(result.negated, expected.negated);
+
+        // Negated syntax
+        let result = parse_with_warnings("!ci").unwrap();
+        let expected = parse_predicate("!ci").unwrap();
+        assert_eq!(result.check, expected.check);
+        assert_eq!(result.negated, expected.negated);
+    }
+
+    #[test]
+    fn parse_with_warnings_legacy_facet_functionality() {
+        // Test that legacy facet parsing still works correctly
+        let result = parse_with_warnings("facet:agent_id=cursor").unwrap();
+
+        assert!(result.negated == false);
+        match result.check {
+            Check::LegacyFacet { key, value } => {
+                assert_eq!(key, "agent_id");
+                assert_eq!(value, "cursor");
+            }
+            _ => panic!("Expected LegacyFacet check"),
+        }
+
+        // Test with negation
+        let result = parse_with_warnings("!facet:ide_id=vscode").unwrap();
+        assert!(result.negated);
+        match result.check {
+            Check::LegacyFacet { key, value } => {
+                assert_eq!(key, "ide_id");
+                assert_eq!(value, "vscode");
+            }
+            _ => panic!("Expected LegacyFacet check"),
+        }
+    }
+
+    #[test]
+    fn parse_with_warnings_legacy_trait_functionality() {
+        // Test that legacy trait parsing still works correctly
+        let result = parse_with_warnings("trait:is_interactive").unwrap();
+
+        assert!(result.negated == false);
+        match result.check {
+            Check::LegacyTrait { key } => {
+                assert_eq!(key, "is_interactive");
+            }
+            _ => panic!("Expected LegacyTrait check"),
+        }
+
+        // Test with negation
+        let result = parse_with_warnings("!trait:supports_hyperlinks").unwrap();
+        assert!(result.negated);
+        match result.check {
+            Check::LegacyTrait { key } => {
+                assert_eq!(key, "supports_hyperlinks");
+            }
+            _ => panic!("Expected LegacyTrait check"),
+        }
+    }
+
+    #[test]
+    fn parse_with_warnings_error_handling() {
+        // Test that error handling works the same as parse_predicate
+        assert_eq!(parse_with_warnings(""), Err(ParseError::EmptyInput));
+        assert_eq!(parse_with_warnings("  "), Err(ParseError::EmptyInput));
+        assert_eq!(parse_with_warnings("!"), Err(ParseError::EmptyInput));
+
+        assert_eq!(
+            parse_with_warnings("facet:"),
+            Err(ParseError::MalformedComparison)
+        );
+        assert_eq!(
+            parse_with_warnings("facet:key"),
+            Err(ParseError::MalformedComparison)
+        );
+        assert_eq!(
+            parse_with_warnings("facet:=value"),
+            Err(ParseError::MalformedComparison)
+        );
+
+        assert_eq!(parse_with_warnings("trait:"), Err(ParseError::Invalid));
+        assert_eq!(parse_with_warnings("trait: "), Err(ParseError::Invalid));
+
+        assert_eq!(
+            parse_with_warnings("invalid.field"),
+            Err(ParseError::InvalidFieldPath)
+        );
+        assert_eq!(
+            parse_with_warnings("!invalid.field"),
+            Err(ParseError::InvalidFieldPath)
+        );
+    }
+
+    #[test]
+    fn parse_with_warnings_whitespace_handling() {
+        // Test whitespace handling with legacy syntax
+        let result = parse_with_warnings("  facet: agent_id = cursor  ").unwrap();
+        match result.check {
+            Check::LegacyFacet { key, value } => {
+                assert_eq!(key, "agent_id");
+                assert_eq!(value, "cursor");
+            }
+            _ => panic!("Expected LegacyFacet check"),
+        }
+
+        let result = parse_with_warnings("  trait: is_interactive  ").unwrap();
+        match result.check {
+            Check::LegacyTrait { key } => {
+                assert_eq!(key, "is_interactive");
+            }
+            _ => panic!("Expected LegacyTrait check"),
+        }
+
+        // Test with negation and whitespace
+        let result = parse_with_warnings("  ! facet:ci_id=github  ").unwrap();
+        assert!(result.negated);
+        match result.check {
+            Check::LegacyFacet { key, value } => {
+                assert_eq!(key, "ci_id");
+                assert_eq!(value, "github");
+            }
+            _ => panic!("Expected LegacyFacet check"),
+        }
+    }
+
+    #[test]
+    fn migration_suggestions_completeness() {
+        // Test that all legacy facets from FACETS constant have migrations
+        for facet in FACETS {
+            let suggestion = migrate_legacy_facet(facet, "test_value");
+            // Should not start with "unknown." for known facets
+            assert!(
+                !suggestion.starts_with("unknown."),
+                "Missing migration for facet: {}",
+                facet
+            );
+        }
+
+        // Test that all legacy traits from TRAITS constant have migrations
+        for trait_key in TRAITS {
+            let suggestion = migrate_legacy_trait(trait_key);
+            // Should not start with "unknown." for known traits
+            assert!(
+                !suggestion.starts_with("unknown."),
+                "Missing migration for trait: {}",
+                trait_key
+            );
+        }
+    }
+
+    #[test]
+    fn migration_suggestions_accuracy() {
+        // Test that migration suggestions produce valid new syntax
+        let registry = FieldRegistry::new();
+
+        // Test facet migrations point to valid fields
+        let facet_migrations = vec![
+            ("agent_id", "cursor", "agent.id=cursor"),
+            ("ide_id", "vscode", "ide.id=vscode"),
+            ("ci_id", "github", "ci.id=github"),
+            ("ci_vendor", "GitHub", "ci.vendor=GitHub"),
+            ("ci_name", "Actions", "ci.name=Actions"),
+            ("ci_branch", "main", "ci.branch=main"),
+        ];
+
+        for (facet_key, value, expected_migration) in facet_migrations {
+            let migration = migrate_legacy_facet(facet_key, value);
+            assert_eq!(migration, expected_migration);
+
+            // Test that the migrated syntax can be parsed
+            let parsed = parse_predicate(&migration).unwrap();
+            match parsed.check {
+                Check::NestedField {
+                    path,
+                    value: Some(v),
+                } => {
+                    // Verify the field exists in registry
+                    assert!(
+                        registry.resolve_field(&path).is_some(),
+                        "Migration {} points to non-existent field",
+                        migration
+                    );
+                    assert_eq!(v, value);
+                }
+                _ => panic!("Migration {} doesn't parse to NestedField", migration),
+            }
+        }
+
+        // Test trait migrations point to valid fields or contexts
+        let trait_migrations = vec![
+            ("is_interactive", "terminal.interactive"),
+            ("supports_hyperlinks", "terminal.supports_hyperlinks"),
+            ("is_tty_stdin", "terminal.stdin.tty"),
+            ("is_tty_stdout", "terminal.stdout.tty"),
+            ("is_tty_stderr", "terminal.stderr.tty"),
+            ("is_piped_stdin", "terminal.stdin.piped"),
+            ("is_piped_stdout", "terminal.stdout.piped"),
+            ("is_piped_stderr", "terminal.stderr.piped"),
+            ("ci_pr", "ci.is_pr"),
+        ];
+
+        for (trait_key, expected_migration) in trait_migrations {
+            let migration = migrate_legacy_trait(trait_key);
+            assert_eq!(migration, expected_migration);
+
+            // Test that the migrated syntax can be parsed
+            let parsed = parse_predicate(&migration).unwrap();
+            match parsed.check {
+                Check::NestedField { path, value: None } => {
+                    // Verify the field exists in registry
+                    assert!(
+                        registry.resolve_field(&path).is_some(),
+                        "Migration {} points to non-existent field",
+                        migration
+                    );
+                }
+                Check::Context(ctx) => {
+                    // For context checks like "ci"
+                    assert_eq!(ctx, migration);
+                }
+                _ => panic!("Migration {} doesn't parse correctly", migration),
+            }
+        }
+    }
+
+    #[test]
+    fn migration_edge_cases() {
+        // Test migration with empty values
+        assert_eq!(migrate_legacy_facet("agent_id", ""), "agent.id=");
+        assert_eq!(migrate_legacy_facet("ci_branch", ""), "ci.branch=");
+
+        // Test migration with special characters
+        assert_eq!(
+            migrate_legacy_facet("ci_branch", "feature/test-123"),
+            "ci.branch=feature/test-123"
+        );
+        assert_eq!(
+            migrate_legacy_facet("ci_name", "GitHub Actions CI/CD"),
+            "ci.name=GitHub Actions CI/CD"
+        );
+
+        // Test migration with unicode
+        assert_eq!(
+            migrate_legacy_facet("agent_id", "cursor-🚀"),
+            "agent.id=cursor-🚀"
+        );
+
+        // Test migration with very long values
+        let long_value = "a".repeat(1000);
+        let expected = format!("agent.id={}", long_value);
+        assert_eq!(migrate_legacy_facet("agent_id", &long_value), expected);
+    }
+
+    #[test]
+    fn parse_with_warnings_consistency_with_parse_predicate() {
+        // Test that parse_with_warnings produces identical results to parse_predicate
+        // for all non-legacy syntax (the only difference should be warning output)
+
+        let test_cases = vec![
+            "agent",
+            "ide",
+            "ci",
+            "terminal",
+            "agent.id",
+            "agent.id=cursor",
+            "terminal.interactive",
+            "terminal.interactive=true",
+            "terminal.stdin.tty",
+            "terminal.color_level=truecolor",
+            "ci.branch=main",
+            "!agent",
+            "!agent.id=cursor",
+            "!terminal.interactive",
+        ];
+
+        for test_case in test_cases {
+            let with_warnings = parse_with_warnings(test_case).unwrap();
+            let without_warnings = parse_predicate(test_case).unwrap();
+
+            assert_eq!(
+                with_warnings.check, without_warnings.check,
+                "Mismatch for test case: {}",
+                test_case
+            );
+            assert_eq!(
+                with_warnings.negated, without_warnings.negated,
+                "Negation mismatch for test case: {}",
+                test_case
+            );
+        }
     }
 
     #[test]
