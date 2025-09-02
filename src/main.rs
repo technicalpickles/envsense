@@ -365,7 +365,7 @@ fn run_check(args: &CheckCmd) -> i32 {
     let mut results = Vec::new();
 
     for pred in &args.predicates {
-        let parsed = match check::parse_predicate(pred) {
+        let parsed = match check::parse_with_warnings(pred) {
             Ok(p) => p,
             Err(_) => {
                 eprintln!("invalid check expression");
