@@ -197,8 +197,8 @@ fn declarative_evidence_generation() {
         .find(|e| e.key == "CURSOR_AGENT")
         .expect("Should have CURSOR_AGENT evidence");
     assert_eq!(cursor_evidence.value.as_deref(), Some("1"));
-    assert!(cursor_evidence.supports.contains(&"agent".to_string()));
-    assert!(cursor_evidence.supports.contains(&"agent_id".to_string()));
+    // Note: Agent detector currently only includes nested field path in supports
+    assert!(cursor_evidence.supports.contains(&"agent.id".to_string()));
     assert_eq!(cursor_evidence.confidence, 1.0);
 
     // Test replit detection evidence
@@ -214,7 +214,7 @@ fn declarative_evidence_generation() {
         .find(|e| e.key == "REPL_ID")
         .expect("Should have REPL_ID evidence");
     assert_eq!(replit_evidence.value.as_deref(), Some("abc123"));
-    assert!(replit_evidence.supports.contains(&"agent".to_string()));
-    assert!(replit_evidence.supports.contains(&"agent_id".to_string()));
+    // Note: Agent detector currently only includes nested field path in supports
+    assert!(replit_evidence.supports.contains(&"agent.id".to_string()));
     assert_eq!(replit_evidence.confidence, 1.0);
 }

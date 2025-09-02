@@ -166,16 +166,60 @@ fn detect_field_type(field: &Field) -> FieldType {
 /// Helper function to generate nested field merging logic
 fn generate_nested_trait_merge(field_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
-        // Merge nested traits - handle nested object structure
+        // Merge nested traits - handle both nested objects and flat keys
 
-        // Agent traits
-        if let Some(value) = all_traits.get("agent.id").and_then(|v| v.as_str()) {
+        // Agent traits - handle both nested object and flat key formats
+        if let Some(agent_obj) = all_traits.get("agent").and_then(|v| v.as_object()) {
+            if let Some(id) = agent_obj.get("id").and_then(|v| v.as_str()) {
+                self.#field_name.agent.id = Some(id.to_string());
+            }
+        } else if let Some(value) = all_traits.get("agent.id").and_then(|v| v.as_str()) {
             self.#field_name.agent.id = Some(value.to_string());
         }
 
-        // IDE traits
-        if let Some(value) = all_traits.get("ide.id").and_then(|v| v.as_str()) {
+        // IDE traits - handle both nested object and flat key formats
+        if let Some(ide_obj) = all_traits.get("ide").and_then(|v| v.as_object()) {
+            if let Some(id) = ide_obj.get("id").and_then(|v| v.as_str()) {
+                self.#field_name.ide.id = Some(id.to_string());
+            }
+        } else if let Some(value) = all_traits.get("ide.id").and_then(|v| v.as_str()) {
             self.#field_name.ide.id = Some(value.to_string());
+        }
+
+        // CI traits - handle both nested object and flat key formats
+        if let Some(ci_obj) = all_traits.get("ci").and_then(|v| v.as_object()) {
+            if let Some(id) = ci_obj.get("id").and_then(|v| v.as_str()) {
+                self.#field_name.ci.id = Some(id.to_string());
+            }
+            if let Some(vendor) = ci_obj.get("vendor").and_then(|v| v.as_str()) {
+                self.#field_name.ci.vendor = Some(vendor.to_string());
+            }
+            if let Some(name) = ci_obj.get("name").and_then(|v| v.as_str()) {
+                self.#field_name.ci.name = Some(name.to_string());
+            }
+            if let Some(is_pr) = ci_obj.get("is_pr").and_then(|v| v.as_bool()) {
+                self.#field_name.ci.is_pr = Some(is_pr);
+            }
+            if let Some(branch) = ci_obj.get("branch").and_then(|v| v.as_str()) {
+                self.#field_name.ci.branch = Some(branch.to_string());
+            }
+        } else {
+            // Fallback to flat key format
+            if let Some(value) = all_traits.get("ci.id").and_then(|v| v.as_str()) {
+                self.#field_name.ci.id = Some(value.to_string());
+            }
+            if let Some(value) = all_traits.get("ci.vendor").and_then(|v| v.as_str()) {
+                self.#field_name.ci.vendor = Some(value.to_string());
+            }
+            if let Some(value) = all_traits.get("ci.name").and_then(|v| v.as_str()) {
+                self.#field_name.ci.name = Some(value.to_string());
+            }
+            if let Some(value) = all_traits.get("ci.is_pr").and_then(|v| v.as_bool()) {
+                self.#field_name.ci.is_pr = Some(value);
+            }
+            if let Some(value) = all_traits.get("ci.branch").and_then(|v| v.as_str()) {
+                self.#field_name.ci.branch = Some(value.to_string());
+            }
         }
 
         // Terminal traits

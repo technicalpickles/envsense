@@ -32,7 +32,7 @@ pub trait DeclarativeDetector {
     fn get_supports() -> Vec<String> {
         vec![
             Self::get_context_name().into(),
-            Self::get_facet_key().into(),
+            format!("{}.id", Self::get_context_name()),
         ]
     }
 
@@ -74,11 +74,42 @@ pub trait DeclarativeDetector {
                 .contexts_add
                 .push(Self::get_context_name().to_string());
 
-            // Set nested traits structure
-            let nested_key = format!("{}.id", Self::get_context_name());
-            detection
-                .traits_patch
-                .insert(nested_key, json!(detected_id));
+            // Create nested trait object based on context type
+            match Self::get_context_name() {
+                "ide" => {
+                    let ide_traits = crate::traits::IdeTraits {
+                        id: Some(detected_id.clone()),
+                    };
+                    detection
+                        .traits_patch
+                        .insert("ide".to_string(), serde_json::to_value(ide_traits).unwrap());
+                }
+                "agent" => {
+                    let agent_traits = crate::traits::AgentTraits {
+                        id: Some(detected_id.clone()),
+                    };
+                    detection.traits_patch.insert(
+                        "agent".to_string(),
+                        serde_json::to_value(agent_traits).unwrap(),
+                    );
+                }
+                "ci" => {
+                    let ci_traits = crate::traits::CiTraits {
+                        id: Some(detected_id.clone()),
+                        ..Default::default()
+                    };
+                    detection
+                        .traits_patch
+                        .insert("ci".to_string(), serde_json::to_value(ci_traits).unwrap());
+                }
+                _ => {
+                    // For other contexts, fall back to flat nested key
+                    let nested_key = format!("{}.id", Self::get_context_name());
+                    detection
+                        .traits_patch
+                        .insert(nested_key, json!(detected_id));
+                }
+            }
 
             // Keep legacy facets for backward compatibility
             detection

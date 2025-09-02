@@ -9,28 +9,37 @@ expression: json
   "evidence": [
     {
       "confidence": 1.0,
-      "key": "is_tty_stdin",
+      "key": "terminal.stdin.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdin"
+        "terminal.stdin.tty"
       ],
       "value": "false"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stdout",
+      "key": "terminal.stdout.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdout"
+        "terminal.stdout.tty"
       ],
       "value": "false"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stderr",
+      "key": "terminal.stderr.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stderr"
+        "terminal.stderr.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
       ],
       "value": "false"
     }
