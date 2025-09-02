@@ -219,6 +219,56 @@ fn snapshot_os_linux() {
 }
 
 #[test]
+fn snapshot_nested_structure_comprehensive() {
+    // Test comprehensive nested structure with multiple detectors active
+    let json = run_info_json(&[
+        ("CURSOR_AGENT", "1"),
+        ("TERM_PROGRAM", "vscode"),
+        ("GITHUB_ACTIONS", "true"),
+        ("GITHUB_REF", "refs/heads/main"),
+    ]);
+
+    // Verify that the JSON has the expected structure
+    assert!(json.get("traits").is_some(), "Missing 'traits' in JSON");
+    assert!(json.get("contexts").is_some(), "Missing 'contexts' in JSON");
+    assert!(json.get("evidence").is_some(), "Missing 'evidence' in JSON");
+
+    let traits = json["traits"].as_object().expect("traits should be object");
+
+    // During transition, we expect legacy flat trait keys in CLI output
+    // The nested structure is used internally but CLI outputs legacy format
+    assert!(
+        traits.contains_key("is_interactive"),
+        "Missing 'is_interactive' in traits"
+    );
+    assert!(
+        traits.contains_key("is_tty_stdin"),
+        "Missing 'is_tty_stdin' in traits"
+    );
+
+    // Verify evidence uses nested field paths (this is the key Phase 3 change)
+    let evidence_array = json["evidence"]
+        .as_array()
+        .expect("evidence should be array");
+    let has_nested_evidence = evidence_array.iter().any(|e| {
+        e.get("supports")
+            .and_then(|s| s.as_array())
+            .map_or(false, |supports| {
+                supports
+                    .iter()
+                    .any(|support| support.as_str().map_or(false, |s| s.contains(".")))
+            })
+    });
+    assert!(
+        has_nested_evidence,
+        "Evidence should use nested field paths like 'terminal.stdin.tty'"
+    );
+
+    // Use existing insta snapshot testing for nested structure regression
+    assert_json_snapshot!("nested_structure_comprehensive", json);
+}
+
+#[test]
 fn snapshot_os_macos() {
     let json = run_info_json(&[("OSTYPE", "darwin")]);
     assert_json_snapshot!("os_macos", json);

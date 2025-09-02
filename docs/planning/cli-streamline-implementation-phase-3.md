@@ -479,6 +479,7 @@ Evidence currently uses flat field names in `supports` field.
    ```
 
 2. **Add helper methods for common evidence patterns**:
+
    ```rust
    impl Evidence {
        pub fn agent_detection(env_var: &str, value: &str, agent_id: &str) -> Self {
@@ -511,73 +512,140 @@ Evidence currently uses flat field names in `supports` field.
 ### Task 3.8: Integration Testing and Validation
 
 **Priority**: High  
-**Estimated Time**: 1-2 days  
-**Files**: `tests/`, integration test files
+**Estimated Time**: 0.5-1 day  
+**Files**: `tests/nested_trait_integration.rs` (new), extend existing test files
 
-#### Required Testing
+#### Critical Gaps to Address
 
-1. **End-to-end detection testing**:
+Based on analysis of existing test coverage, focus on these missing areas:
+
+1. **Nested Object Merging Validation** (Critical):
+
+   ```rust
+   // tests/nested_trait_integration.rs
+   #[test]
+   fn test_macro_nested_object_merging() {
+       // Test multiple detectors providing overlapping nested objects
+       let detections = vec![
+           Detection {
+               traits_patch: HashMap::from([
+                   ("agent".to_string(), json!({"id": "cursor"})),
+               ]),
+               ..Default::default()
+           },
+           Detection {
+               traits_patch: HashMap::from([
+                   ("agent".to_string(), json!({"id": "cursor"})), // Same agent
+                   ("terminal".to_string(), json!({"interactive": true})),
+               ]),
+               ..Default::default()
+           },
+       ];
+
+       let mut result = EnvSense::default();
+       result.merge_detections(&detections);
+
+       // Verify macro correctly merged nested objects without data loss
+       assert_eq!(result.traits.agent.id, Some("cursor".to_string()));
+       assert!(result.traits.terminal.interactive);
+   }
+   ```
+
+2. **Evidence Path Accuracy** (Critical):
 
    ```rust
    #[test]
-   fn test_nested_trait_detection_integration() {
+   fn test_evidence_nested_path_accuracy() {
        let engine = DetectionEngine::new()
            .register(TerminalDetector::new())
-           .register(DeclarativeAgentDetector::new())
-           .register(DeclarativeCiDetector::new())
-           .register(DeclarativeIdeDetector::new());
+           .register(DeclarativeAgentDetector::new());
 
        let result = engine.detect();
 
-       // Verify nested structure
-       assert!(result.traits.terminal.interactive || !result.traits.terminal.interactive); // Field exists
-       assert!(result.traits.agent.id.is_some() || result.traits.agent.id.is_none()); // Field exists
+       // Verify all evidence uses nested field paths, not flat paths
+       for evidence in &result.evidence {
+           for support in &evidence.supports {
+               // Should use nested paths like "agent.id", "terminal.interactive"
+               assert!(!support.starts_with("agent_id"),
+                   "Evidence still uses flat path: {}", support);
+               assert!(!support.starts_with("is_"),
+                   "Evidence still uses legacy trait path: {}", support);
 
-       // Verify JSON structure
-       let json = serde_json::to_string_pretty(&result).unwrap();
-       assert!(json.contains("\"traits\":{"));
-       assert!(json.contains("\"agent\":{"));
-       assert!(json.contains("\"terminal\":{"));
-   }
-   ```
-
-2. **Backward compatibility testing**:
-
-   ```rust
-   #[test]
-   fn test_legacy_conversion_with_nested_traits() {
-       let new_env = EnvSense::detect();
-       let legacy = new_env.to_legacy();
-       let back_to_new = EnvSense::from_legacy(&legacy);
-
-       // Verify roundtrip conversion preserves data
-       assert_eq!(new_env.traits.agent.id, back_to_new.traits.agent.id);
-       assert_eq!(new_env.traits.terminal.interactive, back_to_new.traits.terminal.interactive);
-   }
-   ```
-
-3. **Performance testing**:
-   ```rust
-   #[test]
-   fn test_nested_trait_performance() {
-       let start = std::time::Instant::now();
-       for _ in 0..1000 {
-           let _ = EnvSense::detect();
+               // Verify paths match actual nested structure
+               if support.starts_with("agent.") {
+                   assert!(support == "agent.id", "Invalid agent path: {}", support);
+               }
+               if support.starts_with("terminal.") {
+                   assert!(is_valid_terminal_path(support), "Invalid terminal path: {}", support);
+               }
+           }
        }
-       let duration = start.elapsed();
-
-       // Ensure no significant performance regression
-       assert!(duration.as_millis() < 1000, "Detection took too long: {:?}", duration);
    }
    ```
+
+3. **Complete Nested Pipeline Integration**:
+
+   ```rust
+   #[test]
+   fn test_complete_nested_pipeline() {
+       // Test: Detectors → Macro → Engine → JSON → CLI accessibility
+       let snapshot = create_comprehensive_env_snapshot();
+       let result = DetectionEngine::new()
+           .register_all_detectors()
+           .detect_with_snapshot(&snapshot);
+
+       // 1. Verify detectors output nested structures
+       assert_nested_structure_validity(&result);
+
+       // 2. Verify JSON serialization maintains structure
+       let json = serde_json::to_string_pretty(&result).unwrap();
+       assert_json_nested_structure(&json);
+
+       // 3. Verify CLI can access nested fields (integration with Phase 2)
+       verify_cli_nested_field_access(&result);
+   }
+   ```
+
+4. **Extend Existing Snapshot Tests** (Leverage existing infrastructure):
+
+   ```rust
+   // Add to tests/info_snapshots.rs
+   #[test]
+   fn snapshot_nested_structure_comprehensive() {
+       let json = run_info_json(&[
+           ("CURSOR_AGENT", "1"),
+           ("TERM_PROGRAM", "vscode"),
+           ("GITHUB_ACTIONS", "true"),
+       ]);
+
+       // Use existing insta snapshot testing for nested structure regression
+       assert_json_snapshot!("nested_structure_comprehensive", json);
+   }
+   ```
+
+#### Leverage Existing Test Infrastructure
+
+**Don't Duplicate** (already well covered):
+
+- ❌ Basic JSON output validation → Use existing snapshot tests
+- ❌ Performance regression testing → Use existing `macro_performance_test.rs`
+- ❌ Legacy conversion roundtrip → Already covered in `src/schema/main.rs`
+- ❌ Individual detector testing → Already covered in detector-specific tests
+
+**Extend Instead**:
+
+- ✅ Add nested structure validation to existing snapshot tests
+- ✅ Add nested object merging to existing macro performance tests
+- ✅ Use existing CLI integration test patterns for nested field access
 
 #### Success Criteria
 
-- [ ] All integration tests pass
-- [ ] Backward compatibility maintained
-- [ ] No performance regression
-- [ ] JSON output structure validated
-- [ ] Evidence collection works correctly
+- [ ] Macro correctly merges nested objects from multiple detectors
+- [ ] All evidence uses nested field paths (no flat path references)
+- [ ] Complete pipeline works: detection → merging → JSON → CLI access
+- [ ] Snapshot tests prevent regression of nested JSON structure
+- [ ] No data loss during nested object merging
+- [ ] Integration with Phase 2 field registry confirmed
 
 ---
 
@@ -635,18 +703,18 @@ Evidence currently uses flat field names in `supports` field.
 
 ## Implementation Timeline
 
-| Task                    | Duration | Dependencies  | Risk Level |
-| ----------------------- | -------- | ------------- | ---------- |
-| 3.1 Terminal Detector   | 1-2 days | Phase 1       | Medium     |
-| 3.2 Agent Detector      | 1 day    | Phase 1       | Low        |
-| 3.3 IDE Detector        | 1 day    | Phase 1       | Low        |
-| 3.4 CI Detector         | 1-2 days | Phase 1       | Medium     |
-| 3.5 Macro Enhancement   | 2-3 days | Tasks 3.1-3.4 | High       |
-| 3.6 Engine Update       | 1 day    | Task 3.5      | Low        |
-| 3.7 Evidence Updates    | 1 day    | Tasks 3.1-3.4 | Low        |
-| 3.8 Integration Testing | 1-2 days | All above     | Medium     |
+| Task                    | Duration  | Dependencies  | Risk Level |
+| ----------------------- | --------- | ------------- | ---------- |
+| 3.1 Terminal Detector   | 1-2 days  | Phase 1       | Medium     |
+| 3.2 Agent Detector      | 1 day     | Phase 1       | Low        |
+| 3.3 IDE Detector        | 1 day     | Phase 1       | Low        |
+| 3.4 CI Detector         | 1-2 days  | Phase 1       | Medium     |
+| 3.5 Macro Enhancement   | 2-3 days  | Tasks 3.1-3.4 | High       |
+| 3.6 Engine Update       | 1 day     | Task 3.5      | Low        |
+| 3.7 Evidence Updates    | 1 day     | Tasks 3.1-3.4 | Low        |
+| 3.8 Integration Testing | 0.5-1 day | All above     | Low        |
 
-**Total Estimated Time**: 8-12 days n/
+**Total Estimated Time**: 7.5-11 days
 
 ## Rollback Plan
 

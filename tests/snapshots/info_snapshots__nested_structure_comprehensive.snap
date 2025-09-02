@@ -1,0 +1,90 @@
+---
+source: tests/info_snapshots.rs
+expression: json
+---
+{
+  "contexts": [
+    "agent",
+    "ci",
+    "ide"
+  ],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdin.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdin.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdout.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdout.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stderr.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stderr.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "CURSOR_AGENT",
+      "signal": "env",
+      "supports": [
+        "agent.id"
+      ],
+      "value": "1"
+    },
+    {
+      "confidence": 1.0,
+      "key": "TERM_PROGRAM",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide.id"
+      ],
+      "value": "vscode"
+    }
+  ],
+  "facets": {
+    "agent_id": "cursor",
+    "ci_id": "github_actions",
+    "host": "unknown",
+    "ide_id": "vscode"
+  },
+  "meta": {
+    "schema_version": "0.3.0"
+  },
+  "traits": {
+    "ci_name": "GitHub Actions",
+    "ci_vendor": "github_actions",
+    "color_level": "none",
+    "is_ci": true,
+    "is_interactive": false,
+    "is_piped_stdin": true,
+    "is_piped_stdout": true,
+    "is_tty_stderr": false,
+    "is_tty_stdin": false,
+    "is_tty_stdout": false,
+    "supports_hyperlinks": false
+  }
+}

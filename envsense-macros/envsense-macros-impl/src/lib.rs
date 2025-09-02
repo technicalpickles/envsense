@@ -222,37 +222,78 @@ fn generate_nested_trait_merge(field_name: &syn::Ident) -> proc_macro2::TokenStr
             }
         }
 
-        // Terminal traits
-        if let Some(value) = all_traits.get("terminal.interactive").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.interactive = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stdin.tty").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stdin.tty = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stdin.piped").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stdin.piped = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stdout.tty").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stdout.tty = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stdout.piped").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stdout.piped = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stderr.tty").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stderr.tty = value;
-        }
-        if let Some(value) = all_traits.get("terminal.stderr.piped").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.stderr.piped = value;
-        }
-        if let Some(value) = all_traits.get("terminal.supports_hyperlinks").and_then(|v| v.as_bool()) {
-            self.#field_name.terminal.supports_hyperlinks = value;
-        }
-        // Handle color level enum
-        if let Some(color_level_str) = all_traits.get("terminal.color_level").and_then(|v| v.as_str()) {
-            // Parse string to enum - this will work regardless of import context
-            if let Ok(color_level) = serde_json::from_str::<serde_json::Value>(&format!("\"{}\"", color_level_str))
-                .and_then(|v| serde_json::from_value(v)) {
-                self.#field_name.terminal.color_level = color_level;
+        // Terminal traits - handle both nested object and flat key formats
+        if let Some(terminal_obj) = all_traits.get("terminal").and_then(|v| v.as_object()) {
+            // Handle nested terminal object
+            if let Some(interactive) = terminal_obj.get("interactive").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.interactive = interactive;
+            }
+            if let Some(stdin_obj) = terminal_obj.get("stdin").and_then(|v| v.as_object()) {
+                if let Some(tty) = stdin_obj.get("tty").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stdin.tty = tty;
+                }
+                if let Some(piped) = stdin_obj.get("piped").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stdin.piped = piped;
+                }
+            }
+            if let Some(stdout_obj) = terminal_obj.get("stdout").and_then(|v| v.as_object()) {
+                if let Some(tty) = stdout_obj.get("tty").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stdout.tty = tty;
+                }
+                if let Some(piped) = stdout_obj.get("piped").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stdout.piped = piped;
+                }
+            }
+            if let Some(stderr_obj) = terminal_obj.get("stderr").and_then(|v| v.as_object()) {
+                if let Some(tty) = stderr_obj.get("tty").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stderr.tty = tty;
+                }
+                if let Some(piped) = stderr_obj.get("piped").and_then(|v| v.as_bool()) {
+                    self.#field_name.terminal.stderr.piped = piped;
+                }
+            }
+            if let Some(supports_hyperlinks) = terminal_obj.get("supports_hyperlinks").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.supports_hyperlinks = supports_hyperlinks;
+            }
+            if let Some(color_level_str) = terminal_obj.get("color_level").and_then(|v| v.as_str()) {
+                if let Ok(color_level) = serde_json::from_str::<serde_json::Value>(&format!("\"{}\"", color_level_str))
+                    .and_then(|v| serde_json::from_value(v)) {
+                    self.#field_name.terminal.color_level = color_level;
+                }
+            }
+        } else {
+            // Fallback to flat key format for all terminal fields
+            if let Some(value) = all_traits.get("terminal.interactive").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.interactive = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stdin.tty").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stdin.tty = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stdin.piped").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stdin.piped = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stdout.tty").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stdout.tty = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stdout.piped").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stdout.piped = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stderr.tty").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stderr.tty = value;
+            }
+            if let Some(value) = all_traits.get("terminal.stderr.piped").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.stderr.piped = value;
+            }
+            if let Some(value) = all_traits.get("terminal.supports_hyperlinks").and_then(|v| v.as_bool()) {
+                self.#field_name.terminal.supports_hyperlinks = value;
+            }
+            // Handle color level enum
+            if let Some(color_level_str) = all_traits.get("terminal.color_level").and_then(|v| v.as_str()) {
+                // Parse string to enum - this will work regardless of import context
+                if let Ok(color_level) = serde_json::from_str::<serde_json::Value>(&format!("\"{}\"", color_level_str))
+                    .and_then(|v| serde_json::from_value(v)) {
+                    self.#field_name.terminal.color_level = color_level;
+                }
             }
         }
 
