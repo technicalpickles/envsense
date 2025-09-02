@@ -91,5 +91,6 @@ expression: json
       },
       "supports_hyperlinks": false
     }
-  }
+  },
+  "version": "0.3.0"
 }
