@@ -368,20 +368,50 @@ fn generate_merge_impl(
 ) -> proc_macro2::TokenStream {
     let mut merge_statements = Vec::new();
 
-    // Generate data collection
+    // Generate data collection with deep merging
     merge_statements.push(quote! {
         let mut all_contexts = Vec::new();
         let mut all_traits: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
         let mut all_facets: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
 
-        // Collect all detection data
+        // Helper function to deep merge JSON objects
+        fn deep_merge_json(target: &mut serde_json::Value, source: &serde_json::Value) {
+            match (target.as_object_mut(), source.as_object()) {
+                (Some(target_map), Some(source_map)) => {
+                    for (key, value) in source_map {
+                        if target_map.contains_key(key) {
+                            if let Some(existing) = target_map.get_mut(key) {
+                                deep_merge_json(existing, value);
+                            }
+                        } else {
+                            target_map.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+                _ => {
+                    // For non-objects, source overwrites target
+                    *target = source.clone();
+                }
+            }
+        }
+
+        // Collect all detection data with deep merging
         for detection in detections {
             for context in &detection.contexts_add {
                 if !all_contexts.contains(context) {
                     all_contexts.push(context.clone());
                 }
             }
-            all_traits.extend(detection.traits_patch.clone());
+
+            // Deep merge traits_patch instead of simple extend
+            for (key, value) in &detection.traits_patch {
+                if let Some(existing) = all_traits.get_mut(key) {
+                    deep_merge_json(existing, value);
+                } else {
+                    all_traits.insert(key.clone(), value.clone());
+                }
+            }
+
             all_facets.extend(detection.facets_patch.clone());
         }
     });

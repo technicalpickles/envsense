@@ -168,24 +168,9 @@ fn test_macro_nested_object_merging() {
     let mut result = EnvSense::default();
     result.merge_detections(&detections);
 
-    // Debug: Print the actual result to understand what's happening
-    println!("DEBUG: Merged result: {:?}", result.traits);
-    println!("DEBUG: Agent ID: {:?}", result.traits.agent.id);
-    println!(
-        "DEBUG: Terminal interactive: {:?}",
-        result.traits.terminal.interactive
-    );
-
-    // Print the traits_patch to see what the macro is working with
-    println!(
-        "DEBUG: Detection 1 traits_patch: {:?}",
-        detections[1].traits_patch
-    );
-
     // Verify macro correctly merged nested objects without data loss
     assert_eq!(result.traits.agent.id, Some("cursor".to_string()));
-    // Temporarily comment out to see what we get
-    // assert!(result.traits.terminal.interactive);
+    assert!(result.traits.terminal.interactive);
     assert!(result.traits.terminal.stdin.tty);
     assert!(!result.traits.terminal.stdin.piped);
     assert!(result.traits.terminal.stdout.tty);
