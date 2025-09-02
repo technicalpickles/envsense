@@ -57,7 +57,8 @@ enum FieldType {
     Traits,
     NestedTraits, // New: for nested trait structures
     Evidence,
-    SimpleBool, // New: for simple boolean fields
+    SimpleBool,     // New: for simple boolean fields
+    OptionalString, // New: for Option<String> fields like host
     Other,
 }
 
@@ -123,6 +124,11 @@ fn parse_field(field: &Field) -> Option<FieldMapping> {
             field_name,
             mapping_type: MappingType::Evidence,
             field_type,
+        }),
+        "host" => Some(FieldMapping {
+            field_name,
+            mapping_type: MappingType::Facets,
+            field_type: FieldType::OptionalString,
         }),
         _ => Some(FieldMapping {
             field_name,
@@ -400,6 +406,16 @@ fn generate_merge_impl(
                                 self.#field_name.push(evidence);
                             }
                         }
+                    }
+                });
+            }
+            (MappingType::Facets, FieldType::OptionalString) => {
+                // Handle standalone optional string fields like host
+                let field_name_str = field_name.to_string();
+                merge_statements.push(quote! {
+                    // Merge host field from facets
+                    if let Some(value) = all_facets.get(#field_name_str).and_then(|v| v.as_str()) {
+                        self.#field_name = Some(value.to_string());
                     }
                 });
             }

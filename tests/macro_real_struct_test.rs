@@ -38,5 +38,5 @@ fn test_detection_engine_uses_macro() {
     // Evidence length is always >= 0
 
     // Version should be set
-    assert_eq!(result.version, "0.2.0");
+    assert_eq!(result.version, "0.3.0");
 }

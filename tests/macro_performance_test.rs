@@ -100,8 +100,17 @@ fn benchmark_macro_vs_manual_approach() {
         traits_patch: HashMap::from([
             ("is_interactive".to_string(), serde_json::Value::Bool(true)),
             ("is_tty_stdout".to_string(), serde_json::Value::Bool(true)),
+            (
+                "agent.id".to_string(),
+                serde_json::Value::String("cursor".to_string()),
+            ),
+            (
+                "ide.id".to_string(),
+                serde_json::Value::String("cursor".to_string()),
+            ),
         ]),
         facets_patch: HashMap::from([
+            // Keep legacy facets for backward compatibility
             (
                 "agent_id".to_string(),
                 serde_json::Value::String("cursor".to_string()),

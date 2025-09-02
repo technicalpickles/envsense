@@ -135,6 +135,11 @@ impl Detector for DeclarativeAgentDetector {
         if let Some(agent) = agent_id {
             detection.contexts_add.push("agent".to_string());
             detection.confidence = confidence;
+            // Use nested traits structure
+            detection
+                .traits_patch
+                .insert("agent.id".to_string(), json!(agent));
+            // Keep legacy facets for backward compatibility
             detection
                 .facets_patch
                 .insert("agent_id".to_string(), json!(agent));

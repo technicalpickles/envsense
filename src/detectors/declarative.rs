@@ -73,9 +73,18 @@ pub trait DeclarativeDetector {
             detection
                 .contexts_add
                 .push(Self::get_context_name().to_string());
+
+            // Set nested traits structure
+            let nested_key = format!("{}.id", Self::get_context_name());
+            detection
+                .traits_patch
+                .insert(nested_key, json!(detected_id));
+
+            // Keep legacy facets for backward compatibility
             detection
                 .facets_patch
                 .insert(Self::get_facet_key().to_string(), json!(detected_id));
+
             detection.confidence = confidence;
             detection.evidence = evidence;
         }

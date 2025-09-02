@@ -354,7 +354,7 @@ fn evaluate(
                 evidence_to_signals(evidence),
             )
         }
-        check::Check::Facet { key, value } => {
+        check::Check::LegacyFacet { key, value } => {
             let ok = match key.as_str() {
                 "agent_id" => env.traits.agent.id.as_deref() == Some(value.as_str()),
                 "ide_id" => env.traits.ide.id.as_deref() == Some(value.as_str()),
@@ -369,7 +369,7 @@ fn evaluate(
                 evidence_to_signals(evidence),
             )
         }
-        check::Check::Trait { key } => {
+        check::Check::LegacyTrait { key } => {
             let ok = match key.as_str() {
                 "is_interactive" => env.traits.is_interactive(),
                 "is_tty_stdin" => env.traits.terminal.stdin.tty,
@@ -383,6 +383,68 @@ fn evaluate(
                 _ => false,
             };
             let evidence = find_evidence(env, &key);
+            (
+                ok,
+                evidence_to_reason(&evidence),
+                evidence_to_signals(evidence),
+            )
+        }
+        check::Check::NestedField { path, value } => {
+            // For now, implement basic field access - this will be enhanced in Task 2.3
+            let field_path = path.join(".");
+            let ok = match field_path.as_str() {
+                "agent.id" => {
+                    if let Some(expected) = value {
+                        env.traits.agent.id.as_deref() == Some(expected.as_str())
+                    } else {
+                        env.traits.agent.id.is_some()
+                    }
+                }
+                "ide.id" => {
+                    if let Some(expected) = value {
+                        env.traits.ide.id.as_deref() == Some(expected.as_str())
+                    } else {
+                        env.traits.ide.id.is_some()
+                    }
+                }
+                "terminal.interactive" => {
+                    if let Some(expected) = value {
+                        env.traits.terminal.interactive == (expected == "true")
+                    } else {
+                        env.traits.terminal.interactive
+                    }
+                }
+                "terminal.stdin.tty" => {
+                    if let Some(expected) = value {
+                        env.traits.terminal.stdin.tty == (expected == "true")
+                    } else {
+                        env.traits.terminal.stdin.tty
+                    }
+                }
+                "terminal.stdout.tty" => {
+                    if let Some(expected) = value {
+                        env.traits.terminal.stdout.tty == (expected == "true")
+                    } else {
+                        env.traits.terminal.stdout.tty
+                    }
+                }
+                "terminal.stderr.tty" => {
+                    if let Some(expected) = value {
+                        env.traits.terminal.stderr.tty == (expected == "true")
+                    } else {
+                        env.traits.terminal.stderr.tty
+                    }
+                }
+                "ci.id" => {
+                    if let Some(expected) = value {
+                        env.traits.ci.id.as_deref() == Some(expected.as_str())
+                    } else {
+                        env.traits.ci.id.is_some()
+                    }
+                }
+                _ => false, // Unknown field
+            };
+            let evidence = find_evidence(env, &field_path);
             (
                 ok,
                 evidence_to_reason(&evidence),

@@ -28,6 +28,7 @@ impl DetectionEngine {
         let mut result = EnvSense {
             contexts: Vec::new(),
             traits: NestedTraits::default(),
+            host: None,
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
         };

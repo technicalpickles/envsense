@@ -143,17 +143,17 @@ fn parse_legacy_trait(input: &str) -> Result<Check, ParseError> {
 
 #### Success Criteria
 
-- [ ] Parser handles all syntax variations correctly
-- [ ] Error cases are properly handled and reported
-- [ ] Negation syntax works for all check types
-- [ ] Legacy syntax parsing maintains compatibility
+- [x] Parser handles all syntax variations correctly
+- [x] Error cases are properly handled and reported
+- [x] Negation syntax works for all check types
+- [x] Legacy syntax parsing maintains compatibility
 
 #### Tests Required
 
-- [ ] Unit tests for each parser function
-- [ ] Edge case testing (empty input, malformed syntax)
-- [ ] Negation parsing tests
-- [ ] Legacy syntax compatibility tests
+- [x] Unit tests for each parser function
+- [x] Edge case testing (empty input, malformed syntax)
+- [x] Negation parsing tests
+- [x] Legacy syntax compatibility tests
 
 ---
 

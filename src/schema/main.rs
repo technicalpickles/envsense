@@ -16,6 +16,8 @@ use super::{Evidence, LegacyEnvSense, SCHEMA_VERSION};
 pub struct EnvSense {
     pub contexts: Vec<String>, // Simplified from Contexts struct
     pub traits: NestedTraits,  // New nested structure
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>, // Host environment (e.g., "replit", "codespaces")
     #[serde(default)]
     pub evidence: Vec<Evidence>,
     pub version: String,
@@ -54,7 +56,7 @@ impl EnvSense {
                 ide_id: self.traits.ide.id.clone(),
                 ci_id: self.traits.ci.id.clone(),
                 container_id: None, // New schema doesn't have container info yet
-                host: None,         // New schema doesn't have host info yet
+                host: self.host.clone(),
             },
             traits: Traits {
                 is_interactive: self.traits.terminal.interactive,
@@ -136,6 +138,7 @@ impl EnvSense {
                     branch: legacy.traits.branch.clone(),
                 },
             },
+            host: legacy.facets.host.clone(),
             evidence: legacy.evidence.clone(),
             version: SCHEMA_VERSION.to_string(),
         }
@@ -147,6 +150,7 @@ impl Default for EnvSense {
         Self {
             contexts: Vec::new(),
             traits: NestedTraits::default(),
+            host: None,
             evidence: Vec::new(),
             version: SCHEMA_VERSION.to_string(),
         }
