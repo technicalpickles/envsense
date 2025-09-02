@@ -473,7 +473,7 @@ fn cli_json_output_comprehensive() {
 
     // Verify second check (field value)
     assert_eq!(checks[1]["predicate"], "agent.id");
-    assert!(checks[1]["result"].is_boolean()); // agent.id returns boolean true when present
+    assert!(checks[1]["result"].is_string()); // agent.id returns the actual string value
 }
 
 #[test]

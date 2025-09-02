@@ -182,10 +182,10 @@ fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String
                 if let Some(Value::Object(fields)) = map.get(context) {
                     // Only show contexts that have at least one non-null field
                     let has_values = fields.iter().any(|(_, value)| {
-                        !value.is_null()
-                            && !(value.is_string() && value.as_str() == Some(""))
-                            && !(value.is_object()
-                                && value.as_object().is_some_and(|obj| obj.is_empty()))
+                        !(value.is_null()
+                            || (value.is_string() && value.as_str() == Some(""))
+                            || (value.is_object()
+                                && value.as_object().is_some_and(|obj| obj.is_empty())))
                     });
 
                     if has_values {

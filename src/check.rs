@@ -192,7 +192,7 @@ fn output_json_results(
         .map(|(result, predicate)| {
             let mut check = json!({
                 "predicate": predicate,
-                "result": result.result.as_bool(),
+                "result": result_to_json_value(&result.result),
             });
 
             if explain {
@@ -218,6 +218,15 @@ fn output_json_results(
         println!("{}", serde_json::to_string_pretty(&output).unwrap());
     } else {
         println!("{}", serde_json::to_string(&output).unwrap());
+    }
+}
+
+/// Convert CheckResult to appropriate JSON value for API output
+fn result_to_json_value(result: &CheckResult) -> serde_json::Value {
+    match result {
+        CheckResult::Boolean(b) => serde_json::Value::Bool(*b),
+        CheckResult::String(s) => serde_json::Value::String(s.clone()),
+        CheckResult::Comparison { matched, .. } => serde_json::Value::Bool(*matched),
     }
 }
 
