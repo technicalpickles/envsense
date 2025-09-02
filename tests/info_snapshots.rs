@@ -235,15 +235,31 @@ fn snapshot_nested_structure_comprehensive() {
 
     let traits = json["traits"].as_object().expect("traits should be object");
 
-    // During transition, we expect legacy flat trait keys in CLI output
-    // The nested structure is used internally but CLI outputs legacy format
+    // With the new nested structure, we expect context-based organization
     assert!(
-        traits.contains_key("is_interactive"),
-        "Missing 'is_interactive' in traits"
+        traits.contains_key("terminal"),
+        "Missing 'terminal' context in traits"
     );
     assert!(
-        traits.contains_key("is_tty_stdin"),
-        "Missing 'is_tty_stdin' in traits"
+        traits.contains_key("agent"),
+        "Missing 'agent' context in traits"
+    );
+    assert!(
+        traits.contains_key("ide"),
+        "Missing 'ide' context in traits"
+    );
+
+    // Verify terminal traits are nested under terminal context
+    let terminal = traits["terminal"]
+        .as_object()
+        .expect("terminal should be object");
+    assert!(
+        terminal.contains_key("interactive"),
+        "Missing 'interactive' in terminal traits"
+    );
+    assert!(
+        terminal.contains_key("stdin"),
+        "Missing 'stdin' in terminal traits"
     );
 
     // Verify evidence uses nested field paths (this is the key Phase 3 change)

@@ -42,20 +42,30 @@ expression: json
       "value": "true"
     }
   ],
-  "facets": {
-    "host": "unknown"
-  },
+  "facets": {},
   "meta": {
     "schema_version": "0.3.0"
   },
   "traits": {
-    "color_level": "ansi256",
-    "is_interactive": true,
-    "is_piped_stdin": false,
-    "is_piped_stdout": false,
-    "is_tty_stderr": true,
-    "is_tty_stdin": true,
-    "is_tty_stdout": true,
-    "supports_hyperlinks": false
+    "agent": {},
+    "ci": {},
+    "ide": {},
+    "terminal": {
+      "color_level": "ansi256",
+      "interactive": true,
+      "stderr": {
+        "piped": false,
+        "tty": true
+      },
+      "stdin": {
+        "piped": false,
+        "tty": true
+      },
+      "stdout": {
+        "piped": false,
+        "tty": true
+      },
+      "supports_hyperlinks": false
+    }
   }
 }

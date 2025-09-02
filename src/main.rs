@@ -180,21 +180,40 @@ fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String
 
             for context in contexts {
                 if let Some(Value::Object(fields)) = map.get(context) {
-                    out.push('\n');
-                    out.push_str("  ");
-                    out.push_str(context);
-                    out.push(':');
+                    // Only show contexts that have at least one non-null field
+                    let has_values = fields.iter().any(|(_, value)| {
+                        !value.is_null()
+                            && !(value.is_string() && value.as_str() == Some(""))
+                            && !(value.is_object()
+                                && value.as_object().is_some_and(|obj| obj.is_empty()))
+                    });
 
-                    // Sort fields within each context
-                    let mut field_items: Vec<_> = fields.iter().collect();
-                    field_items.sort_by(|a, b| a.0.cmp(b.0));
-
-                    for (field, value) in field_items {
+                    if has_values {
                         out.push('\n');
-                        out.push_str("    ");
-                        out.push_str(field);
-                        out.push_str(" = ");
-                        out.push_str(&colorize_value(&value_to_string(value), color));
+                        out.push_str("  ");
+                        out.push_str(context);
+                        out.push(':');
+
+                        // Sort fields within each context
+                        let mut field_items: Vec<_> = fields.iter().collect();
+                        field_items.sort_by(|a, b| a.0.cmp(b.0));
+
+                        for (field, value) in field_items {
+                            // Skip null/empty values
+                            if value.is_null()
+                                || (value.is_string() && value.as_str() == Some(""))
+                                || (value.is_object()
+                                    && value.as_object().is_some_and(|obj| obj.is_empty()))
+                            {
+                                continue;
+                            }
+
+                            out.push('\n');
+                            out.push_str("    ");
+                            out.push_str(field);
+                            out.push_str(" = ");
+                            out.push_str(&colorize_value(&value_to_string(value), color));
+                        }
                     }
                 }
             }
@@ -242,10 +261,9 @@ fn render_human(
                         "Contexts:".to_string()
                     };
                     out.push_str(&heading);
-                    for c in ctx {
-                        out.push('\n');
-                        out.push_str("  ");
-                        out.push_str(&c);
+                    if !ctx.is_empty() {
+                        out.push(' ');
+                        out.push_str(&ctx.join(", "));
                     }
                 }
             }

@@ -44,24 +44,34 @@ expression: json
       "value": "false"
     }
   ],
-  "facets": {
-    "ci_id": "gitlab_ci",
-    "host": "unknown"
-  },
+  "facets": {},
   "meta": {
     "schema_version": "0.3.0"
   },
   "traits": {
-    "ci_name": "GitLab CI",
-    "ci_vendor": "gitlab_ci",
-    "color_level": "none",
-    "is_ci": true,
-    "is_interactive": false,
-    "is_piped_stdin": true,
-    "is_piped_stdout": true,
-    "is_tty_stderr": false,
-    "is_tty_stdin": false,
-    "is_tty_stdout": false,
-    "supports_hyperlinks": false
+    "agent": {},
+    "ci": {
+      "id": "gitlab_ci",
+      "name": "GitLab CI",
+      "vendor": "gitlab_ci"
+    },
+    "ide": {},
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": true,
+        "tty": false
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
   }
 }

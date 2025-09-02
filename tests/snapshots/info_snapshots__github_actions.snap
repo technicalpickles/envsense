@@ -53,24 +53,34 @@ expression: json
       "value": "1"
     }
   ],
-  "facets": {
-    "ci_id": "github_actions",
-    "host": "ci"
-  },
+  "facets": {},
   "meta": {
     "schema_version": "0.3.0"
   },
   "traits": {
-    "ci_name": "GitHub Actions",
-    "ci_vendor": "github_actions",
-    "color_level": "none",
-    "is_ci": true,
-    "is_interactive": false,
-    "is_piped_stdin": true,
-    "is_piped_stdout": true,
-    "is_tty_stderr": false,
-    "is_tty_stdin": false,
-    "is_tty_stdout": false,
-    "supports_hyperlinks": false
+    "agent": {},
+    "ci": {
+      "id": "github_actions",
+      "name": "GitHub Actions",
+      "vendor": "github_actions"
+    },
+    "ide": {},
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": true,
+        "tty": false
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
   }
 }

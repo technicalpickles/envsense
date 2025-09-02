@@ -57,7 +57,7 @@ fn human_info_multiline() {
         .assert()
         .success()
         .stdout(contains(
-            "Traits:\n  color_level = none\n  is_interactive = false",
+            "Traits:\n  terminal:\n    color_level = none\n    interactive = false",
         ));
 }
 
@@ -78,7 +78,7 @@ fn color_output_honors_tty_and_no_color() {
     script_cmd(&[("TERM", "xterm")])
         .assert()
         .success()
-        .stdout(contains("\u{1b}[1;36m").and(contains("\u{1b}[31m")));
+        .stdout(contains("\u{1b}[1;36m").and(contains("\u{1b}[32m")));
 
     script_cmd(&[("TERM", "xterm"), ("NO_COLOR", "1")])
         .assert()
@@ -198,7 +198,7 @@ fn json_output_contains_ci_keys() {
         .args(["info", "--json"])
         .assert()
         .success()
-        .stdout(contains("\"ci\"").and(contains("ci_vendor")));
+        .stdout(contains("\"ci\"").and(contains("\"vendor\": \"github_actions\"")));
 }
 
 #[test]
