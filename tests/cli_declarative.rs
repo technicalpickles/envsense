@@ -41,14 +41,14 @@ fn cli_declarative_replit_detection() {
         .success()
         .stdout("true\n");
 
-    // Test host detection
+    // Test that REPLIT_USER alone doesn't trigger agent detection (needs REPL_ID)
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("REPLIT_USER", "josh")
-        .args(["info", "--json"])
+        .args(["check", "agent"])
         .assert()
-        .success()
-        .stdout(contains("\"host\"").and(contains("replit")));
+        .failure()
+        .stdout("false\n");
 }
 
 #[test]

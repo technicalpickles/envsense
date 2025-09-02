@@ -42,15 +42,6 @@ expression: json
         "terminal.interactive"
       ],
       "value": "false"
-    },
-    {
-      "confidence": 0.6000000238418579,
-      "key": "GITHUB_ACTIONS",
-      "signal": "env",
-      "supports": [
-        "host"
-      ],
-      "value": "1"
     }
   ],
   "facets": {},

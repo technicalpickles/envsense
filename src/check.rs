@@ -1562,7 +1562,7 @@ mod tests {
                     branch: None,
                 },
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         }
@@ -2259,7 +2259,7 @@ mod tests {
                     branch: None,
                 },
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         };
@@ -2321,7 +2321,7 @@ mod tests {
                 },
                 ci: CiTraits::default(),
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         };
@@ -2424,7 +2424,7 @@ mod tests {
                     branch: Some("feature/test-123".to_string()), // Special characters
                 },
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         };
@@ -2527,7 +2527,7 @@ mod tests {
                     branch: Some("main".to_string()),
                 },
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         };
@@ -2591,7 +2591,7 @@ mod tests {
                     branch: None,
                 },
             },
-            host: None,
+
             evidence: vec![],
             version: "0.3.0".to_string(),
         };

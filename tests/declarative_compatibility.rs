@@ -11,7 +11,6 @@ fn declarative_compatibility_with_original() {
         env: Vec<(&'static str, &'static str)>,
         expected_agent: Option<&'static str>,
         expected_is_agent: bool,
-        expected_host: Option<&'static str>,
     }
 
     let cases = vec![
@@ -20,35 +19,30 @@ fn declarative_compatibility_with_original() {
             env: vec![("CURSOR_AGENT", "1"), ("TERM_PROGRAM", "vscode")],
             expected_agent: Some("cursor"),
             expected_is_agent: true,
-            expected_host: Some("unknown"), // Declarative system always sets a host
         },
         Case {
             name: "cline_basic",
             env: vec![("CLINE_ACTIVE", "true")],
             expected_agent: Some("cline"),
             expected_is_agent: true,
-            expected_host: Some("unknown"), // Declarative system always sets a host
         },
         Case {
             name: "claude_code",
             env: vec![("CLAUDECODE", "1")],
             expected_agent: Some("claude-code"),
             expected_is_agent: true,
-            expected_host: Some("unknown"), // Declarative system always sets a host
         },
         Case {
             name: "replit_full",
             env: vec![("REPL_ID", "abc"), ("REPLIT_USER", "josh")],
             expected_agent: Some("replit-agent"),
             expected_is_agent: true,
-            expected_host: Some("replit"),
         },
         Case {
             name: "replit_weak",
             env: vec![("REPLIT_USER", "josh")],
             expected_agent: None,
             expected_is_agent: false,
-            expected_host: Some("replit"),
         },
         Case {
             name: "openhands",
@@ -58,35 +52,31 @@ fn declarative_compatibility_with_original() {
             ],
             expected_agent: Some("openhands"),
             expected_is_agent: true,
-            expected_host: Some("unknown"), // Declarative system always sets a host
         },
         Case {
             name: "aider",
             env: vec![("AIDER_MODEL", "gpt-4o-mini")],
             expected_agent: Some("aider"),
             expected_is_agent: true,
-            expected_host: Some("unknown"), // Declarative system always sets a host
         },
         Case {
             name: "vscode_only",
             env: vec![("TERM_PROGRAM", "vscode")],
             expected_agent: None,
             expected_is_agent: false,
-            expected_host: Some("unknown"),
         },
         Case {
             name: "override_force_human",
             env: vec![("ENVSENSE_ASSUME_HUMAN", "1"), ("CURSOR_AGENT", "1")],
             expected_agent: None,
             expected_is_agent: false,
-            expected_host: None, // When assume human, no host is set
+            // When assume human, no host is set
         },
         Case {
             name: "override_force_agent",
             env: vec![("ENVSENSE_AGENT", "cursor")],
             expected_agent: Some("cursor"),
             expected_is_agent: true,
-            expected_host: Some("unknown"),
         },
     ];
 
@@ -122,13 +112,7 @@ fn declarative_compatibility_with_original() {
             case.name, case.expected_agent, actual_agent_id
         );
 
-        // Check host
-        let actual_host = detection.facets_patch.get("host").and_then(|v| v.as_str());
-        assert_eq!(
-            actual_host, case.expected_host,
-            "{}: expected host={:?}, got {:?}",
-            case.name, case.expected_host, actual_host
-        );
+        // Host concept removed - no longer checking host
 
         // Verify evidence is generated when agent is detected
         if case.expected_is_agent {
@@ -150,7 +134,7 @@ fn declarative_edge_cases() {
     let snapshot = EnvSnapshot::with_mock_tty(HashMap::new(), false, false, false);
     let detection = detector.detect(&snapshot);
     assert!(!detection.contexts_add.contains(&"agent".to_string()));
-    assert!(detection.facets_patch.get("host").is_some()); // Should default to "unknown"
+    // Host concept removed - no longer expecting host facet
 
     // Test multiple agent indicators (currently picks first match, not highest confidence)
     let mut env_vars = HashMap::new();

@@ -1,4 +1,4 @@
-use crate::detectors::env_mapping::{get_agent_mappings, get_host_mappings};
+use crate::detectors::env_mapping::get_agent_mappings;
 use crate::detectors::utils::check_generic_overrides;
 use crate::detectors::{Detection, Detector, EnvSnapshot};
 use crate::schema::Evidence;
@@ -12,23 +12,13 @@ impl DeclarativeAgentDetector {
         Self
     }
 
-    /// Detect agent and host environments using declarative mappings
-    fn detect_environments(
-        &self,
-        snap: &EnvSnapshot,
-    ) -> (Option<String>, Option<String>, f32, Vec<Evidence>) {
+    /// Detect agent environments using declarative mappings
+    fn detect_environments(&self, snap: &EnvSnapshot) -> (Option<String>, f32, Vec<Evidence>) {
         let mut agent_id = None;
-        let mut host_id = None;
         let mut confidence = 0.0;
         let mut evidence = Vec::new();
-
-        // Check for overrides first
-        let mut skip_host_detection = false;
         if let Some(override_result) = check_generic_overrides(snap, "agent") {
             let (override_agent_id, override_confidence, override_evidence) = override_result;
-
-            // Skip host detection only if agent_id is None (assume human override)
-            skip_host_detection = override_agent_id.is_none();
 
             agent_id = override_agent_id;
             confidence = override_confidence;
@@ -50,21 +40,11 @@ impl DeclarativeAgentDetector {
                     // Add evidence for this detection using helper methods
                     for (key, value) in mapping.get_evidence(&snap.env_vars) {
                         let evidence_item = if let Some(val) = value {
-                            // Check if this mapping also provides host information
-                            if mapping.facets.contains_key("host") {
-                                Evidence::agent_with_host_detection(key, val)
-                            } else {
-                                Evidence::agent_detection(key, val)
-                            }
+                            Evidence::agent_detection(key, val)
                         } else {
                             Evidence::env_presence(key).with_supports(vec!["agent.id".into()])
                         };
                         evidence.push(evidence_item.with_confidence(mapping.confidence));
-                    }
-
-                    // Add any facets from the mapping
-                    if let Some(host) = mapping.facets.get("host") {
-                        host_id = Some(host.clone());
                     }
 
                     break; // Take the first (highest confidence) match
@@ -72,50 +52,7 @@ impl DeclarativeAgentDetector {
             }
         }
 
-        // Detect host if not already set and not skipping host detection
-        if host_id.is_none() && !skip_host_detection {
-            // First check if any agent mappings also set host
-            let agent_mappings = get_agent_mappings();
-            for mapping in &agent_mappings {
-                if mapping.matches(&snap.env_vars)
-                    && let Some(host) = mapping.facets.get("host")
-                {
-                    host_id = Some(host.clone());
-                    break;
-                }
-            }
-
-            // If no host from agent mappings, check dedicated host mappings
-            if host_id.is_none() {
-                let host_mappings = get_host_mappings();
-
-                for mapping in &host_mappings {
-                    if mapping.matches(&snap.env_vars)
-                        && let Some(host) = mapping.facets.get("host")
-                    {
-                        host_id = Some(host.clone());
-
-                        // Add evidence for host detection
-                        for (key, value) in mapping.get_evidence(&snap.env_vars) {
-                            let evidence_item = if let Some(val) = value {
-                                Evidence::env_var(key, val).with_supports(vec!["host".into()])
-                            } else {
-                                Evidence::env_presence(key).with_supports(vec!["host".into()])
-                            };
-                            evidence.push(evidence_item.with_confidence(mapping.confidence));
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // Default host if none detected
-            if host_id.is_none() {
-                host_id = Some("unknown".to_string());
-            }
-        }
-
-        (agent_id, host_id, confidence, evidence)
+        (agent_id, confidence, evidence)
     }
 }
 
@@ -127,7 +64,7 @@ impl Detector for DeclarativeAgentDetector {
     fn detect(&self, snap: &EnvSnapshot) -> Detection {
         let mut detection = Detection::default();
 
-        let (agent_id, host_id, confidence, evidence) = self.detect_environments(snap);
+        let (agent_id, confidence, evidence) = self.detect_environments(snap);
 
         // Add agent detection
         if let Some(agent) = agent_id {
@@ -149,13 +86,6 @@ impl Detector for DeclarativeAgentDetector {
             detection
                 .facets_patch
                 .insert("agent_id".to_string(), json!(agent));
-        }
-
-        // Add host detection
-        if let Some(host) = host_id {
-            detection
-                .facets_patch
-                .insert("host".to_string(), json!(host));
         }
 
         // Add all evidence
@@ -221,10 +151,6 @@ mod tests {
         assert_eq!(
             detection.facets_patch.get("agent_id").unwrap(),
             &json!("replit-agent")
-        );
-        assert_eq!(
-            detection.facets_patch.get("host").unwrap(),
-            &json!("replit")
         );
         assert_eq!(detection.confidence, 1.0);
     }
@@ -321,7 +247,7 @@ mod tests {
     }
 
     // =============================================================================
-    // Host-Only Detection Tests
+    // No Agent Detection Tests
     // =============================================================================
 
     #[test]
@@ -331,17 +257,14 @@ mod tests {
 
         let detection = detector.detect(&snapshot);
 
-        // Should not detect as agent, but should detect host
+        // Should not detect as agent (REPLIT_USER alone doesn't trigger agent detection)
         assert!(!detection.contexts_add.contains(&"agent".to_string()));
 
         // Should not have agent traits object since no agent detected
         assert!(detection.traits_patch.get("agent").is_none());
 
-        // Should still detect host
-        assert_eq!(
-            detection.facets_patch.get("host").unwrap(),
-            &json!("replit")
-        );
+        // Should not have any agent facets
+        assert!(detection.facets_patch.get("agent_id").is_none());
     }
 
     // =============================================================================

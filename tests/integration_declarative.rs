@@ -46,14 +46,13 @@ fn test_declarative_agent_detector_with_replit() {
 
     // Check that both agent_id and host facets were set
     assert!(detection.facets_patch.contains_key("agent_id"));
-    assert!(detection.facets_patch.contains_key("host"));
+    // Host concept removed - no longer expecting host facet
 
     // Verify the values
     let agent_id = detection.facets_patch.get("agent_id").unwrap();
     assert_eq!(agent_id.as_str().unwrap(), "replit-agent");
 
-    let host = detection.facets_patch.get("host").unwrap();
-    assert_eq!(host.as_str().unwrap(), "replit");
+    // Host concept removed - no longer checking host value
 }
 
 #[test]
