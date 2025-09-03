@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 2 # Need for version change detection
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: ${{ matrix.build-type == 'universal' && 'x86_64-apple-darwin,aarch64-apple-darwin' || matrix.target }}
 
@@ -104,7 +104,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
 
