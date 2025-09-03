@@ -5,7 +5,7 @@
   "private": true,
   "devDependencies": {
     "prettier": "^3.2.0",
-    "prettier-plugin-toml": "^0.3.0"
+    "prettier-plugin-toml": "^2.0.6"
   },
   "scripts": {
     "format": "prettier --write .",
@@ -24,6 +24,9 @@
     "bracketSameLine": false,
     "arrowParens": "always",
     "endOfLine": "lf",
+    "plugins": [
+      "prettier-plugin-toml"
+    ],
     "overrides": [
       {
         "files": "*.md",

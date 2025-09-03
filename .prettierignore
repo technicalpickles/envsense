@@ -1,7 +1,6 @@
 # Rust build artifacts
 target/
 Cargo.lock
-rust-toolchain.toml
 
 # Rust source files (handled by cargo fmt)
 *.rs

@@ -329,16 +329,16 @@ Consider adding these configuration options:
 ```toml
 [cli]
 # Error handling
-strict_mode = true          # Raise errors for invalid fields
+strict_mode = true         # Raise errors for invalid fields
 show_usage_on_error = true # Include usage examples in errors
 
 # Output formatting
 context_descriptions = true # Show context descriptions
-nested_display = true      # Use hierarchical display
-rainbow_colors = true      # Enable rainbow colorlevel display
+nested_display = true       # Use hierarchical display
+rainbow_colors = true       # Enable rainbow colorlevel display
 
 # Validation
-validate_predicates = true # Validate predicate syntax
+validate_predicates = true          # Validate predicate syntax
 allowed_characters = "a-zA-Z0-9_.="
 ```
 

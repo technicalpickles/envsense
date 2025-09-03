@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    ".",                    # Main crate (current directory)
-    "envsense-macros",      # Macro crate
-    "envsense-macros/envsense-macros-impl"  # Proc-macro implementation
+  ".",                                    # Main crate (current directory)
+  "envsense-macros",                      # Macro crate
+  "envsense-macros/envsense-macros-impl", # Proc-macro implementation
 ]
 
 [package]

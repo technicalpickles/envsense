@@ -150,7 +150,7 @@ chmod +x envsense
 1. **Update version** in `Cargo.toml`:
 
    ```toml
-   version = "0.2.0"  # Bump version
+   version = "0.2.0" # Bump version
    ```
 
 2. **Commit and push**:
