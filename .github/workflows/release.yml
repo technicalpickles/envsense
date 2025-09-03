@@ -1,0 +1,156 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: ["Cargo.toml"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Check if version actually changed
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version-changed: ${{ steps.version-check.outputs.VERSION_CHANGED }}
+      new-version: ${{ steps.version-check.outputs.NEW_VERSION }}
+      tag-name: ${{ steps.version-check.outputs.TAG_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need previous commit to compare
+
+      - name: Check version change
+        id: version-check
+        run: ./scripts/check-version-change.sh
+
+  # Build binaries for multiple targets
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            build-type: normal
+            use-lld: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build-type: cross
+            use-lld: false
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            build-type: normal
+            use-lld: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            build-type: normal
+            use-lld: true
+          - os: macos-latest
+            target: universal-apple-darwin
+            build-type: universal
+            use-lld: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            build-type: normal
+            use-lld: false
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.build-type == 'universal' && 'x86_64-apple-darwin,aarch64-apple-darwin' || matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # Platform-specific LLD setup (Linux)
+      - name: Install LLD (Linux)
+        if: matrix.use-lld && matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y clang lld || echo "LLD installation failed"
+
+      # Platform-specific LLD setup (macOS)
+      - name: Install LLD (macOS)
+        if: matrix.use-lld && matrix.os == 'macos-latest'
+        run: |
+          brew install llvm lld || echo "LLVM/LLD installation failed"
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
+      # Configure LLD
+      - name: Configure LLD
+        if: matrix.use-lld
+        run: |
+          if command -v ld.lld >/dev/null 2>&1; then
+            echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> "$GITHUB_ENV"
+            echo "Using LLD linker"
+          else
+            echo "LLD not available, using default linker"
+          fi
+
+      # Build using script
+      - name: Build target
+        run: ./scripts/build-target.sh "${{ matrix.target }}" "${{ matrix.build-type }}"
+
+      # Prepare binary using script
+      - name: Prepare binary
+        run: ./scripts/prepare-binary.sh "${{ needs.check-version.outputs.new-version }}" "${{ matrix.target }}"
+
+      # Upload binary as artifact
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: dist/*
+          retention-days: 1
+
+  # Create GitHub release
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Display downloaded files
+        run: ls -la dist/
+
+      - name: Extract changelog
+        run: ./scripts/create-release.sh "${{ needs.check-version.outputs.new-version }}"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-version.outputs.tag-name }}
+          name: Release ${{ needs.check-version.outputs.tag-name }}
+          body_path: changelog_excerpt.md
+          files: dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ needs.check-version.outputs.tag-name }}
+          git push origin ${{ needs.check-version.outputs.tag-name }}
