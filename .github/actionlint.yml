@@ -1,0 +1,12 @@
+# actionlint configuration
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+# Ignore shellcheck warnings about GitHub Actions expressions
+# These are false positives when shellcheck analyzes GitHub Actions syntax
+ignore:
+  - "shellcheck reported issue.*SC2086"
+
+# Enable all other checks
+self-hosted-runner:
+  # No self-hosted runners configured
+  labels: []

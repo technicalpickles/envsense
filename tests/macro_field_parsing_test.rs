@@ -19,9 +19,9 @@ fn test_macro_trait_available() {
     envsense.merge_detections(&detections);
 
     // Verify the struct has the expected fields
-    assert!(envsense.contexts.agent); // "agent" was in contexts_add
-    assert!(!envsense.contexts.ide); // "ide" was not in contexts_add
-    assert!(!envsense.traits.is_interactive);
+    assert!(envsense.contexts.contains(&"agent".to_string())); // "agent" was in contexts_add
+    assert!(!envsense.contexts.contains(&"ide".to_string())); // "ide" was not in contexts_add
+    assert!(!envsense.traits.is_interactive());
     assert_eq!(envsense.evidence.len(), 0); // No evidence in this test
 }
 

@@ -52,7 +52,7 @@ evidence-backed, and schema-stable.
 5. Test via CLI:
 
    ```bash
-   cargo run -- check facet:new_id=value
+   cargo run -- check new.id=value
    ```
 
 ---

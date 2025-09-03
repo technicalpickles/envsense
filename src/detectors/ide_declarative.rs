@@ -182,4 +182,77 @@ mod tests {
         assert!(!detection.contexts_add.contains(&"ide".to_string()));
         assert!(detection.facets_patch.get("ide_id").is_none());
     }
+
+    #[test]
+    fn creates_nested_ide_traits_object() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("TERM_PROGRAM", "vscode"),
+            ("TERM_PROGRAM_VERSION", "1.85.0"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Verify nested traits object is created
+        assert!(detection.traits_patch.contains_key("ide"));
+        let ide_value = detection.traits_patch.get("ide").unwrap();
+
+        // Verify it's a proper IdeTraits object
+        let ide_traits: crate::traits::IdeTraits =
+            serde_json::from_value(ide_value.clone()).unwrap();
+        assert_eq!(ide_traits.id, Some("vscode".to_string()));
+
+        // Verify legacy facet is still present for backward compatibility
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("vscode")
+        );
+    }
+
+    #[test]
+    fn creates_nested_ide_traits_for_cursor() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("TERM_PROGRAM", "vscode"),
+            ("CURSOR_TRACE_ID", "abc123"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Verify nested traits object is created with cursor ID
+        assert!(detection.traits_patch.contains_key("ide"));
+        let ide_value = detection.traits_patch.get("ide").unwrap();
+
+        let ide_traits: crate::traits::IdeTraits =
+            serde_json::from_value(ide_value.clone()).unwrap();
+        assert_eq!(ide_traits.id, Some("cursor".to_string()));
+
+        // Verify legacy facet is still present
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("cursor")
+        );
+    }
+
+    #[test]
+    fn evidence_uses_nested_field_paths() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("TERM_PROGRAM", "vscode"),
+            ("TERM_PROGRAM_VERSION", "1.85.0"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Find the IDE-related evidence
+        let ide_evidence = detection
+            .evidence
+            .iter()
+            .find(|e| e.key == "TERM_PROGRAM")
+            .unwrap();
+
+        // Verify evidence uses nested field paths
+        assert!(ide_evidence.supports.contains(&"ide".to_string()));
+        assert!(ide_evidence.supports.contains(&"ide.id".to_string()));
+    }
 }

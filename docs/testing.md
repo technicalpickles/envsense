@@ -86,7 +86,7 @@ ANSI color handling.
 3. **Use synthetic environments** (`temp-env`, `script`) to simulate different
    runtime conditions.
 4. **Assert schema stability** when modifying `EnvSense` or evidence structures:
-   - Bump `SCHEMA_VERSION`.
+   - Bump `SCHEMA_VERSION` (currently 0.3.0).
    - Update golden tests.
    - Ensure `json_schema_generates` passes.
 
@@ -111,7 +111,7 @@ fn test_github_actions_mapping() {
     let detection = detector.detect(&snap);
 
     assert_eq!(detection.contexts_add, vec!["ci"]);
-    assert_eq!(detection.facets_patch.get("ci_id"), Some(&"github_actions".to_string()));
+    assert_eq!(detection.facets_patch.get("ci.id"), Some(&"github_actions".to_string()));
 }
 ```
 
@@ -129,7 +129,7 @@ fn test_branch_extraction() {
     let github_mapping = mappings.iter().find(|m| m.name == "github-actions").unwrap();
     let extracted = github_mapping.extract_values(&snap.env_vars);
 
-    assert_eq!(extracted.get("branch"), Some(&"feature-branch".to_string()));
+    assert_eq!(extracted.get("ci.branch"), Some(&"feature-branch".to_string()));
 }
 ```
 
@@ -148,7 +148,7 @@ fn test_conditional_value_mapping() {
     let github_mapping = mappings.iter().find(|m| m.name == "github-actions").unwrap();
     let extracted = github_mapping.extract_values(&snap.env_vars);
 
-    assert_eq!(extracted.get("is_pr"), Some(&true));
+    assert_eq!(extracted.get("ci.is_pr"), Some(&true));
 }
 ```
 

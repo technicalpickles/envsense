@@ -113,8 +113,7 @@ ValueMapping {
 - [`src/check.rs`](../src/check.rs) Implements the simple check expression
   grammar:
   - `context`
-  - `facet:key=value`
-  - `trait:key` with optional `!` negation.
+  - `field.path=value` (e.g., `agent.id=cursor`, `terminal.interactive`)
 
 - [`src/main.rs`](../src/main.rs) CLI entry point using `clap`. Provides:
   - `info` (summary, JSON, raw/plain/pretty)
@@ -137,11 +136,11 @@ Detection precedence ensures consistent results:
 
 ## Schema Versioning
 
-- The schema is versioned via `SCHEMA_VERSION` (`0.2.0` currently).
+- The schema is versioned via `SCHEMA_VERSION` (`0.3.0` currently).
 - Every detection result includes `version` (schema).
 - Schema evolution requires bumping `version` and updating tests.
-- Recent changes: CI detection moved from nested `ci` facet to flat traits
-  structure.
+- Recent changes: Migrated from legacy `facet:` and `trait:` syntax to dot
+  notation.
 
 ---
 
@@ -175,9 +174,8 @@ This allows `--explain` to surface reasoning for any true claim.
      detector module.
   2. **Value extraction**: Add `ValueMapping` rules for extracting specific
      values.
-  3. **Schema updates**: Add new facets/traits to `src/schema.rs` if needed.
-  4. **CLI exposure**: Extend `CONTEXTS`, `FACETS`, or `TRAITS` arrays in
-     `check.rs`.
+  3. **Schema updates**: Add new fields to `src/schema.rs` if needed.
+  4. **CLI exposure**: Extend the field registry in `check.rs`.
   5. **Testing**: Write tests in `tests/` for CLI and golden JSON.
 
 ### Adding New CI Vendors

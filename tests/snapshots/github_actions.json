@@ -5,59 +5,70 @@
   "evidence": [
     {
       "confidence": 1.0,
-      "key": "is_tty_stdin",
+      "key": "terminal.stdin.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdin"
+        "terminal.stdin.tty"
       ],
       "value": "true"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stdout",
+      "key": "terminal.stdout.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdout"
+        "terminal.stdout.tty"
       ],
       "value": "false"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stderr",
+      "key": "terminal.stderr.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stderr"
+        "terminal.stderr.tty"
       ],
       "value": "false"
     },
     {
-      "confidence": 0.6000000238418579,
-      "key": "GITHUB_ACTIONS",
-      "signal": "env",
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
       "supports": [
-        "host"
+        "terminal.interactive"
       ],
-      "value": "1"
+      "value": "false"
     }
   ],
-  "facets": {
-    "ci_id": "github_actions",
-    "host": "ci"
-  },
+  "facets": {},
   "meta": {
-    "schema_version": "0.2.0"
+    "schema_version": "0.3.0"
   },
   "traits": {
-    "ci_name": "GitHub Actions",
-    "ci_vendor": "github_actions",
-    "color_level": "none",
-    "is_ci": true,
-    "is_interactive": false,
-    "is_piped_stdin": false,
-    "is_piped_stdout": true,
-    "is_tty_stderr": false,
-    "is_tty_stdin": true,
-    "is_tty_stdout": false,
-    "supports_hyperlinks": false
-  }
+    "agent": {},
+    "ci": {
+      "id": "github_actions",
+      "name": "GitHub Actions",
+      "vendor": "github_actions"
+    },
+    "ide": {},
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": false,
+        "tty": true
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
+  },
+  "version": "0.3.0"
 }

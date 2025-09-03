@@ -577,8 +577,8 @@ final binary.
 # Cargo.toml (root - workspace configuration)
 [workspace]
 members = [
-    ".",                    # Main crate (current directory)
-    "envsense-macros"       # Macro crate
+  ".",               # Main crate (current directory)
+  "envsense-macros", # Macro crate
 ]
 
 # Main crate configuration (existing)

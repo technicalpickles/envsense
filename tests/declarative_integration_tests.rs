@@ -185,7 +185,7 @@ fn test_no_detection_when_no_mappings_match() {
     let agent_detector = DeclarativeAgentDetector::new();
     let agent_detection = agent_detector.detect(&snapshot);
     assert!(agent_detection.contexts_add.is_empty()); // No agent context
-    assert!(agent_detection.facets_patch.get("host").is_some()); // Should have default host
+    // Host concept removed - no longer expecting host facet
     assert_eq!(agent_detection.confidence, 0.0);
 
     let ide_detector = DeclarativeIdeDetector::new();
@@ -240,10 +240,7 @@ fn test_complex_detection_scenarios() {
         agent_detection.facets_patch.get("agent_id").unwrap(),
         &serde_json::json!("replit-agent")
     );
-    assert_eq!(
-        agent_detection.facets_patch.get("host").unwrap(),
-        &serde_json::json!("replit")
-    );
+    // Host concept removed - no longer expecting host facet
 
     // Test Cursor environment (should detect both agent and IDE)
     let cursor_snapshot = create_env_snapshot(vec![

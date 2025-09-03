@@ -23,8 +23,8 @@ fn test_macro_compiles() {
     // This should compile even if the implementation is just a placeholder
     test.merge_detections(&detections);
 
-    // For now, just verify the struct exists and has the expected fields
-    assert!(!test.contexts);
-    assert_eq!(test.facets, "");
-    assert!(!test.traits);
+    // Verify that the macro correctly merges the detection data
+    assert!(test.contexts); // Should be true because contexts were added
+    assert_eq!(test.facets, ""); // Should remain empty (no facets in detection)
+    assert!(!test.traits); // Should remain false (no traits in detection)
 }
