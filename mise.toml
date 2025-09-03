@@ -1,4 +1,4 @@
 [tools]
-rust = "1.89.0"
+# rust = "1.89.0"  # Now managed by rust-toolchain.toml
 "ubi:evilmartians/lefthook" = "latest"
 "ubi:rhysd/actionlint" = "1.7.7"
