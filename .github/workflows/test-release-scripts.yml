@@ -55,7 +55,7 @@ jobs:
       # Platform-specific setup for LLD (matching release workflow)
       - name: Install LLD
         run: |
-          ./scripts/install_lld.sh "${{ matrix.os }}"
+          ./scripts/install_lld.sh
 
       # Test version change detection script
       - name: Test version change detection
