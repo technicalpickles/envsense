@@ -16,8 +16,21 @@ echo "Creating release for version $VERSION"
 
 # Try to extract changelog for this version
 if [ -f "CHANGELOG.md" ]; then
-  # Look for version section in changelog
-  CHANGELOG_CONTENT=$(awk "/^## \[?v?${VERSION}\]?/,/^## \[?v?[0-9]/ { if (/^## \[?v?[0-9]/ && !/^## \[?v?${VERSION}\]?/) exit; print }" CHANGELOG.md | head -n -1)
+  # Look for version section in changelog (handle different formats)
+  CHANGELOG_CONTENT=$(awk "
+    /^## .*${VERSION}/ { found=1; print; next }
+    found && /^## / && !/^## .*${VERSION}/ { exit }
+    found { print }
+  " CHANGELOG.md)
+  
+  # Remove the last line if it's another version header (BSD/GNU head compatibility)
+  if [ -n "$CHANGELOG_CONTENT" ]; then
+    # Count lines and remove last one if it starts with ##
+    LAST_LINE=$(echo "$CHANGELOG_CONTENT" | tail -n 1)
+    if [[ "$LAST_LINE" =~ ^##[[:space:]]*\[?v?[0-9] ]]; then
+      CHANGELOG_CONTENT=$(echo "$CHANGELOG_CONTENT" | sed '$d')
+    fi
+  fi
   
   if [ -n "$CHANGELOG_CONTENT" ]; then
     echo "Found changelog content for version $VERSION"

@@ -23,7 +23,15 @@ case "$BUILD_TYPE" in
       echo "Installing cross..."
       cargo install cross --git https://github.com/cross-rs/cross
     fi
-    cross build --release --target "$TARGET"
+    
+    echo "Attempting cross-compilation for $TARGET..."
+    if cross build --release --target "$TARGET"; then
+      echo "Cross-compilation successful"
+    else
+      echo "Cross-compilation failed for $TARGET"
+      echo "This may be due to environment compatibility issues"
+      exit 1
+    fi
     ;;
     
   "universal")
