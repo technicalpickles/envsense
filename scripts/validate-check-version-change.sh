@@ -5,8 +5,21 @@ set -euo pipefail
 echo "Testing version change detection script..."
 
 # Capture the output from check-version-change.sh
-# The diagnostic messages go to stderr, variable assignments to stdout
-script_output=$(./scripts/check-version-change.sh 2>/dev/null)
+# The diagnostic messages go to stderr, variable assignments to stdout or GITHUB_OUTPUT
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    # In CI environment, check-version-change.sh writes to GITHUB_OUTPUT file
+    # We need to run it and then read from the file
+    ./scripts/check-version-change.sh 2>/dev/null
+    if [ -f "$GITHUB_OUTPUT" ]; then
+        script_output=$(cat "$GITHUB_OUTPUT")
+    else
+        echo "GITHUB_OUTPUT file not found: $GITHUB_OUTPUT"
+        exit 1
+    fi
+else
+    # In local environment, check-version-change.sh writes to stdout
+    script_output=$(./scripts/check-version-change.sh 2>/dev/null)
+fi
 
 # Source the variable assignments
 eval "$script_output"
