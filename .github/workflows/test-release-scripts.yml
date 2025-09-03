@@ -27,12 +27,17 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: linux
-            build-type: linux-cross
+            target: x86_64-unknown-linux-gnu
+            build-type: normal
             use-lld: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build-type: cross
+            use-lld: false
           - os: macos-latest
             target: universal-apple-darwin
             build-type: universal
+            use-lld: true
 
     runs-on: ${{ matrix.os }}
 
@@ -44,7 +49,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.build-type == 'universal' && 'x86_64-apple-darwin,aarch64-apple-darwin' || matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
 
