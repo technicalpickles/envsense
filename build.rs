@@ -3,7 +3,7 @@ use std::process::Command;
 fn main() {
     // Tell Cargo to rerun this script if the build script changes
     println!("cargo:rerun-if-changed=build.rs");
-    
+
     // Detect if lld is available and configure linker accordingly
     if is_lld_available() {
         println!("cargo:warning=Using lld (LLVM linker) for faster linking");
@@ -15,10 +15,7 @@ fn main() {
 
 fn is_lld_available() -> bool {
     // Check if lld is available directly
-    if let Ok(output) = Command::new("lld")
-        .arg("--version")
-        .output()
-    {
+    if let Ok(output) = Command::new("lld").arg("--version").output() {
         output.status.success()
     } else {
         false
