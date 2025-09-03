@@ -47,141 +47,9 @@ get_version() {
     grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/'
 }
 
-# Test if a target can be built
-test_target() {
-    local target=$1
-    local build_type=${2:-false}
-    
-    print_status "$BLUE" "Testing target: $target"
-    
-    if [ "$build_type" = "true" ]; then
-        if ! command -v cross >/dev/null 2>&1; then
-            print_warning "cross not installed, installing..."
-            cargo install cross --git https://github.com/cross-rs/cross
-        fi
-        
-        if cross build --release --target "$target"; then
-            print_success "Cross-compilation successful for $target"
-            return 0
-        else
-            print_error "Cross-compilation failed for $target"
-            return 1
-        fi
-    elif [ "$build_type" = "universal" ]; then
-        # Build universal binary for macOS
-        print_status "$BLUE" "Building universal binary for macOS..."
-        
-        # Check if both targets are installed
-        for arch_target in "x86_64-apple-darwin" "aarch64-apple-darwin"; do
-            if ! rustup target list --installed | grep -q "$arch_target"; then
-                print_status "$YELLOW" "Installing target $arch_target..."
-                rustup target add "$arch_target"
-            fi
-        done
-        
-        # Build for both architectures
-        if cargo build --release --target x86_64-apple-darwin && \
-           cargo build --release --target aarch64-apple-darwin; then
-            
-            # Check if lipo is available (macOS only)
-            if ! command -v lipo >/dev/null 2>&1; then
-                print_error "lipo not available - universal binaries only work on macOS"
-                return 1
-            fi
-            
-            # Create universal binary
-            mkdir -p "target/universal-apple-darwin/release"
-            if lipo -create \
-                "target/x86_64-apple-darwin/release/envsense" \
-                "target/aarch64-apple-darwin/release/envsense" \
-                -output "target/universal-apple-darwin/release/envsense"; then
-                
-                print_success "Universal binary created successfully"
-                
-                # Verify the universal binary
-                print_status "$BLUE" "Verifying universal binary..."
-                lipo -info "target/universal-apple-darwin/release/envsense"
-                return 0
-            else
-                print_error "Failed to create universal binary"
-                return 1
-            fi
-        else
-            print_error "Failed to build one or both architectures for universal binary"
-            return 1
-        fi
-    else
-        # Check if target is installed
-        if ! rustup target list --installed | grep -q "$target"; then
-            print_status "$YELLOW" "Installing target $target..."
-            rustup target add "$target"
-        fi
-        
-        if cargo build --release --target "$target"; then
-            print_success "Compilation successful for $target"
-            return 0
-        else
-            print_error "Compilation failed for $target"
-            return 1
-        fi
-    fi
-}
-
-# Test binary functionality
-test_binary() {
-    local target=$1
-    local binary_path="target/$target/release/envsense"
-    
-    # Add .exe for Windows targets
-    if [[ "$target" == *"windows"* ]]; then
-        binary_path="${binary_path}.exe"
-    fi
-    
-    if [ ! -f "$binary_path" ]; then
-        print_error "Binary not found: $binary_path"
-        return 1
-    fi
-    
-    print_status "$BLUE" "Testing binary: $binary_path"
-    
-    # Test help command
-    if "$binary_path" --help >/dev/null 2>&1; then
-        print_success "Help command works"
-    else
-        print_error "Help command failed"
-        return 1
-    fi
-    
-    # Test info command
-    if "$binary_path" info --json >/dev/null 2>&1; then
-        print_success "Info command works"
-    else
-        print_error "Info command failed"
-        return 1
-    fi
-    
-    # Test check command
-    if "$binary_path" check --list >/dev/null 2>&1; then
-        print_success "Check command works"
-    else
-        print_error "Check command failed"
-        return 1
-    fi
-    
-    return 0
-}
-
-# Generate binary name like the release workflow
-generate_binary_name() {
-    local version=$1
-    local target=$2
-    
-    if [[ "$target" == *"windows"* ]]; then
-        echo "envsense-v${version}-${target}.exe"
-    else
-        echo "envsense-v${version}-${target}"
-    fi
-}
+# Note: Build and binary preparation logic moved to modular scripts:
+# - scripts/build-target.sh
+# - scripts/prepare-binary.sh
 
 # Main test function
 main() {
@@ -251,43 +119,20 @@ main() {
             continue
         fi
         
-        if test_target "$target" "$build_type"; then
-            successful_targets+=("$target")
+        # Use the new modular scripts
+        if ./scripts/build-target.sh "$target" "$build_type"; then
+            print_success "Build successful for $target"
             
-            # Test the binary if it's for the current platform
-            if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$target" == "x86_64-unknown-linux-gnu" ]]; then
-                test_binary "$target"
-            elif [[ "$OSTYPE" == "darwin"* ]] && [[ "$target" == *"apple-darwin" ]]; then
-                # Test if it's the right architecture or universal
-                if [[ "$target" == "universal-apple-darwin" ]]; then
-                    test_binary "$target"
-                elif [[ "$(uname -m)" == "x86_64" ]] && [[ "$target" == "x86_64-apple-darwin" ]]; then
-                    test_binary "$target"
-                elif [[ "$(uname -m)" == "arm64" ]] && [[ "$target" == "aarch64-apple-darwin" ]]; then
-                    test_binary "$target"
-                fi
-            fi
-            
-            # Copy to dist with release naming
-            binary_name=$(generate_binary_name "$VERSION" "$target")
-            source_path="target/$target/release/envsense"
-            if [[ "$target" == *"windows"* ]]; then
-                source_path="${source_path}.exe"
-            fi
-            
-            if [ -f "$source_path" ]; then
-                cp "$source_path" "dist/$binary_name"
-                chmod +x "dist/$binary_name" 2>/dev/null || true
-                print_success "Copied to dist/$binary_name"
-                
-                # Generate checksum
-                if command -v sha256sum >/dev/null 2>&1; then
-                    (cd dist && sha256sum "$binary_name" > "${binary_name}.sha256")
-                elif command -v shasum >/dev/null 2>&1; then
-                    (cd dist && shasum -a 256 "$binary_name" > "${binary_name}.sha256")
-                fi
+            # Prepare binary using the script
+            if ./scripts/prepare-binary.sh "$VERSION" "$target"; then
+                print_success "Binary prepared for $target"
+                successful_targets+=("$target")
+            else
+                print_error "Binary preparation failed for $target"
+                failed_targets+=("$target")
             fi
         else
+            print_error "Build failed for $target"
             failed_targets+=("$target")
         fi
     done
