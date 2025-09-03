@@ -30,10 +30,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
             build-type: normal
             use-lld: true
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            build-type: cross
-            use-lld: false
+            build-type: normal
+            use-lld: true
           - os: macos-latest
             target: universal-apple-darwin
             build-type: universal
