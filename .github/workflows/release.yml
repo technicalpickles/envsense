@@ -98,6 +98,16 @@ jobs:
       - name: Display downloaded files
         run: ls -la dist/
 
+      - name: Filter release files
+        shell: bash
+        run: |
+          echo "Filtering release files..."
+          mkdir -p release-files
+          # Copy only non-test files to release-files directory
+          find dist/ -name "envsense-v*" -not -name "*-test*" -exec cp {} release-files/ \;
+          echo "Release files:"
+          ls -la release-files/
+
       - name: Extract changelog
         shell: bash
         run: ./scripts/create-release.sh "${{ needs.check-version.outputs.new-version }}"
@@ -108,7 +118,7 @@ jobs:
           tag_name: ${{ needs.check-version.outputs.tag-name }}
           name: Release ${{ needs.check-version.outputs.tag-name }}
           body_path: changelog_excerpt.md
-          files: dist/*
+          files: release-files/*
           draft: false
           prerelease: false
           generate_release_notes: true
