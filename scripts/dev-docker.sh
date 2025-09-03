@@ -11,7 +11,7 @@
 #   shell    - Start a bash shell in the container
 #   fish     - Start a fish shell in the container
 #   test     - Run tests in the container
-#   cross    - Test cross-compilation in the container
+#   compile  - Test native build in the container
 #   clean    - Remove development containers and images
 
 set -euo pipefail
@@ -76,7 +76,6 @@ run_container() {
     docker run -it --rm \
         --name "$CONTAINER_NAME" \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
         bash
@@ -105,7 +104,6 @@ start_fish() {
         docker run -it --rm \
             --name "$CONTAINER_NAME" \
             -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-            -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
             -w /home/dev/workspace/envsense \
             "$IMAGE_NAME" \
             fish
@@ -118,22 +116,21 @@ run_tests() {
     
     docker run --rm \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
         bash -c "cargo test --all"
 }
 
-# Test cross-compilation
-test_cross_compilation() {
-    print_header "Testing Cross-Compilation in Container"
+# Test native compilation in container
+test_build() {
+    print_header "Testing Native Build in Container"
+    print_status "$GREEN" "Building envsense natively in the container environment"
     
     docker run --rm \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
-        bash -c "./scripts/build-target.sh linux linux-cross"
+        bash -c "cargo build --release"
 }
 
 # Clean up containers and images
@@ -168,14 +165,14 @@ Commands:
   shell    Start a bash shell in running container
   fish     Start a fish shell in running container  
   test     Run tests in container
-  cross    Test cross-compilation in container
+  compile  Test native build in container
   clean    Remove development containers and images
   help     Show this help message
 
 Examples:
   $0 build                    # Build development image
   $0 run                      # Start interactive container
-  $0 cross                    # Test cross-compilation
+  $0 compile                  # Test native build in container
   $0 shell                    # Open bash shell in container
 
 The container mounts the current project directory, so changes
@@ -200,8 +197,8 @@ case "${1:-help}" in
     "test")
         run_tests
         ;;
-    "cross")
-        test_cross_compilation
+    "compile")
+        test_build
         ;;
     "clean")
         clean_up
