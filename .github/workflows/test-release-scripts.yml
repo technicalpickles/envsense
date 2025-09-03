@@ -25,7 +25,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            build-type: normal
+            use-lld: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build-type: cross
+            use-lld: false
+          - os: macos-latest
+            target: universal-apple-darwin
+            build-type: universal
 
     runs-on: ${{ matrix.os }}
 
@@ -42,66 +53,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # Platform-specific setup for LLD (matching release workflow)
-      - name: Install LLD (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install LLD
         run: |
-          sudo apt update
-          sudo apt install -y clang lld || echo "LLD installation failed"
-
-      - name: Install LLD (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install llvm lld || echo "LLVM/LLD installation failed"
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
-
-      - name: Configure LLD
-        if: matrix.os != 'windows-latest'
-        run: |
-          if command -v ld.lld >/dev/null 2>&1; then
-            echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> "$GITHUB_ENV"
-            echo "Using LLD linker"
-          else
-            echo "LLD not available, using default linker"
-          fi
+          ./scripts/install_lld.sh "${{ matrix.os }}"
 
       # Test version change detection script
       - name: Test version change detection
         shell: bash
         run: |
-          echo "Testing version change detection script..."
-          ./scripts/check-version-change.sh
-          echo "Version change detection script works!"
+          ./scripts/validate-check-version-change.sh
 
       # Test build scripts for current platform
       - name: Test build script (normal build)
         shell: bash
         run: |
           echo "Testing normal build for current platform..."
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            ./scripts/build-target.sh x86_64-unknown-linux-gnu normal
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            ./scripts/build-target.sh x86_64-apple-darwin normal
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./scripts/build-target.sh x86_64-pc-windows-msvc normal
-          fi
-
-      # Test universal binary creation (macOS only)
-      - name: Test universal binary creation
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: |
-          echo "Testing universal binary creation..."
-          ./scripts/build-target.sh universal-apple-darwin universal
-
-          # Verify universal binary was created
-          if [ -f "target/universal-apple-darwin/release/envsense" ]; then
-            echo "Universal binary created successfully"
-            lipo -info target/universal-apple-darwin/release/envsense
-          else
-            echo "Universal binary not found!"
-            exit 1
-          fi
+          ./scripts/build-target.sh "${{ matrix.target }}" normal
 
       # Test cross-compilation (Linux only)
       - name: Test cross-compilation
@@ -114,62 +81,19 @@ jobs:
           export CROSS_CONTAINER_IN_CONTAINER=true
 
           # Use the same approach as the release workflow
-          ./scripts/build-target.sh aarch64-unknown-linux-gnu cross
+          ./scripts/build-target.sh "${{ matrix.target }}" cross
 
       # Test binary preparation script
       - name: Test binary preparation
         shell: bash
         run: |
-          echo "Testing binary preparation script..."
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            ./scripts/prepare-binary.sh 0.1.0-test x86_64-unknown-linux-gnu
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            ./scripts/prepare-binary.sh 0.1.0-test universal-apple-darwin
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./scripts/prepare-binary.sh 0.1.0-test x86_64-pc-windows-msvc
-          fi
-
-      # Verify prepared binary works
-      - name: Test prepared binary functionality
-        shell: bash
-        run: |
-          echo "Testing prepared binary functionality..."
-
-          # Find the prepared binary
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            BINARY="dist/envsense-v0.1.0-test-x86_64-unknown-linux-gnu"
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            BINARY="dist/envsense-v0.1.0-test-universal-apple-darwin"
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            BINARY="dist/envsense-v0.1.0-test-x86_64-pc-windows-msvc.exe"
-          fi
-
-          # Test binary functionality
-          if [ -f "$BINARY" ]; then
-            echo "Testing binary: $BINARY"
-            "./$BINARY" --help > /dev/null
-            "./$BINARY" info --json | head -5
-            echo "Binary functionality test passed!"
-          else
-            echo "Binary not found: $BINARY"
-            ls -la dist/
-            exit 1
-          fi
+          ./scripts/validate-binary.sh 0.1.0-test "${{ matrix.target }}"
 
       # Test release notes script
       - name: Test release notes creation
         shell: bash
         run: |
-          echo "Testing release notes creation..."
-          ./scripts/create-release.sh 0.1.0-test
-
-          if [ -f "changelog_excerpt.md" ]; then
-            echo "Release notes created successfully"
-            cat changelog_excerpt.md
-          else
-            echo "Release notes not created!"
-            exit 1
-          fi
+          ./scripts/validate-release.sh 0.1.0-test
 
       # Upload test artifacts for debugging
       - name: Upload test artifacts

@@ -24,28 +24,18 @@ echo "Preparing binary for version $VERSION, target $TARGET"
 # Create output directory
 mkdir -p dist
 
-# Handle universal binary naming
-if [[ "$TARGET" == "universal-apple-darwin" ]]; then
-  BINARY_NAME="envsense-v${VERSION}-universal-apple-darwin"
-elif [[ "$TARGET" == *"windows"* ]]; then
-  BINARY_NAME="envsense-v${VERSION}-${TARGET}.exe"
-else
-  BINARY_NAME="envsense-v${VERSION}-${TARGET}"
-fi
+case "$TARGET" in
+  "universal-apple-darwin")
+    BINARY_NAME="envsense-v${VERSION}-universal-apple-darwin"
+    ;;
+  *)
+    BINARY_NAME="envsense-v${VERSION}-${TARGET}"
+    ;;
+esac
 
 echo "Binary name: $BINARY_NAME"
 
-# Copy binary with appropriate extension
-if [[ "$TARGET" == *"windows"* ]]; then
-  cp "target/${TARGET}/release/envsense.exe" "dist/${BINARY_NAME}"
-else
-  cp "target/${TARGET}/release/envsense" "dist/${BINARY_NAME}"
-fi
-
-# Make executable (for non-Windows)
-if [[ "$TARGET" != *"windows"* ]]; then
-  chmod +x "dist/${BINARY_NAME}"
-fi
+cp "target/${TARGET}/release/envsense" "dist/${BINARY_NAME}"
 
 # Generate checksum
 if command -v sha256sum >/dev/null 2>&1; then

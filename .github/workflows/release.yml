@@ -45,22 +45,9 @@ jobs:
             build-type: cross
             use-lld: false
           - os: macos-latest
-            target: x86_64-apple-darwin
-            build-type: normal
-            use-lld: true
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            build-type: normal
-            use-lld: true
-          - os: macos-latest
             target: universal-apple-darwin
             build-type: universal
             use-lld: true
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            build-type: normal
-            use-lld: false
-
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -79,16 +66,21 @@ jobs:
         if: matrix.use-lld && matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y clang lld || echo "LLD installation failed"
+          if ! sudo apt install -y clang lld; then
+            echo "LLD installation failed"
+            exit 1
+          fi
 
       # Platform-specific LLD setup (macOS)
       - name: Install LLD (macOS)
         if: matrix.use-lld && matrix.os == 'macos-latest'
         run: |
-          brew install llvm lld || echo "LLVM/LLD installation failed"
+          if ! brew install llvm lld; then
+            echo "LLVM/LLD installation failed"
+            exit 1
+          fi
           echo "CC=clang" >> "$GITHUB_ENV"
           echo "CXX=clang++" >> "$GITHUB_ENV"
-
       # Configure LLD
       - name: Configure LLD
         if: matrix.use-lld
@@ -96,10 +88,7 @@ jobs:
           if command -v ld.lld >/dev/null 2>&1; then
             echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> "$GITHUB_ENV"
             echo "Using LLD linker"
-          else
-            echo "LLD not available, using default linker"
           fi
-
       # Build using script
       - name: Build target
         run: ./scripts/build-target.sh "${{ matrix.target }}" "${{ matrix.build-type }}"

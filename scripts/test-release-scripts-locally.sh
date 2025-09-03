@@ -100,6 +100,9 @@ main() {
         print_status "$BLUE" "Using universal binary for macOS"
     fi
     
+    # Note: Cross-compilation testing is only available in CI on Linux
+    # Local testing focuses on the current platform
+    
     if ./scripts/build-target.sh "$platform" "$build_type"; then
         print_success "Build script works for $platform"
     else
