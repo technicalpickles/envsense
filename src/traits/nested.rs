@@ -215,25 +215,29 @@ mod tests {
     fn nested_traits_detect_method() {
         let traits = NestedTraits::detect();
 
-        // Terminal should be detected (real environment)
-        // In CI environments, both color_level and TTY detection might return false,
-        // but we can verify that detection actually ran by checking that the values
-        // are consistent with the environment
-        let terminal_detected = traits.terminal.color_level != ColorLevel::None
-            || traits.terminal.interactive != traits.terminal.stdin.tty
-            || traits.terminal.stdin.tty != traits.terminal.stdout.tty
-            || traits.terminal.stdin.tty != traits.terminal.stderr.tty;
+        // Verify that detection runs without panicking and returns a valid structure
+        // The actual values depend on the environment (CI vs local vs Docker)
+        // so we just verify the structure is populated and internally consistent
 
-        // At least one of these conditions should be true to indicate detection ran
-        assert!(
-            terminal_detected,
-            "Terminal detection should populate fields with real environment values. \
-             Got: color_level={:?}, interactive={}, stdin.tty={}, stdout.tty={}, stderr.tty={}",
-            traits.terminal.color_level,
-            traits.terminal.interactive,
-            traits.terminal.stdin.tty,
-            traits.terminal.stdout.tty,
-            traits.terminal.stderr.tty
+        // Interactive should be consistent with TTY detection
+        let expected_interactive = traits.terminal.stdin.tty && traits.terminal.stdout.tty;
+        assert_eq!(
+            traits.terminal.interactive, expected_interactive,
+            "Interactive field should match stdin.tty && stdout.tty logic"
+        );
+
+        // TTY and piped should be opposites for each stream
+        assert_eq!(
+            traits.terminal.stdin.tty, !traits.terminal.stdin.piped,
+            "stdin.tty and stdin.piped should be opposites"
+        );
+        assert_eq!(
+            traits.terminal.stdout.tty, !traits.terminal.stdout.piped,
+            "stdout.tty and stdout.piped should be opposites"
+        );
+        assert_eq!(
+            traits.terminal.stderr.tty, !traits.terminal.stderr.piped,
+            "stderr.tty and stderr.piped should be opposites"
         );
 
         // Others should be default (not populated by detection engine yet)
