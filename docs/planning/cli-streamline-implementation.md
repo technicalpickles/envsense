@@ -1264,3 +1264,8 @@ The key to success is maintaining backward compatibility during the transition
 period and providing clear migration tools and documentation for users. The end
 result will be a much more intuitive and maintainable interface that better
 serves the needs of the envsense community.
+
+## Additional CLI Improvements
+
+For additional CLI improvements beyond the core streamlining changes, see
+[Additional CLI Improvements](additional-cli-improvements.md).
