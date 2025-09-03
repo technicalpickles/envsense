@@ -19,19 +19,21 @@ echo "Building target: $TARGET (type: $BUILD_TYPE)"
 case "$BUILD_TYPE" in
   "cross")
     echo "Using cross for compilation"
+    
+    # Check if cross is already installed
     if ! command -v cross >/dev/null 2>&1; then
       echo "Installing cross..."
-      cargo install cross --git https://github.com/cross-rs/cross
+      # Use a specific version that's more stable in CI
+      cargo install cross --git https://github.com/cross-rs/cross --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c
+    else
+      echo "Cross already installed: $(cross --version)"
     fi
     
+    # Set environment variables for better CI compatibility
+    export CROSS_CONTAINER_IN_CONTAINER=true
+    
     echo "Attempting cross-compilation for $TARGET..."
-    if cross build --release --target "$TARGET"; then
-      echo "Cross-compilation successful"
-    else
-      echo "Cross-compilation failed for $TARGET"
-      echo "This may be due to environment compatibility issues"
-      exit 1
-    fi
+    cross build --release --target "$TARGET"
     ;;
     
   "universal")
