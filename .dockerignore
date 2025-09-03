@@ -1,0 +1,35 @@
+# Build artifacts
+target/
+dist/
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.scratch/
+
+# Documentation (not needed for dev container)
+docs/
+*.md
+!README.md
+
+# CI/CD files (not needed in dev container)
+.github/
+
+# Local configuration
+.env
+.env.local
