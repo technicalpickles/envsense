@@ -76,7 +76,7 @@ run_container() {
     docker run -it --rm \
         --name "$CONTAINER_NAME" \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
         bash
@@ -105,7 +105,7 @@ start_fish() {
         docker run -it --rm \
             --name "$CONTAINER_NAME" \
             -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
             -w /home/dev/workspace/envsense \
             "$IMAGE_NAME" \
             fish
@@ -118,7 +118,7 @@ run_tests() {
     
     docker run --rm \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
         bash -c "cargo test --all"
@@ -130,7 +130,7 @@ test_cross_compilation() {
     
     docker run --rm \
         -v "$PROJECT_ROOT:/home/dev/workspace/envsense" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$HOME/.colima/gusto/docker.sock:/var/run/docker.sock" \
         -w /home/dev/workspace/envsense \
         "$IMAGE_NAME" \
         bash -c "./scripts/build-target.sh linux linux-cross"

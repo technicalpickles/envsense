@@ -17,6 +17,43 @@ BUILD_TYPE="${2:-normal}"
 echo "Building target: $TARGET (type: $BUILD_TYPE)"
 
 case "$BUILD_TYPE" in
+  "linux-cross")
+    echo "Cross-compiling for multiple Linux targets"
+    
+    # Check if cross is already installed
+    if ! command -v cross >/dev/null 2>&1; then
+      echo "Installing cross..."
+      # Use a specific version that's more stable in CI
+      cargo install cross --git https://github.com/cross-rs/cross --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c
+    else
+      echo "Cross already installed: $(cross --version)"
+    fi
+    
+    # Set environment variables for better CI compatibility
+    # Only set CROSS_CONTAINER_IN_CONTAINER on Linux in CI environments
+    if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -n "${CI:-}" ]]; then
+        export CROSS_CONTAINER_IN_CONTAINER=true
+        echo "Set CROSS_CONTAINER_IN_CONTAINER=true for Linux CI environment"
+    else
+        echo "Skipping CROSS_CONTAINER_IN_CONTAINER (not Linux CI environment)"
+    fi
+    
+    # Build for both Linux architectures
+    LINUX_TARGETS=("x86_64-unknown-linux-gnu" "aarch64-unknown-linux-gnu")
+    
+    for target in "${LINUX_TARGETS[@]}"; do
+        echo "Cross-compiling for $target..."
+        if cross build --release --target "$target"; then
+            echo "✓ Successfully built for $target"
+        else
+            echo "✗ Failed to build for $target"
+            exit 1
+        fi
+    done
+    
+    echo "All Linux cross-compilation targets completed successfully"
+    ;;
+    
   "cross")
     echo "Using cross for compilation"
     
