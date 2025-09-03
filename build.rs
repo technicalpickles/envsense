@@ -14,8 +14,11 @@ fn main() {
 }
 
 fn is_lld_available() -> bool {
-    // Check if lld is available directly
-    if let Ok(output) = Command::new("lld").arg("--version").output() {
+    // Check if lld is available by testing if clang can use it
+    if let Ok(output) = Command::new("clang")
+        .args(["-fuse-ld=lld", "-Wl,--version"])
+        .output()
+    {
         output.status.success()
     } else {
         false
