@@ -17,7 +17,7 @@ fn cli_declarative_cursor_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CURSOR_AGENT", "1")
-        .args(["check", "facet:agent_id=cursor"])
+        .args(["check", "agent.id=cursor"])
         .assert()
         .success()
         .stdout("true\n");
@@ -36,19 +36,19 @@ fn cli_declarative_replit_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("REPL_ID", "abc123")
-        .args(["check", "facet:agent_id=replit-agent"])
+        .args(["check", "agent.id=replit-agent"])
         .assert()
         .success()
         .stdout("true\n");
 
-    // Test host detection
+    // Test that REPLIT_USER alone doesn't trigger agent detection (needs REPL_ID)
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("REPLIT_USER", "josh")
-        .args(["info", "--json"])
+        .args(["check", "agent"])
         .assert()
-        .success()
-        .stdout(contains("\"host\"").and(contains("replit")));
+        .failure()
+        .stdout("false\n");
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn cli_declarative_claude_code_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("CLAUDECODE", "1")
-        .args(["check", "facet:agent_id=claude-code"])
+        .args(["check", "agent.id=claude-code"])
         .assert()
         .success()
         .stdout("true\n");
@@ -83,7 +83,7 @@ fn cli_declarative_aider_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("AIDER_MODEL", "gpt-4o-mini")
-        .args(["check", "facet:agent_id=aider"])
+        .args(["check", "agent.id=aider"])
         .assert()
         .success()
         .stdout("true\n");
@@ -103,7 +103,7 @@ fn cli_declarative_openhands_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("SANDBOX_VOLUMES", "/tmp")
-        .args(["check", "facet:agent_id=openhands"])
+        .args(["check", "agent.id=openhands"])
         .assert()
         .success()
         .stdout("true\n");
@@ -133,7 +133,7 @@ fn cli_declarative_overrides() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
         .env("ENVSENSE_AGENT", "custom-agent")
-        .args(["check", "facet:agent_id=custom-agent"])
+        .args(["check", "agent.id=custom-agent"])
         .assert()
         .success()
         .stdout("true\n");

@@ -136,7 +136,7 @@ pub fn check_generic_overrides(
         } else {
             let evidence = vec![
                 Evidence::env_var(&override_key, override_value)
-                    .with_supports(vec![detector_type.into(), format!("{}_id", detector_type)])
+                    .with_supports(vec![format!("{}.id", detector_type)])
                     .with_confidence(HIGH),
             ];
             return Some((Some(override_value.clone()), HIGH, evidence));

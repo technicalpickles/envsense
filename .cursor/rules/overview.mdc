@@ -68,6 +68,42 @@ For comprehensive information, see:
 3. **Testing**: Unit tests, integration tests, snapshot tests with `insta`
 4. **Documentation**: Keep `README.md` updated, use doc comments for APIs
 
+## Snapshot Testing
+
+This project uses [insta](https://insta.rs/) for snapshot testing, particularly for CLI output validation.
+
+```bash
+# Run snapshot tests
+cargo test --test info_snapshots
+
+# Review snapshot changes interactively (requires TTY)
+cargo insta review
+
+# Accept all snapshot changes non-interactively
+cargo insta accept
+
+# Reject all snapshot changes
+cargo insta reject
+
+# Show pending snapshots summary
+cargo insta pending-snapshots
+```
+
+### When to Update Snapshots
+
+- **Expected changes**: When implementing new features that change CLI output
+- **Schema updates**: When evidence keys, field paths, or output structure changes
+- **Bug fixes**: When fixing incorrect output that was captured in snapshots
+
+### Non-Interactive Workflow
+
+For automated environments or when working without TTY:
+
+1. Run tests to generate new snapshots: `cargo test --test info_snapshots`
+2. Review changes manually by examining `.snap.new` files
+3. Accept changes: `cargo insta accept` (or reject with `cargo insta reject`)
+4. Commit both the updated `.snap` files and your code changes
+
 ## Quick Debugging
 
 ```bash

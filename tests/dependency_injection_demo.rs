@@ -65,9 +65,9 @@ fn demonstrate_dependency_injection_benefits() {
 
     println!("\nDetection result with piped I/O:");
     println!("  contexts: {:?}", result.contexts);
-    println!("  is_interactive: {}", result.traits.is_interactive);
-    println!("  is_tty_stdin: {}", result.traits.is_tty_stdin);
-    println!("  is_tty_stdout: {}", result.traits.is_tty_stdout);
+    println!("  is_interactive: {}", result.traits.is_interactive());
+    println!("  is_tty_stdin: {}", result.traits.terminal.stdin.tty);
+    println!("  is_tty_stdout: {}", result.traits.terminal.stdout.tty);
 
     // Verify the results
     assert!(piped_snapshot.is_tty_stdin());

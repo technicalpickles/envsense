@@ -1,38 +1,13 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
-use envsense::check::{self, CONTEXTS, FACETS, ParsedCheck, TRAITS};
+use envsense::check::{self, FieldRegistry};
 // Legacy CI detection removed - using declarative system
-use envsense::schema::{EnvSense, Evidence};
+use envsense::schema::EnvSense;
 use serde_json::{Map, Value, json};
-use std::collections::BTreeMap;
 use std::io::{IsTerminal, stdout};
-use std::sync::OnceLock;
 
 fn check_predicate_long_help() -> &'static str {
-    static HELP: OnceLock<String> = OnceLock::new();
-    HELP.get_or_init(|| {
-        let mut s = String::from("Predicates to evaluate\n\n");
-        s.push_str("Contexts:\n");
-        for c in CONTEXTS {
-            s.push_str("    ");
-            s.push_str(c);
-            s.push('\n');
-        }
-        s.push_str("Facets:\n");
-        for f in FACETS {
-            s.push_str("    facet:");
-            s.push_str(f);
-            s.push_str("=<VALUE>\n");
-        }
-        s.push_str("Traits:\n");
-        for t in TRAITS {
-            s.push_str("    trait:");
-            s.push_str(t);
-            s.push('\n');
-        }
-        s
-    })
-    .as_str()
+    check::check_predicate_long_help()
 }
 
 #[derive(Parser)]
@@ -74,50 +49,41 @@ struct InfoArgs {
 }
 
 #[derive(Args, Clone)]
-struct CheckCmd {
+pub struct CheckCmd {
+    /// Predicates to evaluate
     #[arg(
         value_name = "PREDICATE",
-        num_args = 1..,
         help = "Predicates to evaluate",
-        long_help = check_predicate_long_help(),
-        required_unless_present = "list_checks"
+        long_help = check_predicate_long_help()
     )]
-    predicates: Vec<String>,
+    pub predicates: Vec<String>,
 
-    /// Succeed if any predicate matches (default: all must match)
-    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "all")]
-    any: bool,
+    /// Show explanations for results
+    #[arg(short, long)]
+    pub explain: bool,
 
-    /// Require all predicates to match (default)
-    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "any")]
-    all: bool,
-
-    /// Suppress output
-    #[arg(short, long, alias = "silent", action = clap::ArgAction::SetTrue)]
-    quiet: bool,
-
-    /// Output JSON (stable schema)
+    /// Output results as JSON
     #[arg(long)]
-    json: bool,
+    pub json: bool,
 
-    /// Explain reasoning
-    #[arg(long)]
-    explain: bool,
+    /// Suppress output (useful in scripts)
+    #[arg(short, long)]
+    pub quiet: bool,
+
+    /// Use ANY mode (default is ALL)
+    #[arg(long, conflicts_with = "all")]
+    pub any: bool,
+
+    /// Require all predicates to match (default behavior)
+    #[arg(long, conflicts_with = "any")]
+    pub all: bool,
 
     /// List available predicates
-    #[arg(long = "list", action = clap::ArgAction::SetTrue)]
-    list_checks: bool,
+    #[arg(long)]
+    pub list: bool,
 }
 
-#[derive(serde::Serialize)]
-struct JsonCheck {
-    predicate: String,
-    result: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    signals: Option<BTreeMap<String, String>>,
-}
+// JsonCheck struct removed - using new EvaluationResult system
 
 #[derive(Debug)]
 struct Snapshot {
@@ -130,28 +96,11 @@ struct Snapshot {
 
 fn collect_snapshot() -> Snapshot {
     let env = EnvSense::detect();
-    let mut contexts = Vec::new();
-    if env.contexts.agent {
-        contexts.push("agent".to_string());
-    }
-    if env.contexts.ide {
-        contexts.push("ide".to_string());
-    }
-    if env.contexts.ci {
-        contexts.push("ci".to_string());
-    }
-    if env.contexts.container {
-        contexts.push("container".to_string());
-    }
-    if env.contexts.remote {
-        contexts.push("remote".to_string());
-    }
-    let traits_val = serde_json::to_value(env.traits).unwrap();
-    // Legacy CI traits generation removed - CI traits now come from declarative detection
+
     Snapshot {
-        contexts,
-        traits: traits_val,
-        facets: serde_json::to_value(env.facets).unwrap(),
+        contexts: env.contexts, // Now Vec<String> instead of Contexts struct
+        traits: serde_json::to_value(env.traits).unwrap(), // Nested structure
+        facets: json!({}),      // Empty for new schema (backward compatibility)
         meta: json!({
             "schema_version": env.version,
         }),
@@ -197,13 +146,87 @@ fn colorize_value(v: &str, color: bool) -> String {
     }
 }
 
+fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String) {
+    if let Value::Object(map) = traits {
+        if raw {
+            // For raw output, flatten the nested structure
+            let mut all_items: Vec<(String, String)> = Vec::new();
+            for (context, context_traits) in map {
+                if let Value::Object(fields) = context_traits {
+                    for (field, value) in fields {
+                        all_items.push((format!("{}.{}", context, field), value_to_string(value)));
+                    }
+                }
+            }
+            all_items.sort_by(|a, b| a.0.cmp(&b.0));
+            for (j, (k, v)) in all_items.into_iter().enumerate() {
+                if j > 0 {
+                    out.push('\n');
+                }
+                out.push_str(&format!("{} = {}", k, v));
+            }
+        } else {
+            let heading = if color {
+                "Traits:".bold().cyan().to_string()
+            } else {
+                "Traits:".to_string()
+            };
+            out.push_str(&heading);
+
+            // Sort contexts for consistent output
+            let mut contexts: Vec<_> = map.keys().collect();
+            contexts.sort();
+
+            for context in contexts {
+                if let Some(Value::Object(fields)) = map.get(context) {
+                    // Only show contexts that have at least one non-null field
+                    let has_values = fields.iter().any(|(_, value)| {
+                        !(value.is_null()
+                            || (value.is_string() && value.as_str() == Some(""))
+                            || (value.is_object()
+                                && value.as_object().is_some_and(|obj| obj.is_empty())))
+                    });
+
+                    if has_values {
+                        out.push('\n');
+                        out.push_str("  ");
+                        out.push_str(context);
+                        out.push(':');
+
+                        // Sort fields within each context
+                        let mut field_items: Vec<_> = fields.iter().collect();
+                        field_items.sort_by(|a, b| a.0.cmp(b.0));
+
+                        for (field, value) in field_items {
+                            // Skip null/empty values
+                            if value.is_null()
+                                || (value.is_string() && value.as_str() == Some(""))
+                                || (value.is_object()
+                                    && value.as_object().is_some_and(|obj| obj.is_empty()))
+                            {
+                                continue;
+                            }
+
+                            out.push('\n');
+                            out.push_str("    ");
+                            out.push_str(field);
+                            out.push_str(" = ");
+                            out.push_str(&colorize_value(&value_to_string(value), color));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn render_human(
     snapshot: &Snapshot,
     fields: Option<&str>,
     color: bool,
     raw: bool,
 ) -> Result<String, String> {
-    let default_fields = ["contexts", "traits", "facets"];
+    let default_fields = ["contexts", "traits"];
     let selected: Vec<&str> = match fields {
         Some(f) => f
             .split(',')
@@ -237,45 +260,14 @@ fn render_human(
                         "Contexts:".to_string()
                     };
                     out.push_str(&heading);
-                    for c in ctx {
-                        out.push('\n');
-                        out.push_str("  ");
-                        out.push_str(&c);
+                    if !ctx.is_empty() {
+                        out.push(' ');
+                        out.push_str(&ctx.join(", "));
                     }
                 }
             }
             "traits" => {
-                let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.traits
-                {
-                    map.iter()
-                        .map(|(k, v)| (k.clone(), value_to_string(v)))
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-                items.sort_by(|a, b| a.0.cmp(&b.0));
-                if raw {
-                    for (j, (k, v)) in items.into_iter().enumerate() {
-                        if j > 0 {
-                            out.push('\n');
-                        }
-                        out.push_str(&format!("{} = {}", k, v));
-                    }
-                } else {
-                    let heading = if color {
-                        "Traits:".bold().cyan().to_string()
-                    } else {
-                        "Traits:".to_string()
-                    };
-                    out.push_str(&heading);
-                    for (k, v) in items {
-                        out.push('\n');
-                        out.push_str("  ");
-                        out.push_str(&k);
-                        out.push_str(" = ");
-                        out.push_str(&colorize_value(&v, color));
-                    }
-                }
+                render_nested_traits(&snapshot.traits, color, raw, &mut out);
             }
             "facets" => {
                 let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.facets
@@ -351,204 +343,93 @@ fn render_human(
     Ok(out)
 }
 
-fn evaluate(
-    env: &EnvSense,
-    parsed: ParsedCheck,
-) -> (bool, Option<String>, Option<BTreeMap<String, String>>) {
-    let (mut result, reason, signals) = match parsed.check {
-        check::Check::Context(ctx) => {
-            let value = match ctx.as_str() {
-                "agent" => env.contexts.agent,
-                "ide" => env.contexts.ide,
-                "ci" => env.contexts.ci,
-                "container" => env.contexts.container,
-                "remote" => env.contexts.remote,
-                _ => false,
-            };
-            let evidence = find_evidence(env, &ctx);
-            (
-                value,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-        check::Check::Facet { key, value } => {
-            let ok = match key.as_str() {
-                "agent_id" => env.facets.agent_id.as_deref() == Some(value.as_str()),
-                "ide_id" => env.facets.ide_id.as_deref() == Some(value.as_str()),
-                "ci_id" => env.facets.ci_id.as_deref() == Some(value.as_str()),
-                "container_id" => env.facets.container_id.as_deref() == Some(value.as_str()),
-                _ => false,
-            };
-            let evidence = find_evidence(env, &key);
-            (
-                ok,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-        check::Check::Trait { key } => {
-            let ok = match key.as_str() {
-                "is_interactive" => env.traits.is_interactive,
-                "is_tty_stdin" => env.traits.is_tty_stdin,
-                "is_tty_stdout" => env.traits.is_tty_stdout,
-                "is_tty_stderr" => env.traits.is_tty_stderr,
-                "is_piped_stdin" => env.traits.is_piped_stdin,
-                "is_piped_stdout" => env.traits.is_piped_stdout,
-                "supports_hyperlinks" => env.traits.supports_hyperlinks,
-                "is_ci" => env.contexts.ci,
-                "ci_pr" => env.traits.ci_pr.unwrap_or(false),
-                _ => false,
-            };
-            let evidence = find_evidence(env, &key);
-            (
-                ok,
-                evidence_to_reason(&evidence),
-                evidence_to_signals(evidence),
-            )
-        }
-    };
-    if parsed.negated {
-        result = !result;
-    }
-    (result, reason, signals)
-}
+// Legacy evaluate function replaced by new evaluation system in check.rs
+// This function is kept for backward compatibility but will be removed in future versions
 
-fn find_evidence<'a>(env: &'a EnvSense, key: &str) -> Option<&'a Evidence> {
-    env.evidence
-        .iter()
-        .find(|e| e.supports.iter().any(|s| s == key))
-}
+// Legacy evidence helper functions removed - using new evaluation system
 
-fn evidence_to_reason(e: &Option<&Evidence>) -> Option<String> {
-    e.map(|ev| {
-        if let Some(val) = &ev.value {
-            format!("{}={}", ev.key, val)
-        } else {
-            ev.key.clone()
-        }
-    })
-}
-
-fn evidence_to_signals(e: Option<&Evidence>) -> Option<BTreeMap<String, String>> {
-    e.map(|ev| {
-        let mut map = BTreeMap::new();
-        map.insert(ev.key.clone(), ev.value.clone().unwrap_or_default());
-        map
-    })
-}
-
-fn run_check(args: &CheckCmd) -> i32 {
-    if args.list_checks {
+fn run_check(args: CheckCmd) -> Result<(), i32> {
+    if args.list {
         list_checks();
-        return 0;
+        return Ok(());
     }
+
+    if args.predicates.is_empty() {
+        eprintln!("Error: no predicates specified");
+        return Err(1);
+    }
+
     let env = EnvSense::detect();
+    let registry = FieldRegistry::new();
+
+    // Special case for single "ci" predicate for backward compatibility
     if args.predicates.len() == 1 && args.predicates[0] == "ci" && !args.any && !args.all {
-        if env.contexts.ci {
+        if env.contexts.contains(&"ci".to_string()) {
             if !args.quiet {
-                let name = env.traits.ci_name.as_deref().unwrap_or("Generic CI");
-                let vendor = env.traits.ci_vendor.as_deref().unwrap_or("generic");
+                let name = env.traits.ci.name.as_deref().unwrap_or("Generic CI");
+                let vendor = env.traits.ci.vendor.as_deref().unwrap_or("generic");
                 println!("CI detected: {} ({})", name, vendor);
             }
-            return 0;
+            return Ok(());
         } else {
             if !args.quiet {
                 println!("No CI detected");
             }
-            return 1;
-        }
-    }
-    let mode_any = args.any;
-    let mut results = Vec::new();
-    for pred in &args.predicates {
-        let parsed = match check::parse_predicate(pred) {
-            Ok(p) => p,
-            Err(_) => {
-                eprintln!("invalid check expression");
-                return 2;
-            }
-        };
-        let (res, reason, signals) = evaluate(&env, parsed);
-        if args.quiet {
-            if mode_any && res {
-                return 0;
-            }
-            if !mode_any && !res {
-                return 1;
-            }
-        } else {
-            results.push(JsonCheck {
-                predicate: pred.clone(),
-                result: res,
-                reason,
-                signals,
-            });
+            return Err(1);
         }
     }
 
-    let overall = if mode_any {
-        results.iter().any(|r| r.result)
+    let mut results = Vec::new();
+
+    for predicate in &args.predicates {
+        let parsed = match check::parse_predicate(predicate) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Error parsing '{}': {:?}", predicate, e);
+                return Err(2);
+            }
+        };
+
+        let eval_result = check::evaluate(&env, parsed, &registry);
+        results.push(eval_result);
+    }
+
+    let overall = if args.any {
+        results.iter().any(|r| r.result.as_bool())
     } else {
-        results.iter().all(|r| r.result)
+        // Default is ALL mode, --all flag is explicit but same behavior
+        results.iter().all(|r| r.result.as_bool())
     };
 
     if !args.quiet {
-        output_results(&results, overall, mode_any, args.json, args.explain);
-    }
-
-    if overall { 0 } else { 1 }
-}
-
-fn output_results(results: &[JsonCheck], overall: bool, mode_any: bool, json: bool, explain: bool) {
-    if json {
-        #[derive(serde::Serialize)]
-        struct JsonOutput<'a> {
-            overall: bool,
-            mode: &'a str,
-            checks: &'a [JsonCheck],
-        }
-        let out = JsonOutput {
+        check::output_check_results(
+            &results,
+            &args.predicates,
             overall,
-            mode: if mode_any { "any" } else { "all" },
-            checks: results,
-        };
-        if explain {
-            println!("{}", serde_json::to_string_pretty(&out).unwrap());
-        } else {
-            println!("{}", serde_json::to_string(&out).unwrap());
-        }
-    } else if results.len() == 1 {
-        let r = &results[0];
-        if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-            println!("{}  # reason: {}", r.result, reason);
-        } else {
-            println!("{}", r.result);
-        }
-    } else {
-        println!("overall={}", overall);
-        for r in results {
-            if let Some(reason) = r.reason.as_ref().filter(|_| explain) {
-                println!("{}={}  # reason: {}", r.predicate, r.result, reason);
-            } else {
-                println!("{}={}", r.predicate, r.result);
-            }
-        }
+            args.any,
+            args.json,
+            args.explain,
+        );
     }
+
+    if overall { Ok(()) } else { Err(1) }
 }
+
+// Legacy output_results function removed - using new output system in check.rs
 
 fn list_checks() {
+    let registry = FieldRegistry::new();
+
     println!("contexts:");
-    for c in CONTEXTS {
-        println!("  {}", c);
+    for context in registry.get_contexts() {
+        println!("  {}", context);
     }
-    println!("facets:");
-    for f in FACETS {
-        println!("  {}", f);
-    }
-    println!("traits:");
-    for t in TRAITS {
-        println!("  {}", t);
+
+    println!("fields:");
+    let mut fields: Vec<_> = registry.list_all_fields();
+    fields.sort();
+    for field in fields {
+        println!("  {}", field);
     }
 }
 
@@ -579,6 +460,7 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
     let snapshot = collect_snapshot();
     if args.json {
         let mut v = json!({
+            "version": snapshot.meta["schema_version"],
             "contexts": snapshot.contexts,
             "traits": snapshot.traits,
             "facets": snapshot.facets,
@@ -623,8 +505,9 @@ fn main() {
             }
         }
         Some(Commands::Check(args)) => {
-            let code = run_check(&args);
-            std::process::exit(code);
+            if let Err(code) = run_check(args) {
+                std::process::exit(code);
+            }
         }
         None => {}
     }

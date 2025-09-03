@@ -7,46 +7,66 @@ expression: json
   "evidence": [
     {
       "confidence": 1.0,
-      "key": "is_tty_stdin",
+      "key": "terminal.stdin.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdin"
+        "terminal.stdin.tty"
       ],
       "value": "true"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stdout",
+      "key": "terminal.stdout.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdout"
+        "terminal.stdout.tty"
       ],
       "value": "true"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stderr",
+      "key": "terminal.stderr.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stderr"
+        "terminal.stderr.tty"
+      ],
+      "value": "true"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
       ],
       "value": "true"
     }
   ],
-  "facets": {
-    "host": "unknown"
-  },
+  "facets": {},
   "meta": {
-    "schema_version": "0.2.0"
+    "schema_version": "0.3.0"
   },
   "traits": {
-    "color_level": "ansi256",
-    "is_interactive": true,
-    "is_piped_stdin": false,
-    "is_piped_stdout": false,
-    "is_tty_stderr": true,
-    "is_tty_stdin": true,
-    "is_tty_stdout": true,
-    "supports_hyperlinks": false
-  }
+    "agent": {},
+    "ci": {},
+    "ide": {},
+    "terminal": {
+      "color_level": "ansi256",
+      "interactive": true,
+      "stderr": {
+        "piped": false,
+        "tty": true
+      },
+      "stdin": {
+        "piped": false,
+        "tty": true
+      },
+      "stdout": {
+        "piped": false,
+        "tty": true
+      },
+      "supports_hyperlinks": false
+    }
+  },
+  "version": "0.3.0"
 }

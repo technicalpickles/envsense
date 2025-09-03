@@ -84,7 +84,15 @@ impl Detector for DeclarativeCiDetector {
             };
             ci_facet.insert("name".to_string(), json!(ci_name));
 
-            // Add CI traits
+            // Add CI traits (nested structure)
+            detection
+                .traits_patch
+                .insert("ci.vendor".to_string(), json!(id));
+            detection
+                .traits_patch
+                .insert("ci.name".to_string(), json!(ci_name));
+
+            // Keep legacy flat traits for backward compatibility
             detection
                 .traits_patch
                 .insert("ci_vendor".to_string(), json!(id));

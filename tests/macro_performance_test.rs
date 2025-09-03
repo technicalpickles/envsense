@@ -77,7 +77,10 @@ fn benchmark_macro_merging_performance() {
     );
 
     // Verify the merging worked correctly
-    assert!(envsense.contexts.agent || envsense.contexts.ide);
+    assert!(
+        envsense.contexts.contains(&"agent".to_string())
+            || envsense.contexts.contains(&"ide".to_string())
+    );
     // Boolean traits can be either true or false
     assert!(!envsense.evidence.is_empty());
 
@@ -97,8 +100,17 @@ fn benchmark_macro_vs_manual_approach() {
         traits_patch: HashMap::from([
             ("is_interactive".to_string(), serde_json::Value::Bool(true)),
             ("is_tty_stdout".to_string(), serde_json::Value::Bool(true)),
+            (
+                "agent.id".to_string(),
+                serde_json::Value::String("cursor".to_string()),
+            ),
+            (
+                "ide.id".to_string(),
+                serde_json::Value::String("cursor".to_string()),
+            ),
         ]),
         facets_patch: HashMap::from([
+            // Keep legacy facets for backward compatibility
             (
                 "agent_id".to_string(),
                 serde_json::Value::String("cursor".to_string()),
@@ -129,12 +141,12 @@ fn benchmark_macro_vs_manual_approach() {
     let macro_duration = start.elapsed();
 
     // Verify results
-    assert!(envsense.contexts.agent);
-    assert!(envsense.contexts.ide);
-    assert!(envsense.traits.is_interactive);
-    assert!(envsense.traits.is_tty_stdout);
-    assert_eq!(envsense.facets.agent_id, Some("cursor".to_string()));
-    assert_eq!(envsense.facets.ide_id, Some("cursor".to_string()));
+    assert!(envsense.contexts.contains(&"agent".to_string()));
+    assert!(envsense.contexts.contains(&"ide".to_string()));
+    assert!(envsense.traits.is_interactive());
+    assert!(envsense.traits.terminal.stdout.tty);
+    assert_eq!(envsense.traits.agent.id, Some("cursor".to_string()));
+    assert_eq!(envsense.traits.ide.id, Some("cursor".to_string()));
     assert!(!envsense.evidence.is_empty());
 
     println!(

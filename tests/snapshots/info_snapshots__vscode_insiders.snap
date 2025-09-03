@@ -9,28 +9,37 @@ expression: json
   "evidence": [
     {
       "confidence": 1.0,
-      "key": "is_tty_stdin",
+      "key": "terminal.stdin.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdin"
+        "terminal.stdin.tty"
       ],
       "value": "false"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stdout",
+      "key": "terminal.stdout.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stdout"
+        "terminal.stdout.tty"
       ],
       "value": "false"
     },
     {
       "confidence": 1.0,
-      "key": "is_tty_stderr",
+      "key": "terminal.stderr.tty",
       "signal": "tty",
       "supports": [
-        "is_tty_stderr"
+        "terminal.stderr.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
       ],
       "value": "false"
     },
@@ -40,7 +49,7 @@ expression: json
       "signal": "env",
       "supports": [
         "ide",
-        "ide_id"
+        "ide.id"
       ],
       "value": "vscode"
     },
@@ -50,26 +59,38 @@ expression: json
       "signal": "env",
       "supports": [
         "ide",
-        "ide_id"
+        "ide.id"
       ],
       "value": "1.75.0-insider"
     }
   ],
-  "facets": {
-    "host": "unknown",
-    "ide_id": "vscode-insiders"
-  },
+  "facets": {},
   "meta": {
-    "schema_version": "0.2.0"
+    "schema_version": "0.3.0"
   },
   "traits": {
-    "color_level": "none",
-    "is_interactive": false,
-    "is_piped_stdin": true,
-    "is_piped_stdout": true,
-    "is_tty_stderr": false,
-    "is_tty_stdin": false,
-    "is_tty_stdout": false,
-    "supports_hyperlinks": false
-  }
+    "agent": {},
+    "ci": {},
+    "ide": {
+      "id": "vscode-insiders"
+    },
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": true,
+        "tty": false
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
+  },
+  "version": "0.3.0"
 }
