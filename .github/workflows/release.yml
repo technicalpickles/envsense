@@ -36,7 +36,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             build-type: normal
             use-lld: true
@@ -59,40 +59,18 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # Platform-specific LLD setup (Linux)
-      - name: Install LLD (Linux)
-        if: matrix.use-lld && matrix.os == 'ubuntu-latest'
+      # Platform-specific setup for LLD (matching test workflow)
+      - name: Install LLD
         run: |
-          sudo apt update
-          if ! sudo apt install -y clang lld; then
-            echo "LLD installation failed"
-            exit 1
-          fi
-
-      # Platform-specific LLD setup (macOS)
-      - name: Install LLD (macOS)
-        if: matrix.use-lld && matrix.os == 'macos-latest'
-        run: |
-          if ! brew install llvm lld; then
-            echo "LLVM/LLD installation failed"
-            exit 1
-          fi
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
-      # Configure LLD
-      - name: Configure LLD
-        if: matrix.use-lld
-        run: |
-          if command -v ld.lld >/dev/null 2>&1; then
-            echo 'RUSTFLAGS=-C link-arg=-fuse-ld=lld' >> "$GITHUB_ENV"
-            echo "Using LLD linker"
-          fi
+          ./scripts/install_lld.sh
       # Build using script
       - name: Build target
+        shell: bash
         run: ./scripts/build-target.sh "${{ matrix.target }}" "${{ matrix.build-type }}"
 
       # Prepare binary using script
       - name: Prepare binary
+        shell: bash
         run: ./scripts/prepare-binary.sh "${{ needs.check-version.outputs.new-version }}" "${{ matrix.target }}"
 
       # Upload binary as artifact
@@ -121,6 +99,7 @@ jobs:
         run: ls -la dist/
 
       - name: Extract changelog
+        shell: bash
         run: ./scripts/create-release.sh "${{ needs.check-version.outputs.new-version }}"
 
       - name: Create release
@@ -137,6 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create git tag
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
