@@ -30,7 +30,13 @@ case "$BUILD_TYPE" in
     fi
     
     # Set environment variables for better CI compatibility
-    export CROSS_CONTAINER_IN_CONTAINER=true
+    # Only set CROSS_CONTAINER_IN_CONTAINER on Linux in CI environments
+    if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -n "${CI:-}" ]]; then
+        export CROSS_CONTAINER_IN_CONTAINER=true
+        echo "Set CROSS_CONTAINER_IN_CONTAINER=true for Linux CI environment"
+    else
+        echo "Skipping CROSS_CONTAINER_IN_CONTAINER (not Linux CI environment)"
+    fi
     
     echo "Attempting cross-compilation for $TARGET..."
     cross build --release --target "$TARGET"
