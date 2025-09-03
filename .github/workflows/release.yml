@@ -1,9 +1,10 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI", "Test Release Scripts"]
+    types: [completed]
     branches: [main]
-    paths: ["Cargo.toml"]
 
 permissions:
   contents: write
@@ -12,9 +13,11 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Check if version actually changed
+  # Check if version actually changed and prerequisites passed
   check-version:
     runs-on: ubuntu-latest
+    # Only run if the prerequisite workflow succeeded
+    if: github.event.workflow_run.conclusion == 'success'
     outputs:
       version-changed: ${{ steps.version-check.outputs.VERSION_CHANGED }}
       new-version: ${{ steps.version-check.outputs.NEW_VERSION }}
@@ -22,7 +25,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 2 # Need previous commit to compare
+
+      - name: Check if Cargo.toml was changed
+        run: |
+          echo "Checking if Cargo.toml was changed in commit ${{ github.event.workflow_run.head_sha }}"
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+
+          # Check if Cargo.toml was modified in the triggering commit
+          if git diff --name-only HEAD~1 HEAD | grep -q "^Cargo.toml$"; then
+            echo "✅ Cargo.toml was changed - proceeding with release check"
+          else
+            echo "❌ Cargo.toml was not changed - skipping release"
+            exit 78 # Exit with neutral code to skip remaining steps
+          fi
 
       - name: Check version change
         id: version-check
@@ -51,6 +68,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -88,6 +107,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
