@@ -9,7 +9,15 @@ echo "Testing binary preparation script..."
 
 
 echo "Testing prepared binary functionality..."
-BINARY="dist/envsense-v${VERSION}-test-${TARGET}"
+# Use the same naming logic as prepare-binary.sh
+case "$TARGET" in
+  "universal-apple-darwin")
+    BINARY="dist/envsense-v${VERSION}-universal-apple-darwin"
+    ;;
+  *)
+    BINARY="dist/envsense-v${VERSION}-${TARGET}"
+    ;;
+esac
 
 # Test binary functionality
 if [ -f "$BINARY" ]; then
