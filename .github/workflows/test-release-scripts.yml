@@ -64,11 +64,11 @@ jobs:
           ./scripts/validate-check-version-change.sh
 
       # Test build scripts for current platform
-      - name: Test build script (normal build)
+      - name: Test build script
         shell: bash
         run: |
-          echo "Testing normal build for current platform..."
-          ./scripts/build-target.sh "${{ matrix.target }}" normal
+          echo "Testing build for current platform..."
+          ./scripts/build-target.sh "${{ matrix.target }}" "${{ matrix.build-type }}"
 
       # Test cross-compilation (Linux only)
       - name: Test cross-compilation
