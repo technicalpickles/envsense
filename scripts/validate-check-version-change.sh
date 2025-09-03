@@ -4,7 +4,12 @@ set -euo pipefail
 
 echo "Testing version change detection script..."
 
-eval "$(./scripts/check-version-change.sh)"
+# Capture the output from check-version-change.sh
+# The diagnostic messages go to stderr, variable assignments to stdout
+script_output=$(./scripts/check-version-change.sh 2>/dev/null)
+
+# Source the variable assignments
+eval "$script_output"
 
 if [ -z "$VERSION_CHANGED" ]; then
     echo "VERSION_CHANGED is not set"
