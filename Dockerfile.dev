@@ -38,6 +38,12 @@ RUN curl https://mise.run | sh
 # Add mise to PATH for all shells
 ENV PATH="/home/$USERNAME/.local/bin:$PATH"
 
+# Install Rust via rustup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.89.0 && \
+    echo 'source ~/.cargo/env' >> ~/.bashrc && \
+    ~/.cargo/bin/rustup component add rustfmt clippy && \
+    ~/.cargo/bin/rustup target add x86_64-unknown-linux-gnu
+
 # Copy mise configuration
 COPY --chown=$USERNAME:$USERNAME mise.toml /home/$USERNAME/workspace/envsense/
 
@@ -45,7 +51,7 @@ COPY --chown=$USERNAME:$USERNAME mise.toml /home/$USERNAME/workspace/envsense/
 RUN mkdir -p /home/$USERNAME/workspace/envsense
 WORKDIR /home/$USERNAME/workspace/envsense
 
-# Trust mise config and install tools
+# Trust mise config and install tools (excluding Rust)
 RUN ~/.local/bin/mise trust && \
     ~/.local/bin/mise install
 
@@ -54,6 +60,9 @@ RUN echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
 
 # Add mise and Rust tools to PATH  
 ENV PATH="/home/$USERNAME/.local/bin:/home/$USERNAME/.cargo/bin:$PATH"
+
+# Ensure cargo is available in all contexts
+RUN echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 
 # Note: Cross-compilation tools removed for simplicity - use CI for multi-arch builds
 
