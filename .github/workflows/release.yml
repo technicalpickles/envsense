@@ -111,7 +111,7 @@ jobs:
           echo "Filtering release files..."
           mkdir -p release-files
           # Copy only non-test files to release-files directory
-          find dist/ -name "envsense-v*" -not -name "*-test*" -exec cp {} release-files/ \;
+          find dist/ -name "envsense-*" -not -name "*-test*" -exec cp {} release-files/ \;
           echo "Release files:"
           ls -la release-files/
 
