@@ -46,10 +46,6 @@ struct InfoArgs {
     /// Comma-separated keys to include: contexts,traits,facets,meta
     #[arg(long, value_name = "list")]
     fields: Option<String>,
-
-    /// Use tree structure for nested display
-    #[arg(long)]
-    tree: bool,
 }
 
 #[derive(Args, Clone)]
@@ -192,15 +188,18 @@ fn render_nested_value_with_rainbow(
         serde_json::Value::Object(map) => {
             let mut result = String::new();
             for (key, val) in map {
-                result.push_str(&format!("{}{}:\n", indent_str, key));
                 match val {
                     serde_json::Value::Object(_) => {
+                        // For nested objects, show the key with colon and expand recursively
+                        result.push_str(&format!("{}{}:\n", indent_str, key));
                         result.push_str(&render_nested_value_with_rainbow(val, indent + 1, color));
                     }
                     _ => {
+                        // For simple values, show key = value
                         let formatted_value = format_simple_value(val);
                         let colored_value = colorize_value_with_rainbow(&formatted_value, color);
-                        result.push_str(&format!("{}  {}\n", indent_str, colored_value));
+                        result
+                            .push_str(&format!("{}    {} = {}\n", indent_str, key, colored_value));
                     }
                 }
             }
@@ -220,7 +219,20 @@ fn format_simple_value(value: &serde_json::Value) -> String {
         serde_json::Value::Bool(b) => b.to_string(),
         serde_json::Value::Number(n) => n.to_string(),
         serde_json::Value::Null => "null".to_string(),
-        _ => value.to_string(),
+        serde_json::Value::Object(_) => {
+            // This should be handled by the caller, but fallback to JSON if needed
+            value.to_string()
+        }
+        serde_json::Value::Array(arr) => {
+            // Simple array formatting
+            format!(
+                "[{}]",
+                arr.iter()
+                    .map(format_simple_value)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -306,7 +318,6 @@ fn render_human(
     fields: Option<&str>,
     color: bool,
     raw: bool,
-    tree: bool,
 ) -> Result<String, String> {
     let default_fields = ["contexts", "traits"];
     let selected: Vec<&str> = match fields {
@@ -349,7 +360,9 @@ fn render_human(
                 }
             }
             "traits" => {
-                if tree && !raw {
+                if raw {
+                    render_nested_traits(&snapshot.traits, color, raw, &mut out);
+                } else {
                     let heading = if color {
                         "Traits:".bold().cyan().to_string()
                     } else {
@@ -362,8 +375,6 @@ fn render_human(
                         0,
                         color,
                     ));
-                } else {
-                    render_nested_traits(&snapshot.traits, color, raw, &mut out);
                 }
             }
             "facets" => {
@@ -763,13 +774,7 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
         }
     } else {
         let want_color = stdout().is_terminal() && !matches!(color, ColorChoice::Never);
-        let rendered = match render_human(
-            &snapshot,
-            args.fields.as_deref(),
-            want_color,
-            args.raw,
-            args.tree,
-        ) {
+        let rendered = match render_human(&snapshot, args.fields.as_deref(), want_color, args.raw) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("{}", e);

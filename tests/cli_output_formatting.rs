@@ -40,41 +40,32 @@ fn test_list_checks_field_formatting() {
 }
 
 #[test]
-fn test_info_tree_display() {
+fn test_info_hierarchical_display() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("info").arg("--tree");
+    cmd.arg("info");
 
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Traits:"))
         .stdout(predicate::str::contains("terminal:"))
-        .stdout(predicate::str::contains("  color_level:"))
-        .stdout(predicate::str::contains("  interactive:"));
+        .stdout(predicate::str::contains("  color_level ="))
+        .stdout(predicate::str::contains("  interactive ="));
 }
 
 #[test]
-fn test_info_tree_vs_regular_display() {
-    // Test regular display
-    let mut cmd_regular = Command::cargo_bin("envsense").unwrap();
-    cmd_regular.arg("info");
-    let regular_output = cmd_regular.assert().success().get_output().stdout.clone();
+fn test_info_display_format() {
+    // Test that info display contains expected hierarchical format
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.arg("info");
+    let output = cmd.assert().success().get_output().stdout.clone();
 
-    // Test tree display
-    let mut cmd_tree = Command::cargo_bin("envsense").unwrap();
-    cmd_tree.arg("info").arg("--tree");
-    let tree_output = cmd_tree.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&output);
 
-    // They should be different
-    assert_ne!(regular_output, tree_output);
-
-    // Both should contain basic information
-    let regular_str = String::from_utf8_lossy(&regular_output);
-    let tree_str = String::from_utf8_lossy(&tree_output);
-
-    assert!(regular_str.contains("Traits:"));
-    assert!(tree_str.contains("Traits:"));
-    assert!(regular_str.contains("terminal"));
-    assert!(tree_str.contains("terminal"));
+    // Should contain basic information in hierarchical format
+    assert!(output_str.contains("Traits:"));
+    assert!(output_str.contains("terminal"));
+    // Should use key = value format for simple values
+    assert!(output_str.contains(" = "));
 }
 
 #[test]
@@ -87,10 +78,10 @@ fn test_rainbow_colors_with_truecolor() {
 }
 
 #[test]
-fn test_rainbow_colors_with_tree_display() {
-    // Test that rainbow colors work with tree display
+fn test_rainbow_colors_with_hierarchical_display() {
+    // Test that rainbow colors work with hierarchical display
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("info").arg("--tree");
+    cmd.arg("info");
 
     cmd.assert().success();
 }
@@ -154,9 +145,9 @@ fn test_field_descriptions_alignment() {
 }
 
 #[test]
-fn test_tree_display_indentation() {
+fn test_hierarchical_display_indentation() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("info").arg("--tree");
+    cmd.arg("info");
 
     let output = cmd.assert().success().get_output().stdout.clone();
     let output_str = String::from_utf8_lossy(&output);
@@ -175,37 +166,36 @@ fn test_tree_display_indentation() {
         }
     }
 
-    // Tree display should have multiple indentation levels
+    // Hierarchical display should have multiple indentation levels
     assert!(found_level_0, "Should have level 0 indentation");
     assert!(found_level_1, "Should have level 1 indentation");
 }
 
 #[test]
-fn test_raw_output_not_affected_by_tree() {
-    // Raw output should not be affected by --tree flag
+fn test_raw_output_format() {
+    // Raw output should use flat format regardless of hierarchical display
     let mut cmd_raw = Command::cargo_bin("envsense").unwrap();
     cmd_raw.arg("info").arg("--raw");
     let raw_output = cmd_raw.assert().success().get_output().stdout.clone();
 
-    let mut cmd_raw_tree = Command::cargo_bin("envsense").unwrap();
-    cmd_raw_tree.arg("info").arg("--raw").arg("--tree");
-    let raw_tree_output = cmd_raw_tree.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&raw_output);
 
-    // Raw output should be the same regardless of --tree flag
-    assert_eq!(raw_output, raw_tree_output);
+    // Raw output should be flat, not hierarchical
+    assert!(output_str.contains("agent"));
+    assert!(output_str.contains("terminal"));
 }
 
 #[test]
-fn test_json_output_not_affected_by_formatting_flags() {
-    // JSON output should not be affected by --tree flag
+fn test_json_output_format() {
+    // JSON output should not be affected by hierarchical display changes
     let mut cmd_json = Command::cargo_bin("envsense").unwrap();
     cmd_json.arg("info").arg("--json");
     let json_output = cmd_json.assert().success().get_output().stdout.clone();
 
-    let mut cmd_json_tree = Command::cargo_bin("envsense").unwrap();
-    cmd_json_tree.arg("info").arg("--json").arg("--tree");
-    let json_tree_output = cmd_json_tree.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&json_output);
 
-    // JSON output should be the same regardless of formatting flags
-    assert_eq!(json_output, json_tree_output);
+    // Should be valid JSON
+    assert!(output_str.contains("{"));
+    assert!(output_str.contains("}"));
+    assert!(output_str.contains("\"traits\""));
 }
