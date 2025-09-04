@@ -23,8 +23,9 @@ case "$UNAME_OS" in
     if is_ubuntu; then
         echo "Detected Ubuntu Linux, installing clang and lld..."
         if ! sudo apt update && sudo apt install -y clang lld; then
-            echo "LLD installation failed"
-            exit 1
+            echo "Warning: LLD installation failed, will use system linker"
+            echo "This is expected on some platforms like ARM64"
+            exit 0  # Don't fail the build, just warn
         fi
     else
         echo "Error: Only Ubuntu Linux is supported, but detected a different Linux distribution"
