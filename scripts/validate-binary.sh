@@ -28,10 +28,10 @@ validate_single_binary() {
     # Use the same naming logic as prepare-binary.sh
     case "$target" in
       "universal-apple-darwin")
-        BINARY="dist/envsense-v${version}-universal-apple-darwin"
+        BINARY="dist/envsense-${version}-universal-apple-darwin"
         ;;
       *)
-        BINARY="dist/envsense-v${version}-${target}"
+        BINARY="dist/envsense-${version}-${target}"
         ;;
     esac
     

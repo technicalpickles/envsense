@@ -219,7 +219,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "envsense"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "envsense-macros"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "envsense-macros-impl",
  "proc-macro2",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "envsense-macros-impl"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proc-macro2",
  "quote",

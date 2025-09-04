@@ -26,10 +26,10 @@ mkdir -p dist
 
 case "$TARGET" in
   "universal-apple-darwin")
-    BINARY_NAME="envsense-v${VERSION}-universal-apple-darwin"
+    BINARY_NAME="envsense-${VERSION}-universal-apple-darwin"
     ;;
   *)
-    BINARY_NAME="envsense-v${VERSION}-${TARGET}"
+    BINARY_NAME="envsense-${VERSION}-${TARGET}"
     ;;
 esac
 

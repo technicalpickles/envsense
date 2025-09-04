@@ -90,27 +90,46 @@ on the main branch.
 
 4. **Automated release process**:
    - GitHub Actions detects the version change
-   - Builds binaries for multiple platforms:
-     - Linux x64 (`x86_64-unknown-linux-gnu`)
-     - Linux ARM64 (`aarch64-unknown-linux-gnu`)
-     - macOS Intel (`x86_64-apple-darwin`)
-     - macOS Apple Silicon (`aarch64-apple-darwin`)
-     - macOS Universal (`universal-apple-darwin`) - single binary for both Intel
-       and Apple Silicon
-     - Windows x64 (`x86_64-pc-windows-msvc`)
+   - Builds binaries for supported platforms:
+     - **Linux x64** (`x86_64-unknown-linux-gnu`)
+     - **macOS Universal** (`universal-apple-darwin`) - single binary supporting
+       both Intel and Apple Silicon
    - Creates a GitHub release with binaries
    - Automatically creates and pushes a git tag
 
 ### Binary Naming Convention
 
-Released binaries follow the pattern: `envsense-v{version}-{target}`
+Released binaries follow the pattern: `envsense-{version}-{target}` (following
+conventions used by popular CLI tools like ripgrep).
 
 Examples:
 
-- `envsense-v0.2.0-x86_64-unknown-linux-gnu`
-- `envsense-v0.2.0-universal-apple-darwin` (recommended for macOS)
-- `envsense-v0.2.0-aarch64-apple-darwin`
-- `envsense-v0.2.0-x86_64-pc-windows-msvc.exe`
+- `envsense-0.2.2-x86_64-unknown-linux-gnu` (Linux x64)
+- `envsense-0.2.2-universal-apple-darwin` (macOS Universal - supports both Intel
+  and Apple Silicon)
+
+**Note**: Starting with v0.2.2, the "v" prefix was removed from artifact names
+to align with common CLI tool conventions. The universal macOS binary is the
+only macOS build provided, eliminating the need for separate Intel and Apple
+Silicon binaries.
+
+#### Universal macOS Binary Approach
+
+The project uses a single universal macOS binary instead of separate Intel and
+Apple Silicon builds for several reasons:
+
+- **User Experience**: Users don't need to determine their architecture - one
+  binary works on all modern Macs
+- **Simplified Distribution**: Reduces the number of release artifacts and
+  potential confusion
+- **Industry Standard**: Follows the approach used by popular CLI tools like
+  ripgrep, fd, and others
+- **Maintenance**: Reduces CI complexity and build time while maintaining full
+  compatibility
+
+The universal binary is created using Apple's `lipo` tool, which combines
+separate Intel and Apple Silicon binaries into a single file that automatically
+runs the appropriate architecture.
 
 ### Release Notes
 
@@ -126,28 +145,30 @@ The release workflow automatically:
 Before making a release, test the build process locally:
 
 ```bash
-# Test cross-compilation for different targets
-cargo build --release --target x86_64-unknown-linux-gnu
-cargo build --release --target x86_64-apple-darwin
-
 # Test universal binary creation (macOS only)
-cargo build --release --target x86_64-apple-darwin
-cargo build --release --target aarch64-apple-darwin
-mkdir -p target/universal-apple-darwin/release
-lipo -create \
-  target/x86_64-apple-darwin/release/envsense \
-  target/aarch64-apple-darwin/release/envsense \
-  -output target/universal-apple-darwin/release/envsense
+./scripts/build-target.sh universal-apple-darwin universal
 
-# Verify universal binary
+# Verify universal binary contains both architectures
 lipo -info target/universal-apple-darwin/release/envsense
 
-# Test the binary
-./target/release/envsense --help
-./target/release/envsense info --json
+# Test the binary functionality
+./target/universal-apple-darwin/release/envsense --help
+./target/universal-apple-darwin/release/envsense info --json
 
-# Use the test script for comprehensive testing
+# Test binary preparation (includes validation and checksums)
+./scripts/prepare-binary.sh 0.2.2-test universal-apple-darwin
+
+# Use the comprehensive test script
 ./scripts/test-release.sh
+```
+
+**Cross-platform testing**: Linux builds are tested in CI. For local Linux
+testing on macOS, use Docker:
+
+```bash
+./scripts/dev-docker.sh
+# Inside container:
+cargo build --release --target x86_64-unknown-linux-gnu
 ```
 
 See `docs/testing.md` for detailed testing guidelines.
