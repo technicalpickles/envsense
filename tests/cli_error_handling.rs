@@ -113,7 +113,6 @@ fn test_predicate_syntax_validation_invalid_characters() {
         ("bad&predicate", "&"),
         ("invalid*field", "*"),
         ("test+value", "+"),
-        ("bad-predicate", "-"),
         ("test(value)", "("),
         ("test[value]", "["),
         ("test{value}", "{"),
@@ -139,7 +138,7 @@ fn test_predicate_syntax_validation_invalid_characters() {
             .failure()
             .code(2)
             .stderr(predicate::str::contains(format!("Error parsing '{}': invalid predicate syntax", invalid_predicate)))
-            .stderr(predicate::str::contains("Valid predicate syntax: letters, numbers, dots (.), equals (=), and underscores (_) only"));
+            .stderr(predicate::str::contains("Valid predicate syntax: letters, numbers, dots (.), equals (=), underscores (_), and hyphens (-) only"));
     }
 }
 
@@ -262,7 +261,7 @@ fn test_negated_invalid_syntax() {
         .failure()
         .code(2)
         .stderr(predicate::str::contains("Error parsing '!invalid@syntax': invalid predicate syntax"))
-        .stderr(predicate::str::contains("Valid predicate syntax: letters, numbers, dots (.), equals (=), and underscores (_) only"));
+        .stderr(predicate::str::contains("Valid predicate syntax: letters, numbers, dots (.), equals (=), underscores (_), and hyphens (-) only"));
 }
 
 #[test]
