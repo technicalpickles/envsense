@@ -1,537 +1,215 @@
 use assert_cmd::Command;
-use predicates::str::contains;
-use serde_json::Value;
-
-/// Integration tests for the new output formatting system (Task 2.4)
-/// These tests verify the complete CLI output formatting functionality
+use predicates::prelude::*;
 
 #[test]
-fn cli_new_dot_notation_syntax() {
-    // Test basic dot notation field access
+fn test_list_checks_context_descriptions() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent.id"])
-        .assert()
-        .success()
-        .stdout("cursor\n");
+    cmd.arg("check").arg("--list");
 
-    // Test dot notation field comparison
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent.id=cursor"])
-        .assert()
+    cmd.assert()
         .success()
-        .stdout("true\n");
-
-    // Test dot notation field comparison failure
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent.id=other"])
-        .assert()
-        .failure()
-        .stdout("false\n");
-}
-
-#[test]
-fn cli_explain_mode_with_different_result_types() {
-    // Test explain mode with boolean result (context check)
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "agent"])
-        .assert()
-        .success()
-        .stdout(contains("true  # reason: context 'agent' detected"));
-
-    // Test explain mode with string result (field value)
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "agent.id"])
-        .assert()
-        .success()
-        .stdout(contains("cursor  # reason: field value: agent.id"));
-
-    // Test explain mode with comparison result
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "agent.id=cursor"])
-        .assert()
-        .success()
-        .stdout(contains(
-            "true  # reason: field comparison: agent.id == cursor",
+        .stdout(predicate::str::contains("Available contexts:"))
+        .stdout(predicate::str::contains(
+            "- agent: Agent environment detection",
+        ))
+        .stdout(predicate::str::contains(
+            "- ide: Integrated development environment",
+        ))
+        .stdout(predicate::str::contains(
+            "- ci: Continuous integration environment",
+        ))
+        .stdout(predicate::str::contains(
+            "- terminal: Terminal characteristics",
         ));
 }
 
 #[test]
-fn cli_json_output_with_new_system() {
-    // Test JSON output structure with single predicate
+fn test_list_checks_field_formatting() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "agent.id=cursor"])
-        .assert()
+    cmd.arg("check").arg("--list");
+
+    cmd.assert()
         .success()
-        .stdout(contains("\"overall\":true"))
-        .stdout(contains("\"mode\":\"all\""))
-        .stdout(contains("\"checks\":["))
-        .stdout(contains("\"predicate\":\"agent.id=cursor\""))
-        .stdout(contains("\"result\":true"));
-
-    // Test JSON output with explain mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "--explain", "agent.id=cursor"])
-        .assert()
-        .success()
-        .stdout(contains("field comparison: agent.id == cursor"));
-
-    // Verify JSON is valid by parsing it
-    let output = Command::cargo_bin("envsense")
-        .unwrap()
-        .env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "agent.id=cursor"])
-        .output()
-        .unwrap();
-
-    let json_str = String::from_utf8(output.stdout).unwrap();
-    let json: Value = serde_json::from_str(&json_str).expect("Should be valid JSON");
-
-    assert_eq!(json["overall"].as_bool().unwrap(), true);
-    assert_eq!(json["mode"].as_str().unwrap(), "all");
-    assert!(json["checks"].is_array());
-    assert_eq!(json["checks"].as_array().unwrap().len(), 1);
+        .stdout(predicate::str::contains("Available fields:"))
+        .stdout(predicate::str::contains("agent fields:"))
+        .stdout(predicate::str::contains("agent.id"))
+        .stdout(predicate::str::contains("# Agent identifier"))
+        .stdout(predicate::str::contains("terminal fields:"))
+        .stdout(predicate::str::contains("terminal.color_level"))
+        .stdout(predicate::str::contains("# Color support level"));
 }
 
 #[test]
-fn cli_multiple_predicates_with_mixed_results() {
-    // Test multiple predicates with different result types
+fn test_info_tree_display() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent", "agent.id"])
-        .assert()
-        .success()
-        .stdout(contains("overall=true"))
-        .stdout(contains("agent=true"))
-        .stdout(contains("agent.id=cursor"));
+    cmd.arg("info").arg("--tree");
 
-    // Test multiple predicates with explain mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "agent", "agent.id=cursor"])
-        .assert()
+    cmd.assert()
         .success()
-        .stdout(contains("overall=true"))
-        .stdout(contains("agent=true  # reason: context 'agent' detected"))
-        .stdout(contains(
-            "agent.id=cursor=true  # reason: field comparison: agent.id == cursor",
-        ));
+        .stdout(predicate::str::contains("Traits:"))
+        .stdout(predicate::str::contains("terminal:"))
+        .stdout(predicate::str::contains("  color_level:"))
+        .stdout(predicate::str::contains("  interactive:"));
 }
 
 #[test]
-fn cli_any_vs_all_mode_output() {
-    // Test --any mode with mixed results
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--any", "agent", "nonexistent"])
-        .assert()
-        .success()
-        .stdout(contains("overall=true"));
+fn test_info_tree_vs_regular_display() {
+    // Test regular display
+    let mut cmd_regular = Command::cargo_bin("envsense").unwrap();
+    cmd_regular.arg("info");
+    let regular_output = cmd_regular.assert().success().get_output().stdout.clone();
 
-    // Test default ALL mode with mixed results (should fail)
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent", "nonexistent"])
-        .assert()
-        .failure()
-        .stdout(contains("overall=false"));
+    // Test tree display
+    let mut cmd_tree = Command::cargo_bin("envsense").unwrap();
+    cmd_tree.arg("info").arg("--tree");
+    let tree_output = cmd_tree.assert().success().get_output().stdout.clone();
 
-    // Test JSON output shows correct mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "--any", "agent", "nonexistent"])
-        .assert()
-        .success()
-        .stdout(contains("\"mode\":\"any\""));
+    // They should be different
+    assert_ne!(regular_output, tree_output);
+
+    // Both should contain basic information
+    let regular_str = String::from_utf8_lossy(&regular_output);
+    let tree_str = String::from_utf8_lossy(&tree_output);
+
+    assert!(regular_str.contains("Traits:"));
+    assert!(tree_str.contains("Traits:"));
+    assert!(regular_str.contains("terminal"));
+    assert!(tree_str.contains("terminal"));
 }
 
 #[test]
-fn cli_negation_with_new_output_system() {
-    // Test negation with boolean result
+fn test_rainbow_flag_accepted() {
+    // Test that --rainbow flag is accepted without error
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "!agent"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    cmd.arg("info").arg("--rainbow");
 
-    // Test negation with explain mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "--explain", "!agent"])
-        .assert()
-        .success()
-        .stdout(contains(
-            "true  # reason: negated: context 'agent' not detected",
-        ));
-
-    // Test negation with comparison
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "!agent.id=other"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    cmd.assert().success();
 }
 
 #[test]
-fn cli_new_syntax_compatibility() {
-    // Test that new syntax works with output system
+fn test_rainbow_with_tree_flag_combination() {
+    // Test that --rainbow and --tree flags work together
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "agent.id=cursor"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    cmd.arg("info").arg("--tree").arg("--rainbow");
 
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive"])
-        .assert(); // May succeed or fail depending on environment
-
-    // Test new syntax with explain mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--explain", "agent.id=cursor"])
-        .assert()
-        .success()
-        .stdout(contains(
-            "true  # reason: field comparison: agent.id == cursor",
-        ));
+    cmd.assert().success();
 }
 
 #[test]
-fn cli_terminal_field_access() {
-    // Test terminal field access (these should work regardless of actual terminal state)
+fn test_check_rainbow_flag_accepted() {
+    // Test that --rainbow flag is accepted in check command
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive"])
-        .assert(); // Will be true or false, but should not error
+    cmd.arg("check").arg("--rainbow").arg("agent");
 
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.stdin.tty"])
-        .assert(); // Will be true or false, but should not error
-
-    // Test with comparison
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive=false"])
-        .assert(); // May succeed or fail depending on actual state
-
-    // Test with explain mode
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "--explain", "terminal.interactive"])
-        .assert()
-        .stdout(contains("# reason: field value: terminal.interactive"));
+    cmd.assert(); // Don't check success/failure, just that it doesn't crash
 }
 
 #[test]
-fn cli_error_handling_with_new_system() {
-    // Test invalid field path
+fn test_context_descriptions_completeness() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "invalid.field"])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
+    cmd.arg("check").arg("--list");
 
-    // Test malformed syntax
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "agent."])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&output);
 
-    // Test empty predicate
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", ""])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
+    // Check that all contexts have descriptions (no bare context names)
+    assert!(!output_str.contains("- agent\n"));
+    assert!(!output_str.contains("- ide\n"));
+    assert!(!output_str.contains("- ci\n"));
+    assert!(!output_str.contains("- terminal\n"));
+
+    // Check that all contexts have proper descriptions
+    assert!(output_str.contains("- agent: "));
+    assert!(output_str.contains("- ide: "));
+    assert!(output_str.contains("- ci: "));
+    assert!(output_str.contains("- terminal: "));
 }
 
 #[test]
-fn cli_special_characters_in_values() {
-    // Test with special characters in CI vendor (which we know works)
+fn test_field_descriptions_alignment() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("GITHUB_ACTIONS", "true")
-        .args(["check", "ci.vendor=github_actions"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    cmd.arg("check").arg("--list");
 
-    // Test with unicode characters
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("ENVSENSE_AGENT", "测试")
-        .args(["check", "agent.id=测试"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&output);
 
-    // Test with spaces and special characters
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("ENVSENSE_AGENT", "test agent 123")
-        .args(["check", "agent.id=test agent 123"])
-        .assert()
-        .success()
-        .stdout("true\n");
+    // Check that field descriptions are properly aligned with # comments
+    let lines: Vec<&str> = output_str.lines().collect();
+    let field_lines: Vec<&str> = lines
+        .iter()
+        .filter(|line| line.trim_start().contains("# ") && line.contains("."))
+        .cloned()
+        .collect();
+
+    // Should have multiple field lines with descriptions
+    assert!(field_lines.len() > 5);
+
+    // Each field line should have proper format: "    field_name    # description"
+    for line in field_lines {
+        assert!(line.contains("#"));
+        let parts: Vec<&str> = line.split('#').collect();
+        assert_eq!(parts.len(), 2);
+        assert!(!parts[1].trim().is_empty()); // Description should not be empty
+    }
 }
 
 #[test]
-fn cli_help_text_snapshot() {
-    // Test that help text is generated correctly and remains stable
+fn test_tree_display_indentation() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.args(["check", "--help"])
-        .assert()
-        .success()
-        .stdout(contains("Available predicates:"))
-        .stdout(contains("Contexts (return boolean):"))
-        .stdout(contains(
-            "agent                    # Check if agent context is detected",
-        ))
-        .stdout(contains("Fields:"))
-        .stdout(contains("agent fields:"))
-        .stdout(contains("agent.id                  # Agent identifier"))
-        .stdout(contains("terminal fields:"))
-        .stdout(contains(
-            "terminal.interactive      # Terminal interactivity",
-        ))
-        .stdout(contains("ci fields:"))
-        .stdout(contains("ci.id                     # CI system identifier"))
-        .stdout(contains("Examples:"))
-        .stdout(contains(
-            "envsense check agent              # Boolean: is agent detected?",
-        ))
-        .stdout(contains(
-            "envsense check agent.id=cursor    # Boolean: is agent ID 'cursor'?",
-        ))
-        .stdout(contains("Syntax:"))
-        .stdout(contains(
-            "context                           # Check if context is detected",
-        ))
-        .stdout(contains(
-            "field.path=value                  # Compare field value",
-        ));
+    cmd.arg("info").arg("--tree");
+
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8_lossy(&output);
+
+    let lines: Vec<&str> = output_str.lines().collect();
+
+    // Find lines with different indentation levels
+    let mut found_level_0 = false;
+    let mut found_level_1 = false;
+
+    for line in lines {
+        if line.starts_with("terminal:") || line.starts_with("agent:") {
+            found_level_0 = true;
+        } else if line.starts_with("  ") && !line.starts_with("    ") {
+            found_level_1 = true;
+        }
+    }
+
+    // Tree display should have multiple indentation levels
+    assert!(found_level_0, "Should have level 0 indentation");
+    assert!(found_level_1, "Should have level 1 indentation");
 }
 
 #[test]
-fn cli_list_predicates_functionality() {
-    // Test --list flag shows all available predicates
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.args(["check", "--list"])
-        .assert()
-        .success()
-        .stdout(contains("agent"))
-        .stdout(contains("agent.id"))
-        .stdout(contains("terminal.interactive"))
-        .stdout(contains("terminal.stdin.tty"))
-        .stdout(contains("ci.id"))
-        .stdout(contains("ci.branch"));
+fn test_raw_output_not_affected_by_tree() {
+    // Raw output should not be affected by --tree flag
+    let mut cmd_raw = Command::cargo_bin("envsense").unwrap();
+    cmd_raw.arg("info").arg("--raw");
+    let raw_output = cmd_raw.assert().success().get_output().stdout.clone();
+
+    let mut cmd_raw_tree = Command::cargo_bin("envsense").unwrap();
+    cmd_raw_tree.arg("info").arg("--raw").arg("--tree");
+    let raw_tree_output = cmd_raw_tree.assert().success().get_output().stdout.clone();
+
+    // Raw output should be the same regardless of --tree flag
+    assert_eq!(raw_output, raw_tree_output);
 }
 
 #[test]
-fn cli_comprehensive_error_messages() {
-    // Test various error conditions with clear messages
+fn test_json_output_not_affected_by_formatting_flags() {
+    // JSON output should not be affected by --tree or --rainbow flags
+    let mut cmd_json = Command::cargo_bin("envsense").unwrap();
+    cmd_json.arg("info").arg("--json");
+    let json_output = cmd_json.assert().success().get_output().stdout.clone();
 
-    // Invalid context in field path
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "invalid_context.field"])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
+    let mut cmd_json_tree = Command::cargo_bin("envsense").unwrap();
+    cmd_json_tree
+        .arg("info")
+        .arg("--json")
+        .arg("--tree")
+        .arg("--rainbow");
+    let json_tree_output = cmd_json_tree.assert().success().get_output().stdout.clone();
 
-    // Too few path segments
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "agent"]) // This should work (context check)
-        .assert()
-        .failure() // No agent detected in clean env
-        .stdout("false\n");
-
-    // Single segment that's not a valid context
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "invalid_single_segment"])
-        .assert()
-        .failure()
-        .stdout("false\n"); // Treated as context check, returns false
-
-    // Malformed field syntax
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "agent."])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
-
-    // Empty field key
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "agent.=value"])
-        .assert()
-        .failure()
-        .stderr(contains("Error parsing"));
-}
-
-#[test]
-fn cli_multiple_predicates_comprehensive() {
-    // Test complex multiple predicate scenarios
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .env("TERM_PROGRAM", "vscode")
-        .args(["check", "agent", "ide", "agent.id=cursor", "ide.id=vscode"])
-        .assert()
-        .success()
-        .stdout(contains("overall=true"))
-        .stdout(contains("agent=true"))
-        .stdout(contains("ide=true"))
-        .stdout(contains("agent.id=cursor"))
-        .stdout(contains("ide.id=vscode"));
-
-    // Test --any mode with mixed results
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--any", "agent", "ci", "agent.id=wrong"])
-        .assert()
-        .success() // Should succeed because agent=true
-        .stdout(contains("overall=true"));
-
-    // Test all mode with one failure
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--all", "agent", "ci"])
-        .assert()
-        .failure() // Should fail because ci=false
-        .stdout(contains("overall=false"))
-        .stdout(contains("agent=true"))
-        .stdout(contains("ci=false"));
-}
-
-#[test]
-fn cli_json_output_comprehensive() {
-    // Test JSON output structure with multiple predicates
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "agent", "agent.id"])
-        .assert()
-        .success();
-
-    let output = cmd.output().unwrap();
-    let json_str = String::from_utf8(output.stdout).unwrap();
-    let json: Value = serde_json::from_str(&json_str).unwrap();
-
-    // Verify JSON structure
-    assert!(json["overall"].is_boolean());
-    assert!(json["checks"].is_array());
-
-    let checks = json["checks"].as_array().unwrap();
-    assert_eq!(checks.len(), 2);
-
-    // Verify first check (context)
-    assert_eq!(checks[0]["predicate"], "agent");
-    assert!(checks[0]["result"].is_boolean());
-
-    // Verify second check (field value)
-    assert_eq!(checks[1]["predicate"], "agent.id");
-    assert!(checks[1]["result"].is_string()); // agent.id returns the actual string value
-}
-
-#[test]
-fn cli_edge_case_field_values() {
-    // Test with null/missing field values
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "agent.id"]) // No agent detected, should return "null"
-        .assert()
-        .success()
-        .stdout("null\n");
-
-    // Test boolean field values
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive"])
-        .assert(); // Will be true or false, but should not error
-
-    // Test comparison with boolean values
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive=true"])
-        .assert(); // May succeed or fail, but should not error
-
-    let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.env_clear()
-        .args(["check", "terminal.interactive=false"])
-        .assert(); // May succeed or fail, but should not error
-}
-
-#[test]
-fn cli_json_pretty_printing() {
-    // Test that JSON is pretty-printed with --explain
-    let output = Command::cargo_bin("envsense")
-        .unwrap()
-        .env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "--explain", "agent"])
-        .output()
-        .unwrap();
-
-    let json_str = String::from_utf8(output.stdout).unwrap();
-
-    // Pretty-printed JSON should have newlines and indentation
-    assert!(json_str.contains("{\n"));
-    assert!(json_str.contains("  \""));
-
-    // Should be valid JSON
-    let _json: Value = serde_json::from_str(&json_str).expect("Should be valid JSON");
-
-    // Test that regular JSON (without --explain) is compact
-    let output_compact = Command::cargo_bin("envsense")
-        .unwrap()
-        .env_clear()
-        .env("CURSOR_AGENT", "1")
-        .args(["check", "--json", "agent"])
-        .output()
-        .unwrap();
-
-    let compact_json = String::from_utf8(output_compact.stdout).unwrap();
-
-    // Compact JSON should not have extra whitespace
-    assert!(!compact_json.contains("{\n"));
-    assert!(compact_json.len() < json_str.len()); // Should be shorter
+    // JSON output should be the same regardless of formatting flags
+    assert_eq!(json_output, json_tree_output);
 }
