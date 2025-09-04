@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "envsense-macros"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "envsense-macros-impl",
  "proc-macro2",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "envsense-macros-impl"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proc-macro2",
  "quote",
