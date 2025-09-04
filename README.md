@@ -374,3 +374,5 @@ For a complete migration guide, see
 ## License
 
 MIT
+
+# Branch Protection Test
