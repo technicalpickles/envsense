@@ -71,11 +71,11 @@ pub struct CheckCmd {
     pub quiet: bool,
 
     /// Use ANY mode (default is ALL)
-    #[arg(long, conflicts_with = "all")]
+    #[arg(long)]
     pub any: bool,
 
     /// Require all predicates to match (default behavior)
-    #[arg(long, conflicts_with = "any")]
+    #[arg(long)]
     pub all: bool,
 
     /// List available predicates
@@ -436,6 +436,7 @@ enum FlagValidationError {
     ListWithEvaluationFlags,
     ListWithPredicates,
     ListWithQuiet,
+    AnyWithAll,
 }
 
 impl std::fmt::Display for FlagValidationError {
@@ -520,11 +521,46 @@ impl std::fmt::Display for FlagValidationError {
                     "  envsense check agent --quiet            # Check predicate quietly"
                 )
             }
+            FlagValidationError::AnyWithAll => {
+                writeln!(
+                    f,
+                    "Error: invalid flag combination: --any and --all cannot be used together"
+                )?;
+                writeln!(f)?;
+                writeln!(
+                    f,
+                    "These flags control different evaluation modes and are mutually exclusive."
+                )?;
+                writeln!(f, "--any: succeeds if ANY predicate matches")?;
+                writeln!(
+                    f,
+                    "--all: succeeds if ALL predicates match (default behavior)"
+                )?;
+                writeln!(f)?;
+                writeln!(f, "Usage examples:")?;
+                writeln!(
+                    f,
+                    "  envsense check agent ide                # Default: ALL predicates must match"
+                )?;
+                writeln!(
+                    f,
+                    "  envsense check --any agent ide         # ANY predicate can match"
+                )?;
+                write!(
+                    f,
+                    "  envsense check --all agent ide         # Explicit: ALL predicates must match"
+                )
+            }
         }
     }
 }
 
 fn validate_check_flags(args: &CheckCmd) -> Result<(), FlagValidationError> {
+    // Check for --any and --all conflict first
+    if args.any && args.all {
+        return Err(FlagValidationError::AnyWithAll);
+    }
+
     if args.list {
         if args.any || args.all {
             return Err(FlagValidationError::ListWithEvaluationFlags);

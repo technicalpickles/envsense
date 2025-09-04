@@ -53,6 +53,27 @@ fn test_flag_validation_list_with_all() {
 }
 
 #[test]
+fn test_flag_validation_any_with_all() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.args(["check", "--any", "--all", "agent"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "Error: invalid flag combination: --any and --all cannot be used together",
+        ))
+        .stderr(predicate::str::contains(
+            "These flags control different evaluation modes and are mutually exclusive",
+        ))
+        .stderr(predicate::str::contains(
+            "--any: succeeds if ANY predicate matches",
+        ))
+        .stderr(predicate::str::contains(
+            "--all: succeeds if ALL predicates match (default behavior)",
+        ));
+}
+
+#[test]
 fn test_flag_validation_list_with_predicates() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.args(["check", "--list", "agent"])
