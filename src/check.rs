@@ -589,12 +589,12 @@ pub fn validate_predicate_syntax(input: &str) -> Result<(), ParseError> {
         input
     };
 
-    // Validate character set: alphanumeric, dots, equals, underscores
-    let valid_chars_regex = regex::Regex::new(r"^[a-zA-Z][a-zA-Z0-9_.=]*$").unwrap();
+    // Validate character set: alphanumeric, dots, equals, underscores, hyphens
+    let valid_chars_regex = regex::Regex::new(r"^[a-zA-Z][a-zA-Z0-9_.=-]*$").unwrap();
     if !valid_chars_regex.is_match(input) {
         return Err(ParseError::InvalidSyntax(
             input.to_string(),
-            "Valid predicate syntax: letters, numbers, dots (.), equals (=), and underscores (_) only".to_string()
+            "Valid predicate syntax: letters, numbers, dots (.), equals (=), underscores (_), and hyphens (-) only".to_string()
         ));
     }
 
@@ -1034,6 +1034,9 @@ mod tests {
             "a.b.c",
             "field=value123",
             "field_name=test_value",
+            "ide.id=vscode-insiders",
+            "test-field",
+            "field=value-with-hyphens",
         ];
 
         for case in valid_cases {
@@ -1055,7 +1058,6 @@ mod tests {
             ("bad&predicate", "&"),
             ("invalid*field", "*"),
             ("test+value", "+"),
-            ("bad-predicate", "-"),
             ("test(value)", "("),
             ("test[value]", "["),
             ("test{value}", "{"),

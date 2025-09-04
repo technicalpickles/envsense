@@ -593,16 +593,27 @@ fn display_check_usage_error() {
 fn list_checks() {
     let registry = FieldRegistry::new();
 
-    println!("contexts:");
+    println!("Available contexts:");
     for context in registry.get_contexts() {
-        println!("  {}", context);
+        println!(
+            "- {}: {}",
+            context,
+            registry.get_context_description(context)
+        );
     }
 
-    println!("fields:");
-    let mut fields: Vec<_> = registry.list_all_fields();
-    fields.sort();
-    for field in fields {
-        println!("  {}", field);
+    println!("\nAvailable fields:");
+    for context in registry.get_contexts() {
+        let context_fields = registry.get_context_fields(context);
+        if !context_fields.is_empty() {
+            println!("\n  {} fields:", context);
+            let mut sorted_fields = context_fields;
+            sorted_fields.sort_by(|a, b| a.0.cmp(b.0));
+
+            for (field_path, field_info) in sorted_fields {
+                println!("    {:<25} # {}", field_path, field_info.description);
+            }
+        }
     }
 }
 
