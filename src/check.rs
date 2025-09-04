@@ -560,6 +560,17 @@ impl FieldRegistry {
     pub fn has_context(&self, context: &str) -> bool {
         self.get_contexts().contains(&context)
     }
+
+    /// Get description for a context
+    pub fn get_context_description(&self, context: &str) -> &str {
+        match context {
+            "agent" => "Agent environment detection",
+            "ide" => "Integrated development environment",
+            "ci" => "Continuous integration environment",
+            "terminal" => "Terminal characteristics",
+            _ => "Context information",
+        }
+    }
 }
 
 /// Predicate syntax validation functions
