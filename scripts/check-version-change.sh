@@ -8,7 +8,7 @@
 # Outputs GitHub Actions environment variables:
 # - VERSION_CHANGED: true/false (true if version needs releasing)
 # - NEW_VERSION: the version to release
-# - TAG_NAME: git tag name (v{version})
+# - TAG_NAME: git tag name ({version})
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(
 echo "Current version: $CURRENT_VERSION" >&2
 
 # Check if tag already exists for this version
-TAG_NAME="v$CURRENT_VERSION"
+TAG_NAME="$CURRENT_VERSION"
 if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
   echo "Tag $TAG_NAME already exists - no release needed" >&2
   NEEDS_RELEASE=false
