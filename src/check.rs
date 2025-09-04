@@ -319,17 +319,27 @@ pub fn parse(input: &str) -> Result<Check, ParseError> {
 pub fn parse_predicate(input: &str) -> Result<ParsedCheck, ParseError> {
     let input = input.trim();
 
-    // First validate the basic syntax
-    validate_predicate_syntax(input)?;
+    // Check for empty input first (before validation)
+    if input.is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
 
-    // Handle negation
-    let (input, negated) = if let Some(rest) = input.strip_prefix('!') {
+    // Handle negation for empty check
+    let (input_after_negation, negated) = if let Some(rest) = input.strip_prefix('!') {
         (rest, true)
     } else {
         (input, false)
     };
 
-    let check = parse(input)?;
+    // Check for empty input after negation
+    if input_after_negation.trim().is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+
+    // Now validate the basic syntax
+    validate_predicate_syntax(input)?;
+
+    let check = parse(input_after_negation)?;
     Ok(ParsedCheck { check, negated })
 }
 
