@@ -46,6 +46,10 @@ struct InfoArgs {
     /// Comma-separated keys to include: contexts,traits,facets,meta
     #[arg(long, value_name = "list")]
     fields: Option<String>,
+
+    /// Use tree structure for nested display
+    #[arg(long)]
+    tree: bool,
 }
 
 #[derive(Args, Clone)]
@@ -146,6 +150,39 @@ fn colorize_value(v: &str, color: bool) -> String {
     }
 }
 
+fn render_nested_value(value: &serde_json::Value, indent: usize) -> String {
+    let indent_str = "  ".repeat(indent);
+
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut result = String::new();
+            for (key, val) in map {
+                result.push_str(&format!("{}{}:\n", indent_str, key));
+                match val {
+                    serde_json::Value::Object(_) => {
+                        result.push_str(&render_nested_value(val, indent + 1));
+                    }
+                    _ => {
+                        result.push_str(&format!("{}  {}\n", indent_str, format_simple_value(val)));
+                    }
+                }
+            }
+            result
+        }
+        _ => format!("{}{}\n", indent_str, format_simple_value(value)),
+    }
+}
+
+fn format_simple_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Null => "null".to_string(),
+        _ => value.to_string(),
+    }
+}
+
 fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String) {
     if let Value::Object(map) = traits {
         if raw {
@@ -225,6 +262,7 @@ fn render_human(
     fields: Option<&str>,
     color: bool,
     raw: bool,
+    tree: bool,
 ) -> Result<String, String> {
     let default_fields = ["contexts", "traits"];
     let selected: Vec<&str> = match fields {
@@ -267,7 +305,18 @@ fn render_human(
                 }
             }
             "traits" => {
-                render_nested_traits(&snapshot.traits, color, raw, &mut out);
+                if tree && !raw {
+                    let heading = if color {
+                        "Traits:".bold().cyan().to_string()
+                    } else {
+                        "Traits:".to_string()
+                    };
+                    out.push_str(&heading);
+                    out.push('\n');
+                    out.push_str(&render_nested_value(&snapshot.traits, 0));
+                } else {
+                    render_nested_traits(&snapshot.traits, color, raw, &mut out);
+                }
             }
             "facets" => {
                 let mut items: Vec<(String, String)> = if let Value::Object(map) = &snapshot.facets
@@ -666,7 +715,13 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
         }
     } else {
         let want_color = stdout().is_terminal() && !matches!(color, ColorChoice::Never);
-        let rendered = match render_human(&snapshot, args.fields.as_deref(), want_color, args.raw) {
+        let rendered = match render_human(
+            &snapshot,
+            args.fields.as_deref(),
+            want_color,
+            args.raw,
+            args.tree,
+        ) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("{}", e);
