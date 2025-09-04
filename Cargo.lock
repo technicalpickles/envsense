@@ -229,6 +229,7 @@ dependencies = [
  "insta",
  "is-terminal",
  "predicates",
+ "regex",
  "schemars",
  "serde",
  "serde_json",

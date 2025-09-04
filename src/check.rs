@@ -27,6 +27,12 @@ pub enum ParseError {
     InvalidFieldPath,
     #[error("malformed comparison")]
     MalformedComparison,
+    #[error("invalid predicate syntax '{0}': {1}")]
+    InvalidSyntax(String, String),
+    #[error("invalid field path '{0}': field does not exist")]
+    FieldNotFound(String),
+    #[error("invalid field path '{0}': available fields for '{1}': {2}")]
+    InvalidFieldForContext(String, String, String),
 }
 
 /// Field Registry System for centralized field type and path management
@@ -313,6 +319,9 @@ pub fn parse(input: &str) -> Result<Check, ParseError> {
 pub fn parse_predicate(input: &str) -> Result<ParsedCheck, ParseError> {
     let input = input.trim();
 
+    // First validate the basic syntax
+    validate_predicate_syntax(input)?;
+
     // Handle negation
     let (input, negated) = if let Some(rest) = input.strip_prefix('!') {
         (rest, true)
@@ -531,6 +540,69 @@ impl FieldRegistry {
     pub fn get_contexts(&self) -> Vec<&str> {
         vec!["agent", "ide", "terminal", "ci"]
     }
+
+    /// Check if a field exists in the registry
+    pub fn has_field(&self, field_path: &str) -> bool {
+        self.fields.contains_key(field_path)
+    }
+
+    /// Check if a context exists
+    pub fn has_context(&self, context: &str) -> bool {
+        self.get_contexts().contains(&context)
+    }
+}
+
+/// Predicate syntax validation functions
+pub fn validate_predicate_syntax(input: &str) -> Result<(), ParseError> {
+    let input = input.trim();
+
+    // Check for empty input
+    if input.is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+
+    // Handle negation
+    let input = if let Some(rest) = input.strip_prefix('!') {
+        rest
+    } else {
+        input
+    };
+
+    // Validate character set: alphanumeric, dots, equals, underscores
+    let valid_chars_regex = regex::Regex::new(r"^[a-zA-Z][a-zA-Z0-9_.=]*$").unwrap();
+    if !valid_chars_regex.is_match(input) {
+        return Err(ParseError::InvalidSyntax(
+            input.to_string(),
+            "Valid predicate syntax: letters, numbers, dots (.), equals (=), and underscores (_) only".to_string()
+        ));
+    }
+
+    Ok(())
+}
+
+/// Strict field path validation
+pub fn validate_field_path(path: &[String], registry: &FieldRegistry) -> Result<(), ParseError> {
+    let field_path = path.join(".");
+
+    if !registry.has_field(&field_path) {
+        let context = &path[0];
+        if registry.has_context(context) {
+            let available_fields = registry.get_context_fields(context);
+            let field_names: Vec<String> = available_fields
+                .iter()
+                .map(|(name, _)| (*name).clone())
+                .collect();
+            return Err(ParseError::InvalidFieldForContext(
+                field_path,
+                context.clone(),
+                field_names.join(", "),
+            ));
+        } else {
+            return Err(ParseError::FieldNotFound(field_path));
+        }
+    }
+
+    Ok(())
 }
 
 /// Enhanced Evaluation Logic - Task 2.3 Implementation

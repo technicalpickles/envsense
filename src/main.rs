@@ -349,13 +349,19 @@ fn render_human(
 // Legacy evidence helper functions removed - using new evaluation system
 
 fn run_check(args: CheckCmd) -> Result<(), i32> {
+    // Validate flag combinations first
+    if let Err(validation_error) = validate_check_flags(&args) {
+        eprintln!("{}", validation_error);
+        return Err(1);
+    }
+
     if args.list {
         list_checks();
         return Ok(());
     }
 
     if args.predicates.is_empty() {
-        eprintln!("Error: no predicates specified");
+        display_check_usage_error();
         return Err(1);
     }
 
@@ -385,10 +391,18 @@ fn run_check(args: CheckCmd) -> Result<(), i32> {
         let parsed = match check::parse_predicate(predicate) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("Error parsing '{}': {:?}", predicate, e);
+                eprintln!("Error parsing '{}': {}", predicate, e);
                 return Err(2);
             }
         };
+
+        // Perform strict field validation for nested fields
+        if let check::Check::NestedField { ref path, .. } = parsed.check
+            && let Err(validation_error) = check::validate_field_path(path, &registry)
+        {
+            eprintln!("Error: {}", validation_error);
+            return Err(2);
+        }
 
         let eval_result = check::evaluate(&env, parsed, &registry);
         results.push(eval_result);
@@ -416,6 +430,129 @@ fn run_check(args: CheckCmd) -> Result<(), i32> {
 }
 
 // Legacy output_results function removed - using new output system in check.rs
+
+#[derive(Debug)]
+enum FlagValidationError {
+    ListWithEvaluationFlags,
+    ListWithPredicates,
+    ListWithQuiet,
+}
+
+impl std::fmt::Display for FlagValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FlagValidationError::ListWithEvaluationFlags => {
+                writeln!(
+                    f,
+                    "Error: invalid flag combination: --list cannot be used with --any or --all"
+                )?;
+                writeln!(f)?;
+                writeln!(
+                    f,
+                    "The --list flag shows available predicates, while --any/--all control evaluation logic."
+                )?;
+                writeln!(
+                    f,
+                    "These flags serve different purposes and cannot be combined."
+                )?;
+                writeln!(f)?;
+                writeln!(f, "Usage examples:")?;
+                writeln!(
+                    f,
+                    "  envsense check --list                    # List available predicates"
+                )?;
+                writeln!(
+                    f,
+                    "  envsense check --any agent ide          # Check if ANY predicate is true"
+                )?;
+                write!(
+                    f,
+                    "  envsense check --all agent ide          # Check if ALL predicates are true"
+                )
+            }
+            FlagValidationError::ListWithPredicates => {
+                writeln!(
+                    f,
+                    "Error: invalid flag combination: --list cannot be used with predicates"
+                )?;
+                writeln!(f)?;
+                writeln!(
+                    f,
+                    "The --list flag shows all available predicates, so providing specific predicates is redundant."
+                )?;
+                writeln!(f)?;
+                writeln!(f, "Usage examples:")?;
+                writeln!(
+                    f,
+                    "  envsense check --list                    # List all available predicates"
+                )?;
+                writeln!(
+                    f,
+                    "  envsense check agent                    # Check specific predicate"
+                )?;
+                write!(
+                    f,
+                    "  envsense check agent ide                # Check multiple predicates"
+                )
+            }
+            FlagValidationError::ListWithQuiet => {
+                writeln!(
+                    f,
+                    "Error: invalid flag combination: --list cannot be used with --quiet"
+                )?;
+                writeln!(f)?;
+                writeln!(
+                    f,
+                    "The --list flag is designed to show information, while --quiet suppresses output."
+                )?;
+                writeln!(
+                    f,
+                    "These flags have contradictory purposes and cannot be combined."
+                )?;
+                writeln!(f)?;
+                writeln!(f, "Usage examples:")?;
+                writeln!(
+                    f,
+                    "  envsense check --list                    # Show available predicates"
+                )?;
+                write!(
+                    f,
+                    "  envsense check agent --quiet            # Check predicate quietly"
+                )
+            }
+        }
+    }
+}
+
+fn validate_check_flags(args: &CheckCmd) -> Result<(), FlagValidationError> {
+    if args.list {
+        if args.any || args.all {
+            return Err(FlagValidationError::ListWithEvaluationFlags);
+        }
+        if !args.predicates.is_empty() {
+            return Err(FlagValidationError::ListWithPredicates);
+        }
+        if args.quiet {
+            return Err(FlagValidationError::ListWithQuiet);
+        }
+    }
+    Ok(())
+}
+
+fn display_check_usage_error() {
+    eprintln!("Error: no predicates specified");
+    eprintln!();
+    eprintln!("Usage: envsense check <predicate> [<predicate>...]");
+    eprintln!();
+    eprintln!("Examples:");
+    eprintln!("  envsense check agent                    # Check if running in an agent");
+    eprintln!("  envsense check ide.cursor              # Check if Cursor IDE is active");
+    eprintln!("  envsense check ci.github               # Check if in GitHub CI");
+    eprintln!("  envsense check agent.id=cursor         # Check specific agent ID");
+    eprintln!("  envsense check --list                  # List all available predicates");
+    eprintln!();
+    eprintln!("For more information, see: envsense check --help");
+}
 
 fn list_checks() {
     let registry = FieldRegistry::new();
