@@ -123,9 +123,9 @@ main() {
     print_header "Testing Prepared Binary"
     local binary_name
     if [[ "$platform" == *"windows"* ]]; then
-        binary_name="envsense-v${test_version}-${platform}.exe"
+        binary_name="envsense-${test_version}-${platform}.exe"
     else
-        binary_name="envsense-v${test_version}-${platform}"
+        binary_name="envsense-${test_version}-${platform}"
     fi
     
     local binary_path="dist/$binary_name"
