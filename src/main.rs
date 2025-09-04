@@ -1,7 +1,6 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
 use envsense::check::{self, FieldRegistry};
-use owo_colors::OwoColorize;
 // Legacy CI detection removed - using declarative system
 use envsense::schema::EnvSense;
 use serde_json::{Map, Value, json};
@@ -162,20 +161,21 @@ fn format_color_level_with_rainbow(value: &str, enable_rainbow: bool) -> String 
         return value.to_string();
     }
 
-    // Create rainbow effect for "truecolor"
+    // Create rainbow effect for "truecolor" using colored crate
     value
         .chars()
         .enumerate()
         .map(|(i, c)| {
+            let char_str = c.to_string();
             match i % 7 {
-                0 => c.red().to_string(),
-                1 => c.bright_red().to_string(), // Orange approximation
-                2 => c.yellow().to_string(),
-                3 => c.green().to_string(),
-                4 => c.blue().to_string(),
-                5 => c.magenta().to_string(),
-                6 => c.cyan().to_string(),
-                _ => c.to_string(),
+                0 => char_str.red().to_string(),
+                1 => char_str.bright_red().to_string(), // Orange approximation
+                2 => char_str.yellow().to_string(),
+                3 => char_str.green().to_string(),
+                4 => char_str.blue().to_string(),
+                5 => char_str.magenta().to_string(),
+                6 => char_str.cyan().to_string(),
+                _ => char_str,
             }
         })
         .collect()
