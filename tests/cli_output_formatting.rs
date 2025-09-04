@@ -78,30 +78,30 @@ fn test_info_tree_vs_regular_display() {
 }
 
 #[test]
-fn test_rainbow_flag_accepted() {
-    // Test that --rainbow flag is accepted without error
+fn test_rainbow_colors_with_truecolor() {
+    // Test that rainbow colors work automatically when colors are enabled
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("info").arg("--rainbow");
+    cmd.arg("info");
 
     cmd.assert().success();
 }
 
 #[test]
-fn test_rainbow_with_tree_flag_combination() {
-    // Test that --rainbow and --tree flags work together
+fn test_rainbow_colors_with_tree_display() {
+    // Test that rainbow colors work with tree display
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("info").arg("--tree").arg("--rainbow");
+    cmd.arg("info").arg("--tree");
 
     cmd.assert().success();
 }
 
 #[test]
-fn test_check_rainbow_flag_accepted() {
-    // Test that --rainbow flag is accepted in check command
+fn test_no_color_disables_rainbow() {
+    // Test that NO_COLOR environment variable disables rainbow colors
     let mut cmd = Command::cargo_bin("envsense").unwrap();
-    cmd.arg("check").arg("--rainbow").arg("agent");
+    cmd.env("NO_COLOR", "1").arg("info");
 
-    cmd.assert(); // Don't check success/failure, just that it doesn't crash
+    cmd.assert().success();
 }
 
 #[test]
@@ -197,17 +197,13 @@ fn test_raw_output_not_affected_by_tree() {
 
 #[test]
 fn test_json_output_not_affected_by_formatting_flags() {
-    // JSON output should not be affected by --tree or --rainbow flags
+    // JSON output should not be affected by --tree flag
     let mut cmd_json = Command::cargo_bin("envsense").unwrap();
     cmd_json.arg("info").arg("--json");
     let json_output = cmd_json.assert().success().get_output().stdout.clone();
 
     let mut cmd_json_tree = Command::cargo_bin("envsense").unwrap();
-    cmd_json_tree
-        .arg("info")
-        .arg("--json")
-        .arg("--tree")
-        .arg("--rainbow");
+    cmd_json_tree.arg("info").arg("--json").arg("--tree");
     let json_tree_output = cmd_json_tree.assert().success().get_output().stdout.clone();
 
     // JSON output should be the same regardless of formatting flags

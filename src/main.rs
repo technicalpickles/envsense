@@ -51,10 +51,6 @@ struct InfoArgs {
     /// Use tree structure for nested display
     #[arg(long)]
     tree: bool,
-
-    /// Enable rainbow display for truecolor values
-    #[arg(long)]
-    rainbow: bool,
 }
 
 #[derive(Args, Clone)]
@@ -90,10 +86,6 @@ pub struct CheckCmd {
     /// List available predicates
     #[arg(long)]
     pub list: bool,
-
-    /// Enable rainbow display for truecolor values
-    #[arg(long)]
-    pub rainbow: bool,
 }
 
 // JsonCheck struct removed - using new EvaluationResult system
@@ -148,13 +140,13 @@ fn value_to_string(v: &Value) -> String {
     }
 }
 
-fn colorize_value_with_rainbow(v: &str, color: bool, rainbow: bool) -> String {
+fn colorize_value_with_rainbow(v: &str, color: bool) -> String {
     if !color {
         return v.to_string();
     }
 
-    // Apply rainbow effect to "truecolor" if enabled
-    if rainbow && v == "truecolor" {
+    // Apply rainbow effect to "truecolor" when colors are enabled
+    if v == "truecolor" {
         return format_color_level_with_rainbow(v, true);
     }
 
@@ -193,7 +185,6 @@ fn render_nested_value_with_rainbow(
     value: &serde_json::Value,
     indent: usize,
     color: bool,
-    rainbow: bool,
 ) -> String {
     let indent_str = "  ".repeat(indent);
 
@@ -204,17 +195,11 @@ fn render_nested_value_with_rainbow(
                 result.push_str(&format!("{}{}:\n", indent_str, key));
                 match val {
                     serde_json::Value::Object(_) => {
-                        result.push_str(&render_nested_value_with_rainbow(
-                            val,
-                            indent + 1,
-                            color,
-                            rainbow,
-                        ));
+                        result.push_str(&render_nested_value_with_rainbow(val, indent + 1, color));
                     }
                     _ => {
                         let formatted_value = format_simple_value(val);
-                        let colored_value =
-                            colorize_value_with_rainbow(&formatted_value, color, rainbow);
+                        let colored_value = colorize_value_with_rainbow(&formatted_value, color);
                         result.push_str(&format!("{}  {}\n", indent_str, colored_value));
                     }
                 }
@@ -223,7 +208,7 @@ fn render_nested_value_with_rainbow(
         }
         _ => {
             let formatted_value = format_simple_value(value);
-            let colored_value = colorize_value_with_rainbow(&formatted_value, color, rainbow);
+            let colored_value = colorize_value_with_rainbow(&formatted_value, color);
             format!("{}{}\n", indent_str, colored_value)
         }
     }
@@ -239,7 +224,7 @@ fn format_simple_value(value: &serde_json::Value) -> String {
     }
 }
 
-fn render_nested_traits(traits: &Value, color: bool, raw: bool, rainbow: bool, out: &mut String) {
+fn render_nested_traits(traits: &Value, color: bool, raw: bool, out: &mut String) {
     if let Value::Object(map) = traits {
         if raw {
             // For raw output, flatten the nested structure
@@ -307,7 +292,6 @@ fn render_nested_traits(traits: &Value, color: bool, raw: bool, rainbow: bool, o
                             out.push_str(&colorize_value_with_rainbow(
                                 &value_to_string(value),
                                 color,
-                                rainbow,
                             ));
                         }
                     }
@@ -323,7 +307,6 @@ fn render_human(
     color: bool,
     raw: bool,
     tree: bool,
-    rainbow: bool,
 ) -> Result<String, String> {
     let default_fields = ["contexts", "traits"];
     let selected: Vec<&str> = match fields {
@@ -378,10 +361,9 @@ fn render_human(
                         &snapshot.traits,
                         0,
                         color,
-                        rainbow,
                     ));
                 } else {
-                    render_nested_traits(&snapshot.traits, color, raw, rainbow, &mut out);
+                    render_nested_traits(&snapshot.traits, color, raw, &mut out);
                 }
             }
             "facets" => {
@@ -413,7 +395,7 @@ fn render_human(
                         out.push_str("  ");
                         out.push_str(&k);
                         out.push_str(" = ");
-                        out.push_str(&colorize_value_with_rainbow(&v, color, rainbow));
+                        out.push_str(&colorize_value_with_rainbow(&v, color));
                     }
                 }
             }
@@ -445,7 +427,7 @@ fn render_human(
                         out.push_str("  ");
                         out.push_str(&k);
                         out.push_str(" = ");
-                        out.push_str(&colorize_value_with_rainbow(&v, color, rainbow));
+                        out.push_str(&colorize_value_with_rainbow(&v, color));
                     }
                 }
             }
@@ -787,7 +769,6 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
             want_color,
             args.raw,
             args.tree,
-            args.rainbow,
         ) {
             Ok(r) => r,
             Err(e) => {
