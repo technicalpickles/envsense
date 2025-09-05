@@ -486,7 +486,7 @@ fn render_human(
 
 // Legacy evidence helper functions removed - using new evaluation system
 
-fn run_check(args: CheckCmd, config: &CliConfig) -> Result<(), i32> {
+fn run_check(args: CheckCmd, _config: &CliConfig) -> Result<(), i32> {
     // Validate flag combinations first
     if let Err(validation_error) = validate_check_flags(&args) {
         eprintln!("{}", validation_error);
@@ -778,7 +778,7 @@ fn detect_color_choice() -> ColorChoice {
     }
 }
 
-fn run_info(args: InfoArgs, color: ColorChoice, config: &CliConfig) -> Result<(), i32> {
+fn run_info(args: InfoArgs, color: ColorChoice, _config: &CliConfig) -> Result<(), i32> {
     let snapshot = collect_snapshot();
     if args.json {
         let mut v = json!({
