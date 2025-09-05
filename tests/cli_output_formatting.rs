@@ -176,6 +176,8 @@ fn test_raw_output_format() {
     // Raw output should use flat format regardless of hierarchical display
     let mut cmd_raw = Command::cargo_bin("envsense").unwrap();
     cmd_raw.arg("info").arg("--raw");
+    // Set an environment variable to ensure agent detection in CI
+    cmd_raw.env("CURSOR_AGENT", "1");
     let raw_output = cmd_raw.assert().success().get_output().stdout.clone();
 
     let output_str = String::from_utf8_lossy(&raw_output);
