@@ -41,6 +41,26 @@ fn prints_json_with_version() {
 }
 
 #[test]
+fn version_flag_displays_version() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.arg("--version")
+        .assert()
+        .success()
+        .stdout(contains("envsense"))
+        .stdout(contains(env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
+fn version_short_flag_displays_version() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.arg("-V")
+        .assert()
+        .success()
+        .stdout(contains("envsense"))
+        .stdout(contains(env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
 fn fields_limit_output() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.args(["info", "--json", "--fields=contexts"])
