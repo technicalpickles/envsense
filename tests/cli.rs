@@ -58,8 +58,8 @@ fn human_info_multiline() {
         .success()
         .stdout(contains("Traits:"))
         .stdout(contains("terminal:"))
-        .stdout(contains("color_level = none"))
-        .stdout(contains("interactive = false"));
+        .stdout(contains("color_level: none"))
+        .stdout(contains("interactive: false"));
 }
 
 #[test]

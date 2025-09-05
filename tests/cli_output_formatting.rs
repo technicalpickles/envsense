@@ -48,8 +48,8 @@ fn test_info_hierarchical_display() {
         .success()
         .stdout(predicate::str::contains("Traits:"))
         .stdout(predicate::str::contains("terminal:"))
-        .stdout(predicate::str::contains("color_level ="))
-        .stdout(predicate::str::contains("interactive ="));
+        .stdout(predicate::str::contains("color_level:"))
+        .stdout(predicate::str::contains("interactive:"));
 }
 
 #[test]
@@ -64,8 +64,8 @@ fn test_info_display_format() {
     // Should contain basic information in hierarchical format
     assert!(output_str.contains("Traits:"));
     assert!(output_str.contains("terminal"));
-    // Should use key = value format for simple values
-    assert!(output_str.contains(" = "));
+    // Should use key: value format for simple values
+    assert!(output_str.contains(": "));
 }
 
 #[test]
