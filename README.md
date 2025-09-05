@@ -25,23 +25,23 @@ Download the latest release for your platform from
 
 ```bash
 # Linux x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-unknown-linux-gnu -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-unknown-linux-gnu -o envsense
 chmod +x envsense
 
 # macOS Intel
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Universal (Intel + Apple Silicon)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-universal-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-universal-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Apple Silicon (if you prefer architecture-specific)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-aarch64-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-aarch64-apple-darwin -o envsense
 chmod +x envsense
 
 # Windows x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-pc-windows-msvc.exe -o envsense.exe
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
 ```
 
 ### From Source
@@ -162,6 +162,11 @@ status 0 on success, 1 on failure.
 #### Discovery
 
 - `--list` - List all available predicates
+- `--descriptions` - Show context descriptions in list mode (requires `--list`)
+
+#### Validation
+
+- `--lenient` - Use lenient mode (don't error on invalid fields)
 
 #### Examples
 
@@ -182,6 +187,10 @@ envsense check --json --explain agent  # JSON with reasoning included
 
 # List available predicates
 envsense check --list                  # Shows all contexts, facets, and traits
+envsense check --list --descriptions   # Shows contexts with descriptions
+
+# Lenient mode (for experimental usage)
+envsense check --lenient unknown.field # Won't error on invalid field paths
 ```
 
 ### Info Command Options
@@ -199,6 +208,11 @@ The `info` command shows detailed environment information.
 - `--fields <list>` - Comma-separated keys to include: `contexts`, `traits`,
   `facets`, `meta`
 
+#### Display Options
+
+- `--tree` - Use tree structure for nested display (hierarchical is default)
+- `--compact` - Compact output without extra formatting
+
 #### Examples
 
 ```bash
@@ -212,6 +226,11 @@ envsense info --no-color               # Human-friendly, no colors
 envsense info --fields contexts,traits # Only contexts and traits
 envsense info --json --fields facets   # JSON with only facets
 envsense info --raw --fields meta      # Raw output with only metadata
+
+# Display options
+envsense info --tree                   # Tree structure display
+envsense info --compact                # Compact formatting
+envsense info --tree --compact         # Tree structure with compact formatting
 ```
 
 ### Global Options
@@ -230,6 +249,54 @@ envsense info --raw --fields meta      # Raw output with only metadata
 envsense check agent && echo "Agent detected"     # Only runs if agent=true
 envsense check !agent && echo "Not in agent"      # Only runs if agent=false
 envsense check --any agent ide || echo "Neither"  # Runs if neither matches
+```
+
+## Configuration
+
+envsense supports optional configuration via a TOML file located at
+`~/.config/envsense/config.toml` (or equivalent on your platform).
+
+### Configuration Structure
+
+```toml
+[error_handling]
+strict_mode = true         # Enable strict validation (default: true)
+show_usage_on_error = true # Show usage help on errors (default: true)
+
+[output_formatting]
+context_descriptions = true # Show descriptions in --list (default: true)
+nested_display = true       # Use hierarchical output (default: true)
+rainbow_colors = true       # Enable rainbow colors for special values (default: true)
+
+[validation]
+validate_predicates = true           # Validate predicate syntax (default: true)
+allowed_characters = "a-zA-Z0-9_.=-" # Valid characters in predicates
+```
+
+### Configuration Loading
+
+- Configuration is loaded automatically from the standard config directory
+- If no config file exists, sensible defaults are used
+- Partial configuration files are supported (missing sections use defaults)
+- Configuration errors are silently ignored, falling back to defaults
+
+### Creating a Configuration File
+
+```bash
+# Create the config directory
+mkdir -p ~/.config/envsense
+
+# Create a basic configuration file
+cat > ~/.config/envsense/config.toml << EOF
+[error_handling]
+strict_mode = true
+
+[output_formatting]
+rainbow_colors = false
+
+[validation]
+validate_predicates = true
+EOF
 ```
 
 ## Key Concepts

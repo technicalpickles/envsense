@@ -1,0 +1,35 @@
+---
+source: tests/info_snapshots.rs
+expression: stdout
+---
+Available contexts:
+- agent: Agent environment detection
+- ide: Integrated development environment
+- terminal: Terminal characteristics
+- ci: Continuous integration environment
+
+Available fields:
+
+  agent fields:
+    agent.id                  # Agent identifier
+
+  ide fields:
+    ide.id                    # IDE identifier
+
+  terminal fields:
+    terminal.color_level      # Color support level
+    terminal.interactive      # Terminal interactivity
+    terminal.stderr.piped     # Stderr is piped
+    terminal.stderr.tty       # Stderr is TTY
+    terminal.stdin.piped      # Stdin is piped
+    terminal.stdin.tty        # Stdin is TTY
+    terminal.stdout.piped     # Stdout is piped
+    terminal.stdout.tty       # Stdout is TTY
+    terminal.supports_hyperlinks # Hyperlink support
+
+  ci fields:
+    ci.branch                 # Branch name
+    ci.id                     # CI system identifier
+    ci.is_pr                  # Is pull request
+    ci.name                   # CI system name
+    ci.vendor                 # CI vendor
