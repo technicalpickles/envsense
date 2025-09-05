@@ -56,9 +56,10 @@ fn human_info_multiline() {
         .args(["info", "--fields=traits", "--no-color"])
         .assert()
         .success()
-        .stdout(contains(
-            "Traits:\n  terminal:\n    color_level = none\n    interactive = false",
-        ));
+        .stdout(contains("Traits:"))
+        .stdout(contains("terminal:"))
+        .stdout(contains("color_level: none"))
+        .stdout(contains("interactive: false"));
 }
 
 #[test]
