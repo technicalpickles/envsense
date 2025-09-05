@@ -1,6 +1,7 @@
 use clap::{Args, ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand};
 use colored::Colorize;
 use envsense::check::{self, FieldRegistry};
+use envsense::config::CliConfig;
 // Legacy CI detection removed - using declarative system
 use envsense::schema::EnvSense;
 use serde_json::{Map, Value, json};
@@ -46,6 +47,14 @@ struct InfoArgs {
     /// Comma-separated keys to include: contexts,traits,facets,meta
     #[arg(long, value_name = "list")]
     fields: Option<String>,
+
+    /// Use tree structure for nested display (hierarchical is default)
+    #[arg(long)]
+    tree: bool,
+
+    /// Compact output without extra formatting
+    #[arg(long)]
+    compact: bool,
 }
 
 #[derive(Args, Clone)]
@@ -81,6 +90,14 @@ pub struct CheckCmd {
     /// List available predicates
     #[arg(long)]
     pub list: bool,
+
+    /// Use lenient mode (don't error on invalid fields)
+    #[arg(long)]
+    pub lenient: bool,
+
+    /// Show context descriptions in list mode
+    #[arg(long, requires = "list")]
+    pub descriptions: bool,
 }
 
 // JsonCheck struct removed - using new EvaluationResult system
@@ -469,7 +486,7 @@ fn render_human(
 
 // Legacy evidence helper functions removed - using new evaluation system
 
-fn run_check(args: CheckCmd) -> Result<(), i32> {
+fn run_check(args: CheckCmd, config: &CliConfig) -> Result<(), i32> {
     // Validate flag combinations first
     if let Err(validation_error) = validate_check_flags(&args) {
         eprintln!("{}", validation_error);
@@ -761,7 +778,7 @@ fn detect_color_choice() -> ColorChoice {
     }
 }
 
-fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
+fn run_info(args: InfoArgs, color: ColorChoice, config: &CliConfig) -> Result<(), i32> {
     let snapshot = collect_snapshot();
     if args.json {
         let mut v = json!({
@@ -800,17 +817,18 @@ fn run_info(args: InfoArgs, color: ColorChoice) -> Result<(), i32> {
 }
 
 fn main() {
+    let config = CliConfig::load();
     let color = detect_color_choice();
     let matches = Cli::command().color(color).get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match cli.command {
         Some(Commands::Info(args)) => {
-            if let Err(code) = run_info(args, color) {
+            if let Err(code) = run_info(args, color, &config) {
                 std::process::exit(code);
             }
         }
         Some(Commands::Check(args)) => {
-            if let Err(code) = run_check(args) {
+            if let Err(code) = run_check(args, &config) {
                 std::process::exit(code);
             }
         }
