@@ -25,23 +25,23 @@ Download the latest release for your platform from
 
 ```bash
 # Linux x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-unknown-linux-gnu -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-unknown-linux-gnu -o envsense
 chmod +x envsense
 
 # macOS Intel
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Universal (Intel + Apple Silicon)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-universal-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-universal-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Apple Silicon (if you prefer architecture-specific)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-aarch64-apple-darwin -o envsense
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-aarch64-apple-darwin -o envsense
 chmod +x envsense
 
 # Windows x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.1.0-x86_64-pc-windows-msvc.exe -o envsense.exe
+curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
 ```
 
 ### From Source
