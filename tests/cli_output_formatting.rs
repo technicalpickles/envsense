@@ -48,8 +48,8 @@ fn test_info_hierarchical_display() {
         .success()
         .stdout(predicate::str::contains("Traits:"))
         .stdout(predicate::str::contains("terminal:"))
-        .stdout(predicate::str::contains("  color_level ="))
-        .stdout(predicate::str::contains("  interactive ="));
+        .stdout(predicate::str::contains("color_level ="))
+        .stdout(predicate::str::contains("interactive ="));
 }
 
 #[test]
@@ -159,9 +159,9 @@ fn test_hierarchical_display_indentation() {
     let mut found_level_1 = false;
 
     for line in lines {
-        if line.starts_with("terminal:") || line.starts_with("agent:") {
+        if line.starts_with("Contexts:") || line.starts_with("Traits:") {
             found_level_0 = true;
-        } else if line.starts_with("  ") && !line.starts_with("    ") {
+        } else if line.starts_with("  - ") || line.starts_with("        ") {
             found_level_1 = true;
         }
     }

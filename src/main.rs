@@ -189,17 +189,36 @@ fn render_nested_value_with_rainbow(
             let mut result = String::new();
             for (key, val) in map {
                 match val {
-                    serde_json::Value::Object(_) => {
-                        // For nested objects, show the key with colon and expand recursively
-                        result.push_str(&format!("{}{}:\n", indent_str, key));
-                        result.push_str(&render_nested_value_with_rainbow(val, indent + 1, color));
+                    serde_json::Value::Object(obj_map) => {
+                        if obj_map.is_empty() {
+                            // Empty object shows as "= none" with red color
+                            let none_value = if color {
+                                "none".red().to_string()
+                            } else {
+                                "none".to_string()
+                            };
+                            result.push_str(&format!(
+                                "{}      {} = {}\n",
+                                indent_str, key, none_value
+                            ));
+                        } else {
+                            // For nested objects, show the key with colon and expand recursively
+                            result.push_str(&format!("{}      {}:\n", indent_str, key));
+                            result.push_str(&render_nested_value_with_rainbow(
+                                val,
+                                indent + 1,
+                                color,
+                            ));
+                        }
                     }
                     _ => {
                         // For simple values, show key = value
                         let formatted_value = format_simple_value(val);
                         let colored_value = colorize_value_with_rainbow(&formatted_value, color);
-                        result
-                            .push_str(&format!("{}    {} = {}\n", indent_str, key, colored_value));
+                        result.push_str(&format!(
+                            "{}            {} = {}\n",
+                            indent_str, key, colored_value
+                        ));
                     }
                 }
             }
@@ -353,9 +372,9 @@ fn render_human(
                         "Contexts:".to_string()
                     };
                     out.push_str(&heading);
-                    if !ctx.is_empty() {
-                        out.push(' ');
-                        out.push_str(&ctx.join(", "));
+                    out.push('\n');
+                    for context in &ctx {
+                        out.push_str(&format!("  - {}\n", context));
                     }
                 }
             }
@@ -372,7 +391,7 @@ fn render_human(
                     out.push('\n');
                     out.push_str(&render_nested_value_with_rainbow(
                         &snapshot.traits,
-                        0,
+                        1, // Start with 1 level of indentation for traits
                         color,
                     ));
                 }
