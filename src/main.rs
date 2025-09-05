@@ -197,13 +197,10 @@ fn render_nested_value_with_rainbow(
                             } else {
                                 "none".to_string()
                             };
-                            result.push_str(&format!(
-                                "{}      {} = {}\n",
-                                indent_str, key, none_value
-                            ));
+                            result.push_str(&format!("{}  {} = {}\n", indent_str, key, none_value));
                         } else {
                             // For nested objects, show the key with colon and expand recursively
-                            result.push_str(&format!("{}      {}:\n", indent_str, key));
+                            result.push_str(&format!("{}  {}:\n", indent_str, key));
                             result.push_str(&render_nested_value_with_rainbow(
                                 val,
                                 indent + 1,
@@ -215,10 +212,8 @@ fn render_nested_value_with_rainbow(
                         // For simple values, show key = value
                         let formatted_value = format_simple_value(val);
                         let colored_value = colorize_value_with_rainbow(&formatted_value, color);
-                        result.push_str(&format!(
-                            "{}            {} = {}\n",
-                            indent_str, key, colored_value
-                        ));
+                        result
+                            .push_str(&format!("{}    {} = {}\n", indent_str, key, colored_value));
                     }
                 }
             }
