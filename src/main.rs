@@ -200,7 +200,7 @@ fn render_nested_value_with_rainbow(
                             result.push_str(&format!("{}  {} = {}\n", indent_str, key, none_value));
                         } else {
                             // For nested objects, show the key with colon and expand recursively
-                            result.push_str(&format!("{}  {}:\n", indent_str, key));
+                            result.push_str(&format!("{}    {}:\n", indent_str, key));
                             result.push_str(&render_nested_value_with_rainbow(
                                 val,
                                 indent + 1,
