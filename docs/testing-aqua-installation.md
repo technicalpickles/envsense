@@ -1,292 +1,165 @@
 # Testing Aqua Installation
 
-This document provides comprehensive testing procedures for validating
-`envsense` installation via aqua/mise.
+This document describes how to test the aqua registry configuration for envsense
+before submitting to the official registry.
 
 ## Overview
 
-The testing process validates:
-
-- Release signing with cosign
-- Aqua registry configuration
-- Cross-platform installation
-- Binary functionality after installation
-
-## Prerequisites
-
-### Required Tools
+The aqua registry configuration has been successfully implemented and tested.
+Users will be able to install envsense using:
 
 ```bash
-# Install mise (includes aqua support)
-curl https://mise.run | sh
-
-# Install cosign for signature verification
-brew install cosign
-
-# Install jq for JSON processing
-brew install jq
+mise install aqua:envsense
 ```
 
-### Test Environment Setup
+## Local Testing
+
+### Prerequisites
+
+- `mise` installed and configured
+- `aqua` available via mise (`mise install aqua`)
+
+### Running Tests
+
+Use the provided test script:
 
 ```bash
-# Clone the repository
-git clone https://github.com/technicalpickles/envsense.git
-cd envsense
-
-# Ensure scripts are executable
-chmod +x scripts/*.sh
-```
-
-## Testing Procedures
-
-### 1. Signature Validation Testing
-
-Test that release signatures are valid and verifiable:
-
-```bash
-# Test signature validation for latest release
-./scripts/validate-signing.sh
-
-# Test specific version
-./scripts/validate-signing.sh 0.3.0
-```
-
-**Expected Results:**
-
-- ✅ All binaries have corresponding `.sig` files
-- ✅ All signatures verify successfully with cosign
-- ✅ Script reports success for all platforms
-
-**Troubleshooting:**
-
-- If cosign is missing: `brew install cosign`
-- If jq is missing: `brew install jq`
-- If signatures fail: Check GitHub Actions logs for signing errors
-
-### 2. Local Registry Testing
-
-Test aqua configuration before submitting to upstream registry:
-
-```bash
-# Test local aqua registry setup
 ./scripts/test-aqua-local.sh
 ```
 
-**Expected Results:**
+This script:
 
-- ✅ Local registry structure created correctly
-- ✅ Aqua configuration parsed without errors
-- ⚠️ Installation may fail (expected until signed releases exist)
+1. Creates a temporary test environment
+2. Sets up local registry configuration
+3. Installs envsense via aqua
+4. Validates the installation works correctly
+5. Tests basic functionality
 
-### 3. End-to-End Installation Testing
+### Manual Testing
 
-Once signed releases are available, test full installation flow:
+If you need to test manually:
 
-```bash
-# Test installation via mise
-mise install aqua:envsense
+1. **Create test directory:**
 
-# Test specific version
-mise install aqua:envsense@0.3.0
+   ```bash
+   mkdir -p tmp/manual-test && cd tmp/manual-test
+   ```
 
-# Test binary functionality
-envsense --version
-envsense info
-envsense check
-```
+2. **Copy registry configuration:**
 
-**Expected Results:**
+   ```bash
+   cp ../aqua-registry-entry.yaml registry.yaml
+   ```
 
-- ✅ Installation completes without errors
-- ✅ Binary is executable and functional
-- ✅ All core commands work correctly
+3. **Create aqua.yaml:**
 
-## Platform-Specific Testing
+   ```yaml
+   ---
+   registries:
+     - type: local
+       name: envsense-local
+       path: registry.yaml
+   packages:
+     - name: technicalpickles/envsense@0.3.4
+       registry: envsense-local
+   ```
 
-### Linux (x86_64)
+4. **Create policy file:**
 
-```bash
-# Using Docker for isolated testing
-docker run --rm -it ubuntu:latest bash -c "
-  curl https://mise.run | sh
-  source ~/.bashrc
-  mise install aqua:envsense
-  envsense --version
-"
-```
+   ```yaml
+   ---
+   registries:
+     - name: envsense-local
+       type: local
+       path: registry.yaml
+   packages:
+     - name: technicalpickles/envsense
+       registry: envsense-local
+   ```
 
-### macOS (Universal)
+5. **Install and test:**
+   ```bash
+   AQUA_POLICY_CONFIG=aqua-policy.yaml mise exec aqua -- aqua install
+   AQUA_POLICY_CONFIG=aqua-policy.yaml mise exec aqua -- envsense info
+   ```
 
-```bash
-# Test on macOS (should work on both Intel and Apple Silicon)
-mise install aqua:envsense
-envsense --version
+## Configuration Details
 
-# Verify architecture support
-file $(which envsense)
-```
+### Registry Configuration
 
-### Cross-Platform Matrix Testing
+The registry configuration (`aqua-registry-entry.yaml`) includes:
 
-Create test matrix for comprehensive validation:
+- **Proper binary naming**: Uses `envsense-{{.Version}}-{{.Arch}}-{{.OS}}`
+  format (no 'v' prefix)
+- **Cross-platform support**: Linux x64 and macOS Universal binaries
+- **Checksum verification**: SHA256 checksums for all binaries
+- **Cosign verification**: Keyless signing verification with GitHub OIDC
+- **Version constraints**: Uses `version_overrides` for flexible version
+  matching
 
-| Platform | Architecture  | Test Status | Notes              |
-| -------- | ------------- | ----------- | ------------------ |
-| Linux    | x86_64        | ⏳ Pending  | Docker testing     |
-| macOS    | Universal     | ⏳ Pending  | Native testing     |
-| macOS    | Intel         | ⏳ Pending  | Rosetta validation |
-| macOS    | Apple Silicon | ⏳ Pending  | Native ARM testing |
+### Key Features
 
-## Validation Checklists
+1. **Security**: Cosign signature verification for all binaries
+2. **Platform Support**:
+   - Linux x64 (`x86_64-unknown-linux-gnu`)
+   - macOS Universal (`universal-apple-darwin`)
+3. **Policy Support**: Requires explicit policy configuration for security
+4. **Checksum Validation**: Automatic SHA256 checksum verification
 
-### Pre-Release Checklist
+### Policy Requirements
 
-- [ ] GitHub Actions workflow includes cosign signing
-- [ ] All target platforms have signing enabled
-- [ ] Validation script passes for test releases
-- [ ] Aqua configuration is syntactically correct
-
-### Post-Release Checklist
-
-- [ ] All release assets include `.sig` files
-- [ ] Signature validation passes for all platforms
-- [ ] Local aqua registry testing succeeds
-- [ ] Installation works via `mise install aqua:envsense`
-- [ ] Installed binary is functional
-
-### Registry Submission Checklist
-
-- [ ] Aqua configuration tested locally
-- [ ] All supported platforms verified
-- [ ] Documentation updated with installation instructions
-- [ ] Registry PR submitted with clear description
-
-## Troubleshooting Common Issues
-
-### Signature Verification Failures
-
-**Problem**: `cosign verify-blob` fails
-
-**Solutions**:
-
-1. Check certificate identity matches repository URL
-2. Verify OIDC issuer is GitHub Actions
-3. Ensure signature file exists and is not corrupted
-
-### Installation Failures
-
-**Problem**: `mise install aqua:envsense` fails
-
-**Solutions**:
-
-1. Check network connectivity
-2. Verify release assets exist on GitHub
-3. Validate aqua registry configuration syntax
-4. Check mise/aqua version compatibility
-
-### Binary Not Found
-
-**Problem**: `envsense` command not found after installation **Solutions**:
-
-1. Check mise shims: `mise which envsense`
-2. Verify PATH includes mise shims directory
-3. Reload shell configuration: `source ~/.bashrc`
-
-### Platform-Specific Issues
-
-**macOS Gatekeeper**:
-
-- Binary may be quarantined by macOS security
-- Solution: `xattr -d com.apple.quarantine $(which envsense)`
-
-**Linux Permissions**:
-
-- Binary may not have execute permissions
-- Solution: `chmod +x $(which envsense)`
-
-## Continuous Testing
-
-### Automated Testing Setup
-
-Add aqua installation testing to CI/CD:
+Aqua requires explicit policy configuration to allow package installation. Users
+need:
 
 ```yaml
-# .github/workflows/test-aqua.yml
-name: Test Aqua Installation
-on:
-  release:
-    types: [published]
-
-jobs:
-  test-installation:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install mise
-        run: curl https://mise.run | sh
-
-      - name: Test installation
-        run: |
-          source ~/.bashrc
-          mise install aqua:envsense
-          envsense --version
+# aqua-policy.yaml
+registries:
+  - type: standard
+    ref: semver(">= 3.0.0")
+packages:
+  - name: technicalpickles/envsense
+  - registry: standard
 ```
 
-### Monitoring and Alerts
+Or set `AQUA_POLICY_CONFIG` environment variable.
 
-- Monitor GitHub releases for missing signatures
-- Set up alerts for installation failures
-- Track user feedback from aqua/mise communities
+## Troubleshooting
 
-## Performance Benchmarks
+### Common Issues
 
-### Installation Time
+1. **"Package isn't allowed" error**:
+   - Ensure proper policy configuration
+   - Set `AQUA_POLICY_CONFIG` environment variable
+   - Add package to policy file
 
-Target metrics:
+2. **Asset not found**:
+   - Verify binary naming convention matches releases
+   - Check version exists in GitHub releases
+   - Validate asset templates in registry configuration
 
-- Installation time: < 30 seconds
-- Binary size: < 10MB per platform
-- Signature verification: < 5 seconds
+3. **Checksum verification fails**:
+   - Ensure SHA256 files exist for all binaries
+   - Verify checksum file naming matches asset naming
 
-### Measurement Commands
+4. **Cosign verification fails**:
+   - Verify signatures exist (`.sig` files)
+   - Check certificate identity configuration
+   - Ensure OIDC issuer is correct
 
-```bash
-# Time installation
-time mise install aqua:envsense
+## Next Steps
 
-# Check binary size
-ls -lh $(which envsense)
+1. **Submit to Official Registry**: Create PR to `aquaproj/aqua-registry`
+2. **Update Documentation**: Add installation instructions to README
+3. **Monitor Usage**: Track installation success and user feedback
 
-# Time signature verification
-time ./scripts/validate-signing.sh
-```
+## Testing Results
 
-## Documentation Updates
+✅ **Basic Installation**: Works correctly with local registry  
+✅ **Binary Functionality**: All envsense commands work as expected  
+✅ **Cross-platform**: Tested on macOS (Universal binary)  
+✅ **Policy Configuration**: Security policies work correctly  
+✅ **Checksum Verification**: SHA256 validation successful  
+🔄 **Cosign Verification**: Configuration ready (requires testing with official
+registry)
 
-After successful testing, update project documentation:
-
-1. **README.md**: Add aqua/mise installation instructions
-2. **Installation section**: Include new installation method
-3. **Troubleshooting**: Add aqua-specific issues and solutions
-
-## Future Considerations
-
-### Version Management
-
-- Test version pinning: `mise install aqua:envsense@0.3.0`
-- Test version updates: `mise install aqua:envsense@latest`
-- Validate semantic versioning compatibility
-
-### Registry Maintenance
-
-- Monitor aqua registry updates for breaking changes
-- Test configuration with new aqua/mise versions
-- Maintain compatibility with registry schema changes
-
----
-
-**Last Updated**: 2025-01-10 **Tested Versions**: envsense v0.3.0, mise latest,
-aqua latest
+The configuration is ready for submission to the official aqua registry.

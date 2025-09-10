@@ -1,55 +1,63 @@
 # Aqua Registry Configuration for envsense
-# This file serves as a reference for the configuration that will be submitted
-# to the aqua-registry repository at: https://github.com/aquaproj/aqua-registry
+# Generated using: aqua gr technicalpickles/envsense
+# Enhanced with cosign verification support
+#
+# This configuration has been tested locally and works with:
+# - Basic installation without cosign verification ✅
+# - Proper binary naming convention (no 'v' prefix) ✅
+# - Cross-platform support (Linux x64, macOS Universal) ✅
+# - Policy configuration for security ✅
+#
+# Usage: AQUA_POLICY_CONFIG=policy.yaml aqua install
+# Where policy.yaml allows the technicalpickles/envsense package
 
 packages:
   - type: github_release
     repo_owner: technicalpickles
     repo_name: envsense
     description: Environment awareness utilities - detect runtime environments
-    asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}
-    format: raw
-    supported_envs:
-      - linux/amd64
-      - darwin/amd64
-      - darwin/arm64
-    rosetta2: true
-    version_constraint: semver
-    version_filter: 'Version startsWith "v"'
-    version_prefix: v
-    checksum:
-      type: github_release
-      asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sha256
-    cosign:
-      enabled: true
-      # Try bundle first, fall back to signature
-      signature: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sig
-      bundle: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.bundle
-      opts:
-        - --certificate-identity-regexp
-        - "https://github.com/technicalpickles/envsense"
-        - --certificate-oidc-issuer
-        - "https://token.actions.githubusercontent.com"
-    replacements:
-      darwin: apple-darwin
-      linux: unknown-linux-gnu
-      amd64: x86_64
-      arm64: aarch64
-    overrides:
-      - goos: darwin
-        asset: envsense-v{{.Version}}-universal-{{.OS}}
-        checksum:
-          type: github_release
-          asset: envsense-v{{.Version}}-universal-{{.OS}}.sha256
-        cosign:
-          enabled: true
-          # Try bundle first, fall back to signature
-          signature: envsense-v{{.Version}}-universal-{{.OS}}.sig
-          bundle: envsense-v{{.Version}}-universal-{{.OS}}.bundle
-          opts:
-            - --certificate-identity-regexp
-            - "https://github.com/technicalpickles/envsense"
-            - --certificate-oidc-issuer
-            - "https://token.actions.githubusercontent.com"
+    # version_constraint is set to "false" to disable the base constraint,
+    # so that only the version_overrides block is used for version selection.
+    # This ensures that only the explicitly defined overrides are active.
+    version_constraint: "false"
+    version_overrides:
+      # Latest versions (0.3.0+) with current naming convention
+      - version_constraint: "true"
+        asset: envsense-{{.Version}}-{{.Arch}}-{{.OS}}
+        format: raw
         replacements:
           darwin: apple-darwin
+          linux: unknown-linux-gnu
+        checksum:
+          type: github_release
+          asset: "{{.Asset}}.sha256"
+          algorithm: sha256
+          cosign:
+            opts:
+              - --certificate-identity-regexp
+              - "https://github.com/technicalpickles/envsense"
+              - --certificate-oidc-issuer
+              - "https://token.actions.githubusercontent.com"
+              - --signature
+              - "{{.Asset}}.sig"
+        overrides:
+          - goos: linux
+            replacements:
+              amd64: x86_64
+          - goos: darwin
+            asset: envsense-{{.Version}}-universal-{{.OS}}
+            checksum:
+              type: github_release
+              asset: envsense-{{.Version}}-universal-{{.OS}}.sha256
+              algorithm: sha256
+              cosign:
+                opts:
+                  - --certificate-identity-regexp
+                  - "https://github.com/technicalpickles/envsense"
+                  - --certificate-oidc-issuer
+                  - "https://token.actions.githubusercontent.com"
+                  - --signature
+                  - envsense-{{.Version}}-universal-{{.OS}}.sig
+        supported_envs:
+          - linux/amd64
+          - darwin

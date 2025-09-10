@@ -1,5 +1,8 @@
 /target
 
+# Temporary files and testing directories
+tmp/
+
 # Node.js
 node_modules/
 npm-debug.log*
