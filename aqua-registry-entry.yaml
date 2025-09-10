@@ -22,7 +22,9 @@ packages:
       asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sha256
     cosign:
       enabled: true
+      # Try bundle first, fall back to signature
       signature: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sig
+      bundle: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.bundle
       opts:
         - --certificate-identity-regexp
         - "https://github.com/technicalpickles/envsense"
@@ -41,7 +43,9 @@ packages:
           asset: envsense-v{{.Version}}-universal-{{.OS}}.sha256
         cosign:
           enabled: true
+          # Try bundle first, fall back to signature
           signature: envsense-v{{.Version}}-universal-{{.OS}}.sig
+          bundle: envsense-v{{.Version}}-universal-{{.OS}}.bundle
           opts:
             - --certificate-identity-regexp
             - "https://github.com/technicalpickles/envsense"

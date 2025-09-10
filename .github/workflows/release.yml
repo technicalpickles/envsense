@@ -108,30 +108,20 @@ jobs:
 
       - name: Filter release files
         shell: bash
-        run: |
-          echo "Filtering release files..."
-          mkdir -p release-files
-          # Copy only non-test files to release-files directory
-          find dist/ -name "envsense-*" -not -name "*-test*" -exec cp {} release-files/ \;
-          echo "Release files:"
-          ls -la release-files/
+        run: ./scripts/filter-release-files.sh
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
       - name: Sign release binaries
         shell: bash
-        run: |
-          echo "Signing release binaries with cosign..."
-          cd release-files
-          for file in envsense-*; do
-            if [[ "$file" != *.sha256 && "$file" != *.sig ]]; then
-              echo "Signing: $file"
-              cosign sign-blob --yes "$file" --output-signature "${file}.sig"
-            fi
-          done
-          echo "Signing completed. Files:"
-          ls -la
+        run: ./scripts/sign-release-binaries.sh
+        env:
+          COSIGN_EXPERIMENTAL: 1
+
+      - name: Verify signatures immediately
+        shell: bash
+        run: ./scripts/verify-release-signatures.sh
         env:
           COSIGN_EXPERIMENTAL: 1
 
