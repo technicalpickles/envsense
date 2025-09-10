@@ -54,12 +54,18 @@ for file in envsense-*; do
         # Try bundle verification first, then fall back to signature verification
         if [ -f "${file}.bundle" ]; then
             echo "    Trying bundle verification..."
-            if cosign verify-blob --bundle "${file}.bundle" "$file" > /dev/null 2>&1; then
+            echo "    Bundle command: cosign verify-blob --bundle ${file}.bundle $file"
+            
+            # Try bundle verification - capture output and exit code separately
+            if BUNDLE_OUTPUT=$(cosign verify-blob --bundle "${file}.bundle" "$file" 2>&1); then
                 echo "    ✅ Bundle signature verified for: $file"
+                echo "    Bundle output: $BUNDLE_OUTPUT"
                 VERIFIED_COUNT=$((VERIFIED_COUNT + 1))
                 continue
             else
-                echo "    ⚠️  Bundle verification failed, trying signature..."
+                echo "    ⚠️  Bundle verification failed:"
+                echo "    Bundle error: $BUNDLE_OUTPUT"
+                echo "    Trying signature verification instead..."
             fi
         fi
         
