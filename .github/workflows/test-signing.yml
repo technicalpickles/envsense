@@ -28,8 +28,12 @@ jobs:
         run: |
           cargo build --release
           mkdir -p test-dist
-          cp target/release/envsense test-dist/envsense-v0.0.0-universal-apple-darwin
-          echo "test-checksum" > test-dist/envsense-v0.0.0-universal-apple-darwin.sha256
+          # Use same naming pattern as real releases (no 'v' prefix)
+          # Create multiple test files to simulate real release scenario
+          cp target/release/envsense test-dist/envsense-0.0.0-universal-apple-darwin
+          cp target/release/envsense test-dist/envsense-0.0.0-x86_64-unknown-linux-gnu
+          echo "test-checksum-darwin" > test-dist/envsense-0.0.0-universal-apple-darwin.sha256
+          echo "test-checksum-linux" > test-dist/envsense-0.0.0-x86_64-unknown-linux-gnu.sha256
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
