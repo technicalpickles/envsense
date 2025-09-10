@@ -4,7 +4,7 @@
 set -euo pipefail
 
 REPO="${1:-technicalpickles/envsense}"
-VERSION="${2:-0.3.2}"
+VERSION="${2:-0.3.3}"
 
 echo "🔍 Debug Signature Verification"
 echo "Repository: $REPO"
