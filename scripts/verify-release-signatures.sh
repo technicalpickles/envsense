@@ -56,8 +56,28 @@ for file in envsense-*; do
             echo "    Trying bundle verification..."
             echo "    Bundle command: cosign verify-blob --bundle ${file}.bundle $file"
             
-            # Try bundle verification - capture output and exit code separately
-            if BUNDLE_OUTPUT=$(cosign verify-blob --bundle "${file}.bundle" "$file" 2>&1); then
+            # Determine the branch reference for bundle verification
+            BRANCH_REF="refs/heads/main"
+            if [ -n "${GITHUB_HEAD_REF:-}" ]; then
+                # This is a pull request, use the PR branch
+                BRANCH_REF="refs/heads/$GITHUB_HEAD_REF"
+                echo "    Detected PR branch for bundle: $GITHUB_HEAD_REF"
+            elif [ -n "${GITHUB_REF:-}" ]; then
+                # Use the current ref
+                BRANCH_REF="$GITHUB_REF"
+                echo "    Using current ref for bundle: $GITHUB_REF"
+            fi
+            
+            # Try bundle verification with certificate identity verification
+            # For keyless signing, we still need to verify the certificate identity even with bundles
+            CERT_IDENTITY="https://github.com/$REPO/.github/workflows/$WORKFLOW@$BRANCH_REF"
+            echo "    Bundle certificate identity: $CERT_IDENTITY"
+            
+            if BUNDLE_OUTPUT=$(cosign verify-blob \
+                --bundle "${file}.bundle" \
+                --certificate-identity "$CERT_IDENTITY" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "$file" 2>&1); then
                 echo "    ✅ Bundle signature verified for: $file"
                 echo "    Bundle output: $BUNDLE_OUTPUT"
                 VERIFIED_COUNT=$((VERIFIED_COUNT + 1))
