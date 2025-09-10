@@ -1,215 +1,99 @@
-# Declarative Detector Consolidation Planning
+# Planning Documentation
 
-This directory contains comprehensive planning documents for consolidating and
-enhancing the declarative detector system in envsense.
+This directory contains active planning documents for ongoing and future
+envsense development work.
 
-## Documents Overview
+## Active Projects
 
-### 📋 [Declarative Detector Consolidation Plan](./declarative-detector-consolidation.md)
+### 🚧 CLI Streamlining
 
-**Primary planning document** outlining the complete consolidation strategy.
+**Status**: In Progress (Phase 3 of 5)  
+**Directory**: `cli-streamlining/`
 
-**Key Topics:**
+Major overhaul of the CLI interface to use dot notation syntax and nested JSON
+schema.
 
-- Current state analysis and implementation comparison
-- Common patterns and differences between detectors
-- Four-phase consolidation approach
-- Code reduction opportunities (50-60% target)
-- Risk assessment and mitigation strategies
+- ✅ Phase 1: Foundation & Schema (completed)
+- ✅ Phase 2: Parser & Evaluation (completed)
+- 🔄 Phase 3: Detection System (in progress)
+- ⏳ Phase 4: CLI Integration (pending)
+- ⏳ Phase 5: Migration & Cleanup (pending)
 
-**Phases:**
+### 📦 Aqua Distribution
 
-1. **Extract Common Utilities** (Low Risk, High Value)
-2. **Standardize Override System** (Medium Risk, High Value)
-3. **Standardize Selection Logic** (Medium Risk, Medium Value)
-4. **Create Base Trait** (High Risk, High Value)
+**Status**: Planned  
+**Directory**: `aqua-distribution/`
 
-### 🔄 [Contextual Value Extraction](./contextual-value-extraction.md)
+Implementation of `mise install aqua:envsense` support with release signing and
+registry submission. Waiting for CLI stabilization before implementation.
 
-**Advanced enhancement** for declarative value extraction from environment
-variables.
+### 🚀 Release Workflow
 
-**Key Topics:**
+**Status**: Planned  
+**Directory**: `release-workflow/`
 
-- CI-specific value mappings (branch, PR status, build numbers)
-- Value transformations (boolean, integer, string operations)
-- Declarative fallback chains (no more hardcoded Rust logic)
-- Extensible transformation system
+Automated GitHub Actions workflow for building and publishing cross-platform
+binaries. Lower priority item for when distribution is needed.
 
-**Phases:**
+## Completed Projects
 
-1. **Core Infrastructure** (Low Risk, High Value)
-2. **CI Value Mappings** (Medium Risk, High Value)
-3. **Integration and Testing** (Medium Risk, Medium Value)
-4. **Advanced Features** (High Risk, High Value)
+Completed planning work has been moved to `docs/archive/planning/`:
 
-### 🔧 [Override System Design](./override-system-design.md)
+- **LLD Adoption** - Fast linker integration (100% complete)
+- **Declarative Detector Consolidation** - Code consolidation and override
+  system (100% complete)
+- **Contextual Value Extraction** - CI-specific value mappings (100% complete)
+- **Override System Design** - Comprehensive override system (100% complete)
+- **Additional CLI Improvements** - Error handling and output formatting (100%
+  complete)
 
-**Detailed design** for implementing a comprehensive override system across all
-detectors.
+## Directory Structure
 
-**Key Features:**
-
-- Consistent override pattern: `ENVSENSE_{DETECTOR}=<value>`
-- Semantic overrides: `ENVSENSE_ASSUME_{MODE}=1`
-- Backward compatibility with existing agent overrides
-- Support for testing, debugging, and custom environments
-
-**New Override Variables:**
-
-```bash
-# IDE Detection
-ENVSENSE_IDE=none                    # Disable IDE detection
-ENVSENSE_IDE=custom-editor           # Force specific IDE
-ENVSENSE_ASSUME_TERMINAL=1           # Semantic disable
-
-# CI Detection
-ENVSENSE_CI=none                     # Disable CI detection
-ENVSENSE_CI=custom-ci                # Force specific CI
-ENVSENSE_ASSUME_LOCAL=1              # Semantic disable
-
-# Agent Detection (existing, maintained)
-ENVSENSE_AGENT=none                  # Disable agent detection
-ENVSENSE_AGENT=custom-agent          # Force specific agent
-ENVSENSE_ASSUME_HUMAN=1              # Semantic disable
+```
+docs/planning/
+├── README.md                    # This file
+├── cli-streamlining/           # Active: CLI interface overhaul
+│   ├── status.md               # Current status and progress
+│   ├── plan.md                 # Original plan
+│   ├── implementation-overview.md
+│   └── phase-*.md              # Individual phase details
+├── aqua-distribution/          # Planned: Package distribution
+│   ├── status.md
+│   ├── plan.md
+│   └── signing-validation.md
+└── release-workflow/           # Planned: Automated releases
+    ├── status.md
+    └── plan.md
 ```
 
-### 🧪 [Testing Strategy](./testing-strategy-consolidation.md)
+## File Naming Conventions
 
-**Comprehensive testing approach** ensuring quality and preventing regressions.
+Within each project directory:
 
-**Testing Phases:**
+- `status.md` - Current progress and next steps
+- `plan.md` - Original planning document
+- `implementation-*.md` - Implementation details
+- `phase-*.md` - Phase-specific documentation
 
-- **Phase 1**: Utility function testing (95% coverage target)
-- **Phase 2**: Override system testing (90% coverage target)
-- **Phase 3**: Selection logic migration testing (95% coverage target)
-- **Phase 4**: Base trait implementation testing (90% coverage target)
+This structure groups related work together and makes it easy to track progress
+on multi-document projects.
 
-**Quality Gates:**
+## Reorganization
 
-- All existing tests must pass (no regression)
-- New functionality must have 90%+ coverage
-- Performance must not regress by >10%
-- Memory usage must not increase by >20%
-- CLI behavior must remain identical
+To reorganize the planning directory (move completed work to archive and group
+related documents):
 
-### 🔄 [Contextual Value Extraction](./contextual-value-extraction.md)
+```bash
+# Run from repository root
+./docs/reorganize-planning-docs.sh
+```
 
-**Advanced enhancement** for declarative value extraction from environment
-variables.
+This script will:
 
-**Key Features:**
+- Move completed work to `docs/archive/planning/`
+- Group related documents into project directories
+- Apply standardized naming conventions (`plan.md`, `status.md`, etc.)
+- Preserve all content while improving organization
 
-- CI-specific value mappings (branch, PR status, build numbers)
-- Value transformations (boolean, integer, string operations)
-- Declarative fallback chains (no more hardcoded Rust logic)
-- Extensible transformation system
-
-**Implementation Phases:**
-
-- **Phase 1**: Core infrastructure and data structures
-- **Phase 2**: CI value mappings for all major systems
-- **Phase 3**: Integration with existing detection pipeline
-- **Phase 4**: Advanced features and optimizations
-
-**Benefits:**
-
-- Eliminates hardcoded fallback chains in Rust code
-- Makes CI detection fully declarative
-- Enables easy addition of new CI systems
-- Improves maintainability and testability
-
-## Project Summary
-
-### Current State
-
-- **3 declarative detectors** with similar but inconsistent implementations
-- **Agent detector** has overrides, IDE/CI detectors don't
-- **Mixed selection logic** (priority vs confidence-based)
-- **Code duplication** in evidence generation and mapping iteration
-
-### Proposed Improvements
-
-#### 🎯 Code Consolidation
-
-- **50-60% code reduction** through shared utilities and base traits
-- **Consistent behavior** across all detectors
-- **Easier maintenance** with centralized logic
-
-#### 🔧 Enhanced Override System
-
-- **Uniform override pattern** across all detector types
-- **Better testing capabilities** with disable/force options
-- **Custom environment support** for proprietary systems
-
-#### 📊 Standardized Selection Logic
-
-- **Priority-based selection** for all detectors
-- **Predictable behavior** with clear ordering rules
-- **Conflict resolution** for overlapping detectors
-
-#### 🏗️ Improved Architecture
-
-- **Base trait system** for common functionality
-- **Easy extensibility** for new detector types
-- **Configuration-driven** detection (future enhancement)
-
-### Implementation Timeline
-
-| **Phase**                    | **Duration** | **Risk** | **Value** |
-| ---------------------------- | ------------ | -------- | --------- |
-| **Phase 1: Utilities**       | 1 week       | Low      | High      |
-| **Phase 2: Overrides**       | 1 week       | Low      | High      |
-| **Phase 3: Selection Logic** | 1 week       | Medium   | Medium    |
-| **Phase 4: Base Trait**      | 1 week       | High     | High      |
-
-### Success Metrics
-
-- ✅ **50-60% code reduction** in detector implementations
-- ✅ **100% test coverage** maintained throughout migration
-- ✅ **No performance regression** (within 10% of current performance)
-- ✅ **Backward compatibility** for all existing functionality
-- ✅ **Enhanced testing capabilities** through override system
-
-### Benefits
-
-#### For Developers
-
-- **Reduced code duplication** makes maintenance easier
-- **Consistent patterns** across all detectors
-- **Better testing tools** for debugging and validation
-- **Easier to add new detectors** with base trait system
-
-#### For Users
-
-- **More reliable detection** through standardized logic
-- **Better debugging capabilities** with override system
-- **Support for custom environments** through overrides
-- **Consistent CLI behavior** across all detection types
-
-#### For Testing
-
-- **Comprehensive override system** enables edge case testing
-- **Disable specific detectors** for isolation testing
-- **Force custom values** for integration testing
-- **Semantic overrides** for clear test intent
-
-## Next Steps
-
-1. **Review planning documents** and gather feedback
-2. **Create feature branch** for consolidation work
-3. **Implement Phase 1** (utilities) with comprehensive tests
-4. **Validate approach** before proceeding to subsequent phases
-5. **Iterate based on learnings** from each phase
-
-## Related Documentation
-
-- [Architecture Overview](../architecture.md) - System design and core concepts
-- [Testing Guidelines](../testing.md) - General testing strategy
-- [Extending Guide](../extending.md) - Adding new detectors
-
----
-
-**Note**: This consolidation project represents a significant architectural
-improvement that will make the envsense detection system more maintainable,
-testable, and extensible while preserving all existing functionality.
+The script includes safety checks and will warn about missing files or existing
+destinations without overwriting.
