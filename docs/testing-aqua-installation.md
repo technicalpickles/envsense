@@ -179,6 +179,7 @@ Create test matrix for comprehensive validation:
 **Problem**: `mise install aqua:envsense` fails
 
 **Solutions**:
+
 1. Check network connectivity
 2. Verify release assets exist on GitHub
 3. Validate aqua registry configuration syntax
