@@ -125,13 +125,45 @@ jobs:
           echo "Signing release binaries with cosign..."
           cd release-files
           for file in envsense-*; do
-            if [[ "$file" != *.sha256 && "$file" != *.sig ]]; then
+            if [[ "$file" != *.sha256 && "$file" != *.sig && "$file" != *.bundle ]]; then
               echo "Signing: $file"
+              # Create both signature and bundle formats for compatibility
               cosign sign-blob --yes "$file" --output-signature "${file}.sig"
+              cosign sign-blob --yes "$file" --bundle "${file}.bundle"
             fi
           done
           echo "Signing completed. Files:"
           ls -la
+        env:
+          COSIGN_EXPERIMENTAL: 1
+
+      - name: Verify signatures immediately
+        shell: bash
+        run: |
+          echo "Verifying signatures immediately after creation..."
+          cd release-files
+          for file in envsense-*; do
+            if [[ "$file" != *.sha256 && "$file" != *.sig && "$file" != *.bundle ]]; then
+              echo "Verifying signature for: $file"
+              # Try bundle verification first, then fall back to signature verification
+              if [ -f "${file}.bundle" ]; then
+                echo "Verifying with bundle: ${file}.bundle"
+                cosign verify-blob --bundle "${file}.bundle" "$file"
+                echo "✅ Bundle signature verified for: $file"
+              elif [ -f "${file}.sig" ]; then
+                echo "Verifying with signature: ${file}.sig"
+                cosign verify-blob \
+                  --signature "${file}.sig" \
+                  --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/heads/main" \
+                  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                  "$file"
+                echo "✅ Signature verified for: $file"
+              else
+                echo "❌ No signature or bundle found for: $file"
+                exit 1
+              fi
+            fi
+          done
         env:
           COSIGN_EXPERIMENTAL: 1
 

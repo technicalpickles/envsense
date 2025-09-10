@@ -8,7 +8,10 @@ LOCAL_REGISTRY_DIR="$(pwd)/test-aqua-registry"
 AQUA_CONFIG_FILE="$(pwd)/test-aqua.yaml"
 TEST_DIR="$(pwd)/aqua-test"
 
+# Get current version from Cargo.toml
+CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 echo "🧪 Testing aqua configuration locally"
+echo "📋 Current version from Cargo.toml: $CURRENT_VERSION"
 
 # Check dependencies
 if ! command -v mise &> /dev/null; then
@@ -37,7 +40,7 @@ registries:
 packages:
   - name: envsense
     registry: test-local
-    version: v0.3.0  # Use current version from Cargo.toml
+    version: v$CURRENT_VERSION  # Use current version from Cargo.toml
 EOF
 
 # Create test directory
@@ -52,10 +55,10 @@ cat aqua.yaml
 
 echo
 echo "🔍 Testing installation (this will fail until we have signed releases)..."
-echo "Command: mise install aqua:envsense@v0.3.0"
+echo "Command: mise install aqua:envsense@v$CURRENT_VERSION"
 
 # This will likely fail since we don't have signed releases yet, but it will validate the config
-if mise install aqua:envsense@v0.3.0; then
+if mise install aqua:envsense@v$CURRENT_VERSION; then
     echo "✅ Installation succeeded!"
     
     # Test the binary
