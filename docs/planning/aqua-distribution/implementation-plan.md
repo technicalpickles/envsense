@@ -12,55 +12,57 @@ distribution.
 ### ✅ What We Already Have
 
 - Cross-platform GitHub releases (Linux x64, macOS Universal, Windows x64)
-- Consistent binary naming: `envsense-v{VERSION}-{TARGET}`
+- Consistent binary naming: `envsense-{VERSION}-{TARGET}` ⚠️ **DEVIATION: No 'v'
+  prefix**
 - SHA256 checksums for all releases
 - Automated release workflow via GitHub Actions
 - Clean single-binary distribution (perfect for aqua)
 
 ### ❌ What We Need to Add
 
-- Release signing with cosign (keyless)
+- ✅ ~~Release signing with cosign (keyless)~~ **COMPLETED**
 - Aqua registry configuration
-- Validation process for signed releases
+- ✅ ~~Validation process for signed releases~~ **COMPLETED**
 - Testing infrastructure for aqua installation
 
 ## Implementation Phases
 
-### Phase 1: Add Release Signing
+### Phase 1: Add Release Signing ✅ **COMPLETED**
 
-#### 1.1 Implement Keyless Signing
+#### 1.1 Implement Keyless Signing ✅ **COMPLETED**
 
 **Goal**: Add cosign keyless signing to our GitHub Actions release workflow
 
-**Changes Required**:
+**Changes Required**: ✅ **ALL COMPLETED**
 
-- Modify `.github/workflows/release.yml` to include cosign signing
-- Generate `.sig` files for each binary
-- Upload signatures alongside binaries in releases
+- ✅ Modify `.github/workflows/release.yml` to include cosign signing
+- ✅ Generate `.sig` files for each binary
+- ✅ Upload signatures alongside binaries in releases
 
-**Implementation Steps**:
+**Implementation Steps**: ✅ **ALL COMPLETED**
 
-1. Add cosign installer step to release workflow
-2. Add signing step after binary preparation
-3. Ensure signatures are included in release assets
-4. Test on a development release
+1. ✅ Add cosign installer step to release workflow
+2. ✅ Add signing step after binary preparation
+   (`scripts/sign-release-binaries.sh`)
+3. ✅ Ensure signatures are included in release assets
+4. ✅ Test on a development release (validated on v0.3.4)
 
-**Validation Criteria**:
+**Validation Criteria**: ✅ **ALL MET**
 
-- Each binary has a corresponding `.sig` file
-- Signatures can be verified using cosign CLI
-- GitHub Actions logs show successful signing
+- ✅ Each binary has a corresponding `.sig` file **AND** `.bundle` file
+- ✅ Signatures can be verified using cosign CLI (validated manually)
+- ✅ GitHub Actions logs show successful signing
 
-#### 1.2 Create Signing Validation Script
+#### 1.2 Create Signing Validation Script ✅ **COMPLETED**
 
 **Goal**: Automate verification that our signing process works correctly
 
-**Deliverable**: `scripts/validate-signing.sh`
+**Deliverable**: `scripts/validate-signing.sh` ✅ **IMPLEMENTED**
 
-- Downloads latest release assets
-- Verifies each signature using cosign
-- Reports success/failure for each binary
-- Can be run locally or in CI
+- ✅ Downloads latest release assets (using GitHub CLI)
+- ✅ Verifies each signature using cosign (multiple verification methods)
+- ✅ Reports success/failure for each binary
+- ✅ Can be run locally or in CI
 
 ### Phase 2: Create Aqua Registry Configuration
 
@@ -243,35 +245,33 @@ rm -rf "$TEMP_DIR"
 ```yaml
 packages:
   - type: github_release
-    repo_owner: your-org
+    repo_owner: technicalpickles
     repo_name: envsense
     description: Environment awareness utilities - detect runtime environments
-    asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}
+    asset: envsense-{{.Version}}-{{.OS}}-{{.Arch}}
     format: raw
     supported_envs:
       - linux/amd64
       - darwin/amd64
       - darwin/arm64
-      - windows/amd64
     rosetta2: true
     version_constraint: semver
-    version_filter: 'Version startsWith "v"'
-    version_prefix: v
+    # Note: No version_filter or version_prefix since tags don't have 'v' prefix
     checksum:
       type: github_release
-      asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sha256
+      asset: envsense-{{.Version}}-{{.OS}}-{{.Arch}}.sha256
     cosign:
       enabled: true
-      signature: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sig
+      signature: envsense-{{.Version}}-{{.OS}}-{{.Arch}}.sig
+      # Also support bundle format for better compatibility
+      bundle: envsense-{{.Version}}-{{.OS}}-{{.Arch}}.bundle
     replacements:
       darwin: apple-darwin
       linux: unknown-linux-gnu
-      windows: pc-windows-msvc
       amd64: x86_64
-      arm64: aarch64
     overrides:
       - goos: darwin
-        asset: envsense-v{{.Version}}-universal-{{.OS}}
+        asset: envsense-{{.Version}}-universal-{{.OS}}
         replacements:
           darwin: apple-darwin
 ```
@@ -324,19 +324,19 @@ packages:
 
 ### Success Criteria
 
-- [ ] All releases are automatically signed with cosign
-- [ ] Signatures can be verified using standard tools
+- [x] All releases are automatically signed with cosign ✅ **COMPLETED**
+- [x] Signatures can be verified using standard tools ✅ **COMPLETED**
 - [ ] `mise install aqua:envsense` works on all supported platforms
 - [ ] Installation process is documented and user-friendly
 - [ ] Registry entry is accepted and maintained
 
 ## Timeline
 
-**Week 1**: Implement signing (Phase 1)
+**Week 1**: Implement signing (Phase 1) ✅ **COMPLETED**
 
-- Modify GitHub Actions workflow
-- Create validation scripts
-- Test signing on development releases
+- ✅ Modify GitHub Actions workflow
+- ✅ Create validation scripts
+- ✅ Test signing on development releases
 
 **Week 2**: Create and test registry configuration (Phase 2)
 
@@ -380,6 +380,61 @@ packages:
 3. Begin Phase 1 implementation
 4. Create tracking issues for each phase
 5. Schedule regular progress reviews
+
+---
+
+## Implementation Review & Deviations
+
+### ✅ What Was Completed Successfully
+
+**Phase 1 (Release Signing) - FULLY COMPLETED**
+
+- Keyless signing with cosign implemented in GitHub Actions
+- Both `.sig` and `.bundle` files generated for maximum compatibility
+- Comprehensive validation script created (`scripts/validate-signing.sh`)
+- Additional supporting scripts: `scripts/sign-release-binaries.sh`,
+  `scripts/check-signing-completed.sh`
+- Successfully tested on release v0.3.4 with manual verification
+
+### ⚠️ Notable Deviations from Original Plan
+
+1. **Binary Naming Convention**:
+   - **Planned**: `envsense-v{VERSION}-{TARGET}`
+   - **Actual**: `envsense-{VERSION}-{TARGET}` (no 'v' prefix)
+   - **Impact**: Requires updating aqua registry configuration (no
+     `version_prefix`)
+
+2. **Enhanced Signing Implementation**:
+   - **Planned**: Only `.sig` files
+   - **Actual**: Both `.sig` AND `.bundle` files for better compatibility
+   - **Impact**: Improved compatibility with different cosign verification
+     methods
+
+3. **Repository Owner**:
+   - **Planned**: `your-org/envsense`
+   - **Actual**: `technicalpickles/envsense`
+   - **Impact**: Registry configuration updated with correct repository
+
+4. **Platform Support**:
+   - **Planned**: Linux x64, macOS Universal, Windows x64
+   - **Actual**: Linux x64, macOS Universal (Windows not yet implemented)
+   - **Impact**: Registry configuration updated to reflect actual platforms
+
+### 🎯 Current Status
+
+- **Phase 1**: ✅ **100% COMPLETE** (ahead of schedule)
+- **Phase 2**: Ready to begin (aqua registry configuration)
+- **Phase 3**: Ready for testing once registry is configured
+- **Phase 4**: Ready for submission once testing passes
+
+### 📋 Updated Next Steps
+
+1. **Immediate**: Create aqua registry entry with correct naming convention
+2. **Next**: Test local registry installation
+3. **Then**: Submit to official aqua registry
+4. **Finally**: Update project documentation
+
+The implementation is in excellent shape and ready to proceed to Phase 2!
 
 ---
 
