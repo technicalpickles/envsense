@@ -46,16 +46,8 @@ jobs:
           ./scripts/verify-release-signatures.sh test-release-files
         continue-on-error: true # Don't fail CI if verification has issues
 
-      - name: Display results
-        run: |
-          echo "Signing test completed. Files created:"
-          ls -la test-release-files/
-
-          echo "Signature files:"
-          find test-release-files -name "*.sig" -o -name "*.bundle" | while read -r file; do
-            echo "File: $file"
-            echo "Size: $(stat -c%s "$file" 2>/dev/null || stat -f%z "$file") bytes"
-          done
+      - name: Validate test signing completed
+        run: ./scripts/check-signing-completed.sh test-release-files
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
