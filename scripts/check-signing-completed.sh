@@ -26,7 +26,7 @@ for file in envsense-*; do
         BUNDLE_EXISTS=false
         
         if [ -f "${file}.sig" ]; then
-            SIG_SIZE=$(stat -c%s "${file}.sig" 2>/dev/null || stat -f%z "${file}.sig")
+            SIG_SIZE=$(stat -c%s "${file}.sig" 2>/dev/null || stat -f%z "${file}.sig" 2>/dev/null || echo "unknown")
             echo "    ✅ Signature: ${file}.sig (${SIG_SIZE} bytes)"
             SIG_EXISTS=true
         else
@@ -34,7 +34,7 @@ for file in envsense-*; do
         fi
         
         if [ -f "${file}.bundle" ]; then
-            BUNDLE_SIZE=$(stat -c%s "${file}.bundle" 2>/dev/null || stat -f%z "${file}.bundle")
+            BUNDLE_SIZE=$(stat -c%s "${file}.bundle" 2>/dev/null || stat -f%z "${file}.bundle" 2>/dev/null || echo "unknown")
             echo "    ✅ Bundle: ${file}.bundle (${BUNDLE_SIZE} bytes)"
             BUNDLE_EXISTS=true
         else
