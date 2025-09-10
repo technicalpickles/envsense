@@ -166,7 +166,9 @@ Create test matrix for comprehensive validation:
 
 ### Signature Verification Failures
 
-**Problem**: `cosign verify-blob` fails **Solutions**:
+**Problem**: `cosign verify-blob` fails
+
+**Solutions**:
 
 1. Check certificate identity matches repository URL
 2. Verify OIDC issuer is GitHub Actions
@@ -174,8 +176,9 @@ Create test matrix for comprehensive validation:
 
 ### Installation Failures
 
-**Problem**: `mise install aqua:envsense` fails **Solutions**:
+**Problem**: `mise install aqua:envsense` fails
 
+**Solutions**:
 1. Check network connectivity
 2. Verify release assets exist on GitHub
 3. Validate aqua registry configuration syntax
