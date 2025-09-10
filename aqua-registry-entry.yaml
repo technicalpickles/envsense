@@ -1,0 +1,51 @@
+# Aqua Registry Configuration for envsense
+# This file serves as a reference for the configuration that will be submitted
+# to the aqua-registry repository at: https://github.com/aquaproj/aqua-registry
+
+packages:
+  - type: github_release
+    repo_owner: technicalpickles
+    repo_name: envsense
+    description: Environment awareness utilities - detect runtime environments
+    asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}
+    format: raw
+    supported_envs:
+      - linux/amd64
+      - darwin/amd64
+      - darwin/arm64
+    rosetta2: true
+    version_constraint: semver
+    version_filter: 'Version startsWith "v"'
+    version_prefix: v
+    checksum:
+      type: github_release
+      asset: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sha256
+    cosign:
+      enabled: true
+      signature: envsense-v{{.Version}}-{{.OS}}-{{.Arch}}.sig
+      opts:
+        - --certificate-identity-regexp
+        - "https://github.com/technicalpickles/envsense"
+        - --certificate-oidc-issuer
+        - "https://token.actions.githubusercontent.com"
+    replacements:
+      darwin: apple-darwin
+      linux: unknown-linux-gnu
+      amd64: x86_64
+      arm64: aarch64
+    overrides:
+      - goos: darwin
+        asset: envsense-v{{.Version}}-universal-{{.OS}}
+        checksum:
+          type: github_release
+          asset: envsense-v{{.Version}}-universal-{{.OS}}.sha256
+        cosign:
+          enabled: true
+          signature: envsense-v{{.Version}}-universal-{{.OS}}.sig
+          opts:
+            - --certificate-identity-regexp
+            - "https://github.com/technicalpickles/envsense"
+            - --certificate-oidc-issuer
+            - "https://token.actions.githubusercontent.com"
+        replacements:
+          darwin: apple-darwin
