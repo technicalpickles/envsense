@@ -21,15 +21,19 @@ cd "$TEST_DIR"
 echo "📝 Creating test registry configuration..."
 cp "$PROJECT_ROOT/aqua-registry-entry.yaml" registry.yaml
 
+# Get current version from Cargo.toml
+CURRENT_VERSION=$(grep '^version = ' "$PROJECT_ROOT/Cargo.toml" | head -1 | sed 's/version = "\(.*\)"/\1/')
+echo "📋 Testing with version: $CURRENT_VERSION"
+
 # Create aqua configuration
-cat > aqua.yaml << 'EOF'
+cat > aqua.yaml << EOF
 ---
 registries:
 - type: local
   name: envsense-local
   path: registry.yaml
 packages:
-- name: technicalpickles/envsense@0.3.4
+- name: technicalpickles/envsense@$CURRENT_VERSION
   registry: envsense-local
 EOF
 

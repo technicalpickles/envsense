@@ -16,6 +16,9 @@ packages:
     repo_owner: technicalpickles
     repo_name: envsense
     description: Environment awareness utilities - detect runtime environments
+    # version_constraint is set to "false" to disable the base constraint,
+    # so that only the version_overrides block is used for version selection.
+    # This ensures that only the explicitly defined overrides are active.
     version_constraint: "false"
     version_overrides:
       # Latest versions (0.3.0+) with current naming convention
