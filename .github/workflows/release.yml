@@ -115,11 +115,11 @@ jobs:
 
       - name: Sign release binaries
         shell: bash
-        run: ./scripts/sign-release-binaries.sh
+        run: ./scripts/sign-release-binaries.sh release-files
 
-      - name: Verify signatures immediately
+      - name: Validate signing completed
         shell: bash
-        run: ./scripts/verify-release-signatures.sh
+        run: ./scripts/check-signing-completed.sh release-files
 
       - name: Extract changelog
         shell: bash
