@@ -5,6 +5,7 @@ set -euo pipefail
 
 RELEASE_DIR="${1:-release-files}"
 REPO="${2:-$GITHUB_REPOSITORY}"
+WORKFLOW="${3:-}"
 
 if [ ! -d "$RELEASE_DIR" ]; then
     echo "❌ Release directory $RELEASE_DIR does not exist"
@@ -16,7 +17,25 @@ if [ -z "$REPO" ]; then
     exit 1
 fi
 
+# Auto-detect workflow if not specified
+if [ -z "$WORKFLOW" ]; then
+    if [ -n "${GITHUB_WORKFLOW:-}" ]; then
+        # Convert workflow display name to filename
+        case "$GITHUB_WORKFLOW" in
+            "Release") WORKFLOW="release.yml" ;;
+            "Test Signing Process") WORKFLOW="test-signing.yml" ;;
+            *) WORKFLOW="$GITHUB_WORKFLOW" ;;
+        esac
+        echo "🔍 Auto-detected workflow: $GITHUB_WORKFLOW -> $WORKFLOW"
+    else
+        WORKFLOW="release.yml"  # Default fallback
+        echo "🔍 Using default workflow: $WORKFLOW"
+    fi
+fi
+
 echo "🔍 Verifying signatures immediately after creation..."
+echo "🔍 Repository: $REPO"
+echo "🔍 Workflow: $WORKFLOW"
 cd "$RELEASE_DIR"
 
 # Check if cosign is available
@@ -49,13 +68,28 @@ for file in envsense-*; do
             # Try multiple certificate identity formats that GitHub Actions might use
             VERIFICATION_SUCCESS=false
             
+            # Determine the branch reference
+            BRANCH_REF="refs/heads/main"
+            if [ -n "${GITHUB_HEAD_REF:-}" ]; then
+                # This is a pull request, use the PR branch
+                BRANCH_REF="refs/heads/$GITHUB_HEAD_REF"
+                echo "    Detected PR branch: $GITHUB_HEAD_REF"
+            elif [ -n "${GITHUB_REF:-}" ]; then
+                # Use the current ref
+                BRANCH_REF="$GITHUB_REF"
+                echo "    Using current ref: $GITHUB_REF"
+            fi
+            
             # Format 1: Standard workflow path
+            CERT_IDENTITY="https://github.com/$REPO/.github/workflows/$WORKFLOW@$BRANCH_REF"
+            echo "    Trying certificate identity: $CERT_IDENTITY"
             if cosign verify-blob \
                 --signature "${file}.sig" \
-                --certificate-identity "https://github.com/$REPO/.github/workflows/release.yml@refs/heads/main" \
+                --certificate-identity "$CERT_IDENTITY" \
                 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-                "$file" > /dev/null 2>&1; then
+                "$file" 2>&1; then
                 VERIFICATION_SUCCESS=true
+                echo "    ✅ Verification successful with standard workflow path"
             # Format 2: Try with regexp for more flexibility
             elif cosign verify-blob \
                 --signature "${file}.sig" \
