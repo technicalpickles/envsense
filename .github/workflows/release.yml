@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # Required for cosign keyless signing
 
 env:
   CARGO_TERM_COLOR: always
@@ -114,6 +115,25 @@ jobs:
           find dist/ -name "envsense-*" -not -name "*-test*" -exec cp {} release-files/ \;
           echo "Release files:"
           ls -la release-files/
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign release binaries
+        shell: bash
+        run: |
+          echo "Signing release binaries with cosign..."
+          cd release-files
+          for file in envsense-*; do
+            if [[ "$file" != *.sha256 && "$file" != *.sig ]]; then
+              echo "Signing: $file"
+              cosign sign-blob --yes "$file" --output-signature "${file}.sig"
+            fi
+          done
+          echo "Signing completed. Files:"
+          ls -la
+        env:
+          COSIGN_EXPERIMENTAL: 1
 
       - name: Extract changelog
         shell: bash
