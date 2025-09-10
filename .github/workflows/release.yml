@@ -116,14 +116,10 @@ jobs:
       - name: Sign release binaries
         shell: bash
         run: ./scripts/sign-release-binaries.sh
-        env:
-          COSIGN_EXPERIMENTAL: 1
 
       - name: Verify signatures immediately
         shell: bash
         run: ./scripts/verify-release-signatures.sh
-        env:
-          COSIGN_EXPERIMENTAL: 1
 
       - name: Extract changelog
         shell: bash

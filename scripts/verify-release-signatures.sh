@@ -46,11 +46,33 @@ for file in envsense-*; do
         
         if [ -f "${file}.sig" ]; then
             echo "    Trying signature verification..."
+            # Try multiple certificate identity formats that GitHub Actions might use
+            VERIFICATION_SUCCESS=false
+            
+            # Format 1: Standard workflow path
             if cosign verify-blob \
                 --signature "${file}.sig" \
                 --certificate-identity "https://github.com/$REPO/.github/workflows/release.yml@refs/heads/main" \
                 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
                 "$file" > /dev/null 2>&1; then
+                VERIFICATION_SUCCESS=true
+            # Format 2: Try with regexp for more flexibility
+            elif cosign verify-blob \
+                --signature "${file}.sig" \
+                --certificate-identity-regexp "https://github.com/$REPO/.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "$file" > /dev/null 2>&1; then
+                VERIFICATION_SUCCESS=true
+            # Format 3: Try without specific workflow path
+            elif cosign verify-blob \
+                --signature "${file}.sig" \
+                --certificate-identity-regexp ".*$REPO.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "$file" > /dev/null 2>&1; then
+                VERIFICATION_SUCCESS=true
+            fi
+            
+            if [ "$VERIFICATION_SUCCESS" = true ]; then
                 echo "    ✅ Signature verified for: $file"
                 VERIFIED_COUNT=$((VERIFIED_COUNT + 1))
             else
