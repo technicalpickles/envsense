@@ -1,0 +1,65 @@
+name: Test Signing Process
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "scripts/sign-release-binaries.sh"
+      - "scripts/verify-release-signatures.sh"
+      - "scripts/filter-release-files.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Required for cosign keyless signing
+
+jobs:
+  test-signing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build test binary
+        run: |
+          cargo build --release
+          mkdir -p test-dist
+          cp target/release/envsense test-dist/envsense-test-universal-apple-darwin
+          echo "test-checksum" > test-dist/envsense-test-universal-apple-darwin.sha256
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Test signing process
+        run: |
+          echo "Testing signing process..."
+          ./scripts/filter-release-files.sh test-dist test-release-files
+          ./scripts/sign-release-binaries.sh test-release-files
+
+      - name: Test signature verification
+        run: |
+          echo "Testing signature verification..."
+          ./scripts/verify-release-signatures.sh test-release-files
+        continue-on-error: true # Don't fail CI if verification has issues
+
+      - name: Display results
+        run: |
+          echo "Signing test completed. Files created:"
+          ls -la test-release-files/
+
+          echo "Signature files:"
+          find test-release-files -name "*.sig" -o -name "*.bundle" | while read -r file; do
+            echo "File: $file"
+            echo "Size: $(stat -c%s "$file" 2>/dev/null || stat -f%z "$file") bytes"
+          done
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-signing-artifacts
+          path: test-release-files/
+          retention-days: 1

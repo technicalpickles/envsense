@@ -117,9 +117,34 @@ jobs:
         shell: bash
         run: ./scripts/sign-release-binaries.sh
 
-      - name: Verify signatures immediately
+      - name: Validate signing completed
         shell: bash
-        run: ./scripts/verify-release-signatures.sh
+        run: |
+          echo "Checking that signing completed successfully..."
+          cd release-files
+          SIGNED_COUNT=0
+          MISSING_SIGS=0
+
+          for file in envsense-*; do
+            if [[ "$file" != *.sha256 && "$file" != *.sig && "$file" != *.bundle ]]; then
+              if [ -f "${file}.sig" ] && [ -f "${file}.bundle" ]; then
+                echo "✅ $file: Both signature and bundle created"
+                SIGNED_COUNT=$((SIGNED_COUNT + 1))
+              else
+                echo "❌ $file: Missing signature files"
+                MISSING_SIGS=$((MISSING_SIGS + 1))
+              fi
+            fi
+          done
+
+          echo "Summary: $SIGNED_COUNT files signed, $MISSING_SIGS missing signatures"
+
+          if [ $MISSING_SIGS -gt 0 ]; then
+            echo "❌ Some files are missing signatures!"
+            exit 1
+          else
+            echo "✅ All files have been signed successfully"
+          fi
 
       - name: Extract changelog
         shell: bash

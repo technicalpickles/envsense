@@ -1,0 +1,54 @@
+name: Validate Release Signatures
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to validate (e.g., 0.3.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-signatures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Validating version: $VERSION"
+
+      - name: Validate release signatures
+        run: |
+          echo "🔍 Validating signatures for release ${{ steps.version.outputs.version }}"
+          ./scripts/validate-signing.sh "${{ steps.version.outputs.version }}"
+
+      - name: Test local aqua configuration
+        run: |
+          echo "🧪 Testing local aqua configuration"
+          ./scripts/test-aqua-local.sh
+        continue-on-error: true # Don't fail if mise/aqua not available
+
+      - name: Report results
+        run: |
+          echo "✅ Signature validation completed for ${{ steps.version.outputs.version }}"
+          echo "🎯 Release is ready for aqua registry submission"
+          echo ""
+          echo "Next steps:"
+          echo "1. Submit to aqua registry: https://github.com/aquaproj/aqua-registry"
+          echo "2. Update README with installation instructions"
