@@ -15,6 +15,7 @@ fn check_predicate_long_help() -> &'static str {
 #[command(
     name = "envsense",
     about = "Environment awareness utilities",
+    version = env!("CARGO_PKG_VERSION"),
     arg_required_else_help = true
 )]
 struct Cli {
