@@ -518,6 +518,17 @@ doesn't support cosign verification:
 - Consult the [aqua documentation](https://aquaproj.github.io/) for signature
   verification troubleshooting
 
+**GitHub API rate limiting:** If you see "GitHub rate limit exceeded" errors
+with `mise install aqua:technicalpickles/envsense`:
+
+```bash
+# Wait for rate limit to reset (shown in the error message)
+# Or authenticate with GitHub to get higher rate limits
+gh auth login
+# Then retry the installation
+mise install aqua:technicalpickles/envsense
+```
+
 ### General Issues
 
 **Binary works but shows unexpected results:**
