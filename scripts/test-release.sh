@@ -76,10 +76,12 @@ main() {
     # Test targets (matching release.yml) - using arrays for bash 3.2 compatibility
     local targets=(
         "x86_64-unknown-linux-gnu"
+        "aarch64-unknown-linux-gnu"
         "universal-apple-darwin"
     )
     
     local build_types=(
+        "normal"
         "normal"
         "universal"
     )
