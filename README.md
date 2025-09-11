@@ -43,25 +43,42 @@ Download the latest release for your platform from
 [GitHub Releases](https://github.com/technicalpickles/envsense/releases):
 
 ```bash
-# Linux x64
-curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-unknown-linux-gnu -o envsense
-chmod +x envsense
+# Get the latest version dynamically
+LATEST_VERSION=$(curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 
-# macOS Intel
-curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-apple-darwin -o envsense
+# Linux x64
+curl -L "https://github.com/technicalpickles/envsense/releases/latest/download/envsense-${LATEST_VERSION}-x86_64-unknown-linux-gnu" -o envsense
 chmod +x envsense
 
 # macOS Universal (Intel + Apple Silicon)
-curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-universal-apple-darwin -o envsense
+curl -L "https://github.com/technicalpickles/envsense/releases/latest/download/envsense-${LATEST_VERSION}-universal-apple-darwin" -o envsense
 chmod +x envsense
-
-# macOS Apple Silicon (if you prefer architecture-specific)
-curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-aarch64-apple-darwin -o envsense
-chmod +x envsense
-
-# Windows x64
-curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
 ```
+
+**Alternative: One-liner install scripts**
+
+For convenience, here are one-liner commands that handle version detection
+automatically:
+
+```bash
+# Linux x64
+curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest \
+  | grep "browser_download_url.*x86_64-unknown-linux-gnu\"" \
+  | grep -v "\.sig\|\.sha256\|\.bundle" \
+  | cut -d '"' -f 4 \
+  | xargs curl -L -o envsense && chmod +x envsense
+
+# macOS (Universal - works on both Intel and Apple Silicon)
+curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest \
+  | grep "browser_download_url.*universal-apple-darwin\"" \
+  | grep -v "\.sig\|\.sha256\|\.bundle\|v0\." \
+  | cut -d '"' -f 4 \
+  | xargs curl -L -o envsense && chmod +x envsense
+```
+
+> **Note**: Currently, Windows builds are not available. For Windows users,
+> consider using [WSL](https://docs.microsoft.com/en-us/windows/wsl/) and
+> following the Linux installation instructions.
 
 ### From Source
 
