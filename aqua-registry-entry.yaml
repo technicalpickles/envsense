@@ -1,0 +1,63 @@
+# Aqua Registry Configuration for envsense
+# Generated using: aqua gr technicalpickles/envsense
+# Enhanced with cosign verification support
+#
+# This configuration has been tested locally and works with:
+# - Basic installation without cosign verification ✅
+# - Proper binary naming convention (no 'v' prefix) ✅
+# - Cross-platform support (Linux x64, macOS Universal) ✅
+# - Policy configuration for security ✅
+#
+# Usage: AQUA_POLICY_CONFIG=policy.yaml aqua install
+# Where policy.yaml allows the technicalpickles/envsense package
+
+packages:
+  - type: github_release
+    repo_owner: technicalpickles
+    repo_name: envsense
+    description: Environment awareness utilities - detect runtime environments
+    # version_constraint is set to "false" to disable the base constraint,
+    # so that only the version_overrides block is used for version selection.
+    # This ensures that only the explicitly defined overrides are active.
+    version_constraint: "false"
+    version_overrides:
+      # Latest versions (0.3.0+) with current naming convention
+      - version_constraint: "true"
+        asset: envsense-{{.Version}}-{{.Arch}}-{{.OS}}
+        format: raw
+        replacements:
+          darwin: apple-darwin
+          linux: unknown-linux-gnu
+        checksum:
+          type: github_release
+          asset: "{{.Asset}}.sha256"
+          algorithm: sha256
+          cosign:
+            opts:
+              - --certificate-identity-regexp
+              - "https://github.com/technicalpickles/envsense"
+              - --certificate-oidc-issuer
+              - "https://token.actions.githubusercontent.com"
+              - --signature
+              - "{{.Asset}}.sig"
+        overrides:
+          - goos: linux
+            replacements:
+              amd64: x86_64
+          - goos: darwin
+            asset: envsense-{{.Version}}-universal-{{.OS}}
+            checksum:
+              type: github_release
+              asset: envsense-{{.Version}}-universal-{{.OS}}.sha256
+              algorithm: sha256
+              cosign:
+                opts:
+                  - --certificate-identity-regexp
+                  - "https://github.com/technicalpickles/envsense"
+                  - --certificate-oidc-issuer
+                  - "https://token.actions.githubusercontent.com"
+                  - --signature
+                  - envsense-{{.Version}}-universal-{{.OS}}.sig
+        supported_envs:
+          - linux/amd64
+          - darwin

@@ -18,37 +18,73 @@ centralizes and standardizes this detection.
 
 ## Installation
 
-### Pre-built Binaries (Recommended)
+### Via Aqua/Mise (Recommended)
 
-Download the latest release for your platform from
-[GitHub Releases](https://github.com/your-org/envsense/releases):
+The easiest way to install `envsense` is via [aqua](https://aquaproj.github.io/)
+through [mise](https://mise.jdx.dev/):
 
 ```bash
-# Linux x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-unknown-linux-gnu -o envsense
-chmod +x envsense
+# Install via mise (which uses aqua)
+mise install aqua:technicalpickles/envsense
 
-# macOS Intel
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-apple-darwin -o envsense
+# Or install globally
+mise use -g aqua:technicalpickles/envsense
+```
+
+This method automatically:
+
+- Downloads the correct binary for your platform
+- Verifies cryptographic signatures via cosign
+- Handles installation and PATH management
+
+### Pre-built Binaries
+
+Download the latest release for your platform from
+[GitHub Releases](https://github.com/technicalpickles/envsense/releases):
+
+```bash
+# Get the latest version dynamically
+LATEST_VERSION=$(curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+
+# Linux x64
+curl -L "https://github.com/technicalpickles/envsense/releases/latest/download/envsense-${LATEST_VERSION}-x86_64-unknown-linux-gnu" -o envsense
 chmod +x envsense
 
 # macOS Universal (Intel + Apple Silicon)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-universal-apple-darwin -o envsense
+curl -L "https://github.com/technicalpickles/envsense/releases/latest/download/envsense-${LATEST_VERSION}-universal-apple-darwin" -o envsense
 chmod +x envsense
-
-# macOS Apple Silicon (if you prefer architecture-specific)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-aarch64-apple-darwin -o envsense
-chmod +x envsense
-
-# Windows x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
 ```
+
+**Alternative: One-liner install scripts**
+
+For convenience, here are one-liner commands that handle version detection
+automatically:
+
+```bash
+# Linux x64
+curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest \
+  | grep "browser_download_url.*x86_64-unknown-linux-gnu\"" \
+  | grep -v "\.sig\|\.sha256\|\.bundle" \
+  | cut -d '"' -f 4 \
+  | xargs curl -L -o envsense && chmod +x envsense
+
+# macOS (Universal - works on both Intel and Apple Silicon)
+curl -s https://api.github.com/repos/technicalpickles/envsense/releases/latest \
+  | grep "browser_download_url.*universal-apple-darwin\"" \
+  | grep -v "\.sig\|\.sha256\|\.bundle\|v0\." \
+  | cut -d '"' -f 4 \
+  | xargs curl -L -o envsense && chmod +x envsense
+```
+
+> **Note**: Currently, Windows builds are not available. For Windows users,
+> consider using [WSL](https://docs.microsoft.com/en-us/windows/wsl/) and
+> following the Linux installation instructions.
 
 ### From Source
 
 ```bash
 # Install from source (requires Rust)
-cargo install --git https://github.com/your-org/envsense
+cargo install --git https://github.com/technicalpickles/envsense
 ```
 
 ## Quick Start (Shell)
@@ -437,6 +473,87 @@ For a complete migration guide, see
 - [ ] Node binding via napi-rs
 - [ ] Additional language bindings
 - [ ] Advanced value extraction patterns
+
+## Troubleshooting
+
+### Aqua/Mise Installation Issues
+
+If you encounter issues installing via aqua/mise, try these solutions:
+
+**Permission denied or signature verification failed:**
+
+```bash
+# Ensure aqua policies allow the installation
+mise exec aqua -- aqua policy allow 'technicalpickles/envsense'
+```
+
+**Binary not found after installation:**
+
+```bash
+# Check if binary is in PATH
+mise which envsense
+
+# Reload your shell
+exec $SHELL
+
+# Or explicitly activate mise in your shell profile
+eval "$(mise activate)"
+```
+
+**Version-specific installation:**
+
+```bash
+# Install a specific version
+mise install aqua:technicalpickles/envsense@0.3.4
+
+# List available versions
+mise ls-remote aqua:technicalpickles/envsense
+```
+
+**Cosign signature verification issues:** If you're in an environment that
+doesn't support cosign verification:
+
+- Consider using the direct binary download method instead
+- Check if your environment has the necessary cosign dependencies
+- Consult the [aqua documentation](https://aquaproj.github.io/) for signature
+  verification troubleshooting
+
+**GitHub API rate limiting:** If you see "GitHub rate limit exceeded" errors
+with `mise install aqua:technicalpickles/envsense`:
+
+```bash
+# Wait for rate limit to reset (shown in the error message)
+# Or authenticate with GitHub to get higher rate limits
+gh auth login
+# Then retry the installation
+mise install aqua:technicalpickles/envsense
+```
+
+### General Issues
+
+**Binary works but shows unexpected results:**
+
+```bash
+# Get detailed detection information
+envsense info --json | jq '.'
+
+# Enable debug logging to see detection process
+ENVSENSE_LOG=debug envsense info
+```
+
+**False positives/negatives in environment detection:**
+
+- Check your environment variables: `printenv | grep -E "(TERM|EDITOR|CI|IDE)"`
+- Review process tree: `ps auxf` or `pstree`
+- Consider using explicit overrides via environment variables
+
+For more help, please
+[open an issue](https://github.com/technicalpickles/envsense/issues) with:
+
+- Your operating system and version
+- Installation method used
+- Full error messages
+- Output of `envsense info --json`
 
 ## License
 
