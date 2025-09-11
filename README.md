@@ -18,37 +18,56 @@ centralizes and standardizes this detection.
 
 ## Installation
 
-### Pre-built Binaries (Recommended)
+### Via Aqua/Mise (Recommended)
+
+The easiest way to install `envsense` is via [aqua](https://aquaproj.github.io/)
+through [mise](https://mise.jdx.dev/):
+
+```bash
+# Install via mise (which uses aqua)
+mise install aqua:technicalpickles/envsense
+
+# Or install globally
+mise use -g aqua:technicalpickles/envsense
+```
+
+This method automatically:
+
+- Downloads the correct binary for your platform
+- Verifies cryptographic signatures via cosign
+- Handles installation and PATH management
+
+### Pre-built Binaries
 
 Download the latest release for your platform from
-[GitHub Releases](https://github.com/your-org/envsense/releases):
+[GitHub Releases](https://github.com/technicalpickles/envsense/releases):
 
 ```bash
 # Linux x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-unknown-linux-gnu -o envsense
+curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-unknown-linux-gnu -o envsense
 chmod +x envsense
 
 # macOS Intel
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-apple-darwin -o envsense
+curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Universal (Intel + Apple Silicon)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-universal-apple-darwin -o envsense
+curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-universal-apple-darwin -o envsense
 chmod +x envsense
 
 # macOS Apple Silicon (if you prefer architecture-specific)
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-aarch64-apple-darwin -o envsense
+curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-aarch64-apple-darwin -o envsense
 chmod +x envsense
 
 # Windows x64
-curl -L https://github.com/your-org/envsense/releases/latest/download/envsense-v0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
+curl -L https://github.com/technicalpickles/envsense/releases/latest/download/envsense-0.3.0-x86_64-pc-windows-msvc.exe -o envsense.exe
 ```
 
 ### From Source
 
 ```bash
 # Install from source (requires Rust)
-cargo install --git https://github.com/your-org/envsense
+cargo install --git https://github.com/technicalpickles/envsense
 ```
 
 ## Quick Start (Shell)
@@ -437,6 +456,76 @@ For a complete migration guide, see
 - [ ] Node binding via napi-rs
 - [ ] Additional language bindings
 - [ ] Advanced value extraction patterns
+
+## Troubleshooting
+
+### Aqua/Mise Installation Issues
+
+If you encounter issues installing via aqua/mise, try these solutions:
+
+**Permission denied or signature verification failed:**
+
+```bash
+# Ensure aqua policies allow the installation
+mise exec aqua -- aqua policy allow 'technicalpickles/envsense'
+```
+
+**Binary not found after installation:**
+
+```bash
+# Check if binary is in PATH
+mise which envsense
+
+# Reload your shell
+exec $SHELL
+
+# Or explicitly activate mise in your shell profile
+eval "$(mise activate)"
+```
+
+**Version-specific installation:**
+
+```bash
+# Install a specific version
+mise install aqua:technicalpickles/envsense@0.3.4
+
+# List available versions
+mise ls-remote aqua:technicalpickles/envsense
+```
+
+**Cosign signature verification issues:** If you're in an environment that
+doesn't support cosign verification:
+
+- Consider using the direct binary download method instead
+- Check if your environment has the necessary cosign dependencies
+- Consult the [aqua documentation](https://aquaproj.github.io/) for signature
+  verification troubleshooting
+
+### General Issues
+
+**Binary works but shows unexpected results:**
+
+```bash
+# Get detailed detection information
+envsense info --json | jq '.'
+
+# Enable debug logging to see detection process
+ENVSENSE_LOG=debug envsense info
+```
+
+**False positives/negatives in environment detection:**
+
+- Check your environment variables: `printenv | grep -E "(TERM|EDITOR|CI|IDE)"`
+- Review process tree: `ps auxf` or `pstree`
+- Consider using explicit overrides via environment variables
+
+For more help, please
+[open an issue](https://github.com/technicalpickles/envsense/issues) with:
+
+- Your operating system and version
+- Installation method used
+- Full error messages
+- Output of `envsense info --json`
 
 ## License
 
