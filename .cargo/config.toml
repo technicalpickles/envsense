@@ -1,8 +1,2 @@
-[target.aarch64-apple-darwin]
-linker = "clang"
-
-[target.x86_64-apple-darwin]
-linker = "clang"
-
-[target.x86_64-unknown-linux-gnu]
-linker = "clang"
+# Cargo configuration for envsense
+# Using standard Rust linker selection (no custom linker configuration needed)

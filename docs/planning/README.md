@@ -40,6 +40,8 @@ binaries. Lower priority item for when distribution is needed.
 Completed planning work has been moved to `docs/archive/planning/`:
 
 - **LLD Adoption** - Fast linker integration (100% complete)
+- **LLD Removal** - Removed LLD from build process for improved CI performance
+  (100% complete)
 - **Declarative Detector Consolidation** - Code consolidation and override
   system (100% complete)
 - **Contextual Value Extraction** - CI-specific value mappings (100% complete)

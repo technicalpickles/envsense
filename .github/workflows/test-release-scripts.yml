@@ -52,11 +52,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # Platform-specific setup for LLD (matching release workflow)
-      - name: Install LLD
-        run: |
-          ./scripts/install_lld.sh
-
       # Test version change detection script
       - name: Test version change detection
         shell: bash
