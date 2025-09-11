@@ -8,5 +8,8 @@ fn info_reports_piped_stdout() {
         .output()
         .expect("failed to run envsense");
     let text = String::from_utf8_lossy(&output.stdout);
-    assert!(text.contains("stdout = {\"piped\":true,\"tty\":false}"));
+    // Check for the new hierarchical format
+    assert!(
+        text.contains("stdout:") && text.contains("piped: true") && text.contains("tty: false")
+    );
 }

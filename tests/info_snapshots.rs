@@ -288,3 +288,16 @@ fn snapshot_os_macos() {
     let json = run_info_json(&[("OSTYPE", "darwin")]);
     assert_json_snapshot!("os_macos", json);
 }
+
+#[test]
+fn snapshot_check_list_output() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear();
+    cmd.args(["check", "--list"]);
+
+    let output = cmd.output().expect("failed to run envsense check --list");
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("check_list_output", stdout);
+}

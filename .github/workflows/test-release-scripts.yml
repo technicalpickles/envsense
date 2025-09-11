@@ -52,11 +52,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # Platform-specific setup for LLD (matching release workflow)
-      - name: Install LLD
-        run: |
-          ./scripts/install_lld.sh
-
       # Test version change detection script
       - name: Test version change detection
         shell: bash
@@ -131,9 +126,9 @@ jobs:
             echo "Checking if macOS targets succeeded..."
             
             # Check if at least macOS builds worked
-            if [ -f "dist/envsense-v0.1.0-universal-apple-darwin" ]; then
+            if [ -f "dist/envsense-0.1.0-test-universal-apple-darwin" ]; then
               echo "Universal macOS binary was created successfully!"
-              lipo -info dist/envsense-v0.1.0-universal-apple-darwin
+              lipo -info dist/envsense-0.1.0-test-universal-apple-darwin
               exit 0
             else
               echo "Even macOS builds failed!"

@@ -77,19 +77,13 @@ main() {
     local targets=(
         "x86_64-unknown-linux-gnu"
         "aarch64-unknown-linux-gnu"
-        "x86_64-apple-darwin"
-        "aarch64-apple-darwin"
         "universal-apple-darwin"
-        "x86_64-pc-windows-msvc"
     )
     
     local build_types=(
-        "false"
-        "true"
-        "false"
-        "false"
+        "normal"
+        "normal"
         "universal"
-        "false"
     )
     
     local failed_targets=()
@@ -101,21 +95,15 @@ main() {
         
         print_header "Building $target"
         
-        # Skip cross-compilation targets on non-Linux hosts for now
-        if [ "$build_type" = "true" ] && [[ "$OSTYPE" != "linux-gnu"* ]]; then
-            print_warning "Skipping cross-compilation target $target on non-Linux host"
+        # Skip Linux cross-compilation on non-Linux hosts for now
+        if [[ "$target" == *"linux"* ]] && [[ "$OSTYPE" != "linux-gnu"* ]]; then
+            print_warning "Skipping Linux target $target on non-Linux host (use Docker for testing)"
             continue
         fi
         
         # Skip macOS targets on non-macOS hosts
         if [[ "$target" == *"apple"* ]] && [[ "$OSTYPE" != "darwin"* ]]; then
             print_warning "Skipping macOS target $target on non-macOS host"
-            continue
-        fi
-        
-        # Skip Windows targets on non-Windows hosts (unless using cross)
-        if [[ "$target" == *"windows"* ]] && [[ "$OSTYPE" != "msys" ]] && [ "$build_type" = "false" ]; then
-            print_warning "Skipping Windows target $target on non-Windows host"
             continue
         fi
         
@@ -158,6 +146,49 @@ main() {
     if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
         print_header "Generated Files"
         ls -la dist/
+        
+        # Test release artifact filtering (simulating release.yml)
+        print_header "Testing Release Artifact Filtering"
+        mkdir -p test-release-files
+        
+        # This simulates the exact filtering logic from release.yml
+        find dist/ -name "envsense-*" -not -name "*-test*" -exec cp {} test-release-files/ \; 2>/dev/null || true
+        
+        if [ -d "test-release-files" ] && [ "$(ls -A test-release-files)" ]; then
+            print_success "Release filtering test passed. Files that would be released:"
+            ls -la test-release-files/
+            
+            # Verify we have the expected files for successful targets
+            local expected_files=0
+            local found_files=0
+            
+            for target in "${successful_targets[@]}"; do
+                expected_file="envsense-${VERSION}-${target}"
+                if [ -f "test-release-files/$expected_file" ]; then
+                    print_success "✓ Found expected release file: $expected_file"
+                    ((found_files++))
+                else
+                    print_error "✗ Missing expected release file: $expected_file"
+                fi
+                ((expected_files++))
+            done
+            
+            if [ $found_files -eq $expected_files ] && [ $expected_files -gt 0 ]; then
+                print_success "All expected release files present!"
+            else
+                print_error "Release filtering failed: $found_files/$expected_files files found"
+                print_error "This indicates the release workflow would miss some binaries"
+                rm -rf test-release-files
+                exit 1
+            fi
+        else
+            print_error "Release filtering test failed - no files would be released!"
+            print_error "Check the filtering pattern in release.yml"
+            exit 1
+        fi
+        
+        # Cleanup test directory
+        rm -rf test-release-files
     fi
     
     # Exit with error if any targets failed

@@ -27,6 +27,12 @@ pub enum ParseError {
     InvalidFieldPath,
     #[error("malformed comparison")]
     MalformedComparison,
+    #[error("invalid predicate syntax '{0}': {1}")]
+    InvalidSyntax(String, String),
+    #[error("invalid field path '{0}': field does not exist")]
+    FieldNotFound(String),
+    #[error("invalid field path '{0}': available fields for '{1}': {2}")]
+    InvalidFieldForContext(String, String, String),
 }
 
 /// Field Registry System for centralized field type and path management
@@ -313,14 +319,27 @@ pub fn parse(input: &str) -> Result<Check, ParseError> {
 pub fn parse_predicate(input: &str) -> Result<ParsedCheck, ParseError> {
     let input = input.trim();
 
-    // Handle negation
-    let (input, negated) = if let Some(rest) = input.strip_prefix('!') {
+    // Check for empty input first (before validation)
+    if input.is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+
+    // Handle negation for empty check
+    let (input_after_negation, negated) = if let Some(rest) = input.strip_prefix('!') {
         (rest, true)
     } else {
         (input, false)
     };
 
-    let check = parse(input)?;
+    // Check for empty input after negation
+    if input_after_negation.trim().is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+
+    // Now validate the basic syntax
+    validate_predicate_syntax(input)?;
+
+    let check = parse(input_after_negation)?;
     Ok(ParsedCheck { check, negated })
 }
 
@@ -531,6 +550,80 @@ impl FieldRegistry {
     pub fn get_contexts(&self) -> Vec<&str> {
         vec!["agent", "ide", "terminal", "ci"]
     }
+
+    /// Check if a field exists in the registry
+    pub fn has_field(&self, field_path: &str) -> bool {
+        self.fields.contains_key(field_path)
+    }
+
+    /// Check if a context exists
+    pub fn has_context(&self, context: &str) -> bool {
+        self.get_contexts().contains(&context)
+    }
+
+    /// Get description for a context
+    pub fn get_context_description(&self, context: &str) -> &str {
+        match context {
+            "agent" => "Agent environment detection",
+            "ide" => "Integrated development environment",
+            "ci" => "Continuous integration environment",
+            "terminal" => "Terminal characteristics",
+            _ => "Context information",
+        }
+    }
+}
+
+/// Predicate syntax validation functions
+pub fn validate_predicate_syntax(input: &str) -> Result<(), ParseError> {
+    let input = input.trim();
+
+    // Check for empty input
+    if input.is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+
+    // Handle negation
+    let input = if let Some(rest) = input.strip_prefix('!') {
+        rest
+    } else {
+        input
+    };
+
+    // Validate character set: alphanumeric, dots, equals, underscores, hyphens
+    let valid_chars_regex = regex::Regex::new(r"^[a-zA-Z][a-zA-Z0-9_.=-]*$").unwrap();
+    if !valid_chars_regex.is_match(input) {
+        return Err(ParseError::InvalidSyntax(
+            input.to_string(),
+            "Valid predicate syntax: letters, numbers, dots (.), equals (=), underscores (_), and hyphens (-) only".to_string()
+        ));
+    }
+
+    Ok(())
+}
+
+/// Strict field path validation
+pub fn validate_field_path(path: &[String], registry: &FieldRegistry) -> Result<(), ParseError> {
+    let field_path = path.join(".");
+
+    if !registry.has_field(&field_path) {
+        let context = &path[0];
+        if registry.has_context(context) {
+            let available_fields = registry.get_context_fields(context);
+            let field_names: Vec<String> = available_fields
+                .iter()
+                .map(|(name, _)| (*name).clone())
+                .collect();
+            return Err(ParseError::InvalidFieldForContext(
+                field_path,
+                context.clone(),
+                field_names.join(", "),
+            ));
+        } else {
+            return Err(ParseError::FieldNotFound(field_path));
+        }
+    }
+
+    Ok(())
 }
 
 /// Enhanced Evaluation Logic - Task 2.3 Implementation
@@ -922,6 +1015,203 @@ mod tests {
             parse_predicate("!invalid.field"),
             Err(ParseError::InvalidFieldPath)
         );
+    }
+
+    // Validation Tests
+    #[test]
+    fn test_validate_predicate_syntax_valid() {
+        let valid_cases = vec![
+            "agent",
+            "agent.id",
+            "agent.id=cursor",
+            "ide.cursor",
+            "ci.github",
+            "terminal.interactive",
+            "agent_test",
+            "test_field.sub_field",
+            "field123",
+            "test123.field456",
+            "a.b.c",
+            "field=value123",
+            "field_name=test_value",
+            "ide.id=vscode-insiders",
+            "test-field",
+            "field=value-with-hyphens",
+        ];
+
+        for case in valid_cases {
+            assert!(
+                validate_predicate_syntax(case).is_ok(),
+                "Valid syntax '{}' should pass validation",
+                case
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_predicate_syntax_invalid() {
+        let invalid_cases = vec![
+            ("invalid@syntax", "@"),
+            ("agent#test", "#"),
+            ("ide$cursor", "$"),
+            ("test%value", "%"),
+            ("bad&predicate", "&"),
+            ("invalid*field", "*"),
+            ("test+value", "+"),
+            ("test(value)", "("),
+            ("test[value]", "["),
+            ("test{value}", "{"),
+            ("test|value", "|"),
+            ("test\\value", "\\"),
+            ("test/value", "/"),
+            ("test:value", ":"),
+            ("test;value", ";"),
+            ("test<value", "<"),
+            ("test>value", ">"),
+            ("test?value", "?"),
+            ("test\"value", "\""),
+            ("test'value", "'"),
+            ("test value", " "),
+        ];
+
+        for (invalid_case, _char) in invalid_cases {
+            let result = validate_predicate_syntax(invalid_case);
+            assert!(
+                result.is_err(),
+                "Invalid syntax '{}' should fail validation",
+                invalid_case
+            );
+            match result {
+                Err(ParseError::InvalidSyntax(input, message)) => {
+                    assert_eq!(input, invalid_case);
+                    assert!(message.contains("Valid predicate syntax"));
+                }
+                _ => panic!("Expected InvalidSyntax error for '{}'", invalid_case),
+            }
+        }
+    }
+
+    #[test]
+    fn test_validate_predicate_syntax_empty() {
+        assert_eq!(validate_predicate_syntax(""), Err(ParseError::EmptyInput));
+        assert_eq!(
+            validate_predicate_syntax("   "),
+            Err(ParseError::EmptyInput)
+        );
+        assert_eq!(
+            validate_predicate_syntax("\t\n"),
+            Err(ParseError::EmptyInput)
+        );
+    }
+
+    #[test]
+    fn test_validate_predicate_syntax_with_negation() {
+        // The validation function handles negation internally
+        assert!(validate_predicate_syntax("!agent").is_ok());
+        assert!(validate_predicate_syntax("!agent.id=test").is_ok());
+
+        // Invalid syntax after negation should still fail
+        let result = validate_predicate_syntax("!invalid@syntax");
+        assert!(result.is_err());
+        match result {
+            Err(ParseError::InvalidSyntax(input, _)) => {
+                assert_eq!(input, "invalid@syntax"); // The function strips the negation
+            }
+            _ => panic!("Expected InvalidSyntax error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_field_path_valid() {
+        let registry = FieldRegistry::new();
+
+        let valid_paths = vec![
+            vec!["agent".to_string(), "id".to_string()],
+            vec!["ide".to_string(), "id".to_string()],
+            vec!["terminal".to_string(), "interactive".to_string()],
+            vec!["ci".to_string(), "name".to_string()],
+        ];
+
+        for path in valid_paths {
+            assert!(
+                validate_field_path(&path, &registry).is_ok(),
+                "Valid field path '{}' should pass validation",
+                path.join(".")
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_field_path_invalid_field() {
+        let registry = FieldRegistry::new();
+
+        let invalid_field_path = vec!["agent".to_string(), "invalid_field".to_string()];
+        let result = validate_field_path(&invalid_field_path, &registry);
+
+        assert!(result.is_err());
+        match result {
+            Err(ParseError::InvalidFieldForContext(field_path, context, available)) => {
+                assert_eq!(field_path, "agent.invalid_field");
+                assert_eq!(context, "agent");
+                assert!(available.contains("agent.id"));
+            }
+            _ => panic!("Expected InvalidFieldForContext error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_field_path_unknown_context() {
+        let registry = FieldRegistry::new();
+
+        let unknown_context_path = vec!["unknown".to_string(), "field".to_string()];
+        let result = validate_field_path(&unknown_context_path, &registry);
+
+        assert!(result.is_err());
+        match result {
+            Err(ParseError::FieldNotFound(field_path)) => {
+                assert_eq!(field_path, "unknown.field");
+            }
+            _ => panic!("Expected FieldNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_field_registry_helper_methods() {
+        let registry = FieldRegistry::new();
+
+        // Test has_field
+        assert!(registry.has_field("agent.id"));
+        assert!(registry.has_field("ide.id"));
+        assert!(registry.has_field("terminal.interactive"));
+        assert!(!registry.has_field("agent.nonexistent"));
+        assert!(!registry.has_field("unknown.field"));
+
+        // Test has_context
+        assert!(registry.has_context("agent"));
+        assert!(registry.has_context("ide"));
+        assert!(registry.has_context("terminal"));
+        assert!(registry.has_context("ci"));
+        assert!(!registry.has_context("unknown"));
+
+        // Test get_context_fields
+        let agent_fields = registry.get_context_fields("agent");
+        assert_eq!(agent_fields.len(), 1);
+        assert!(
+            agent_fields
+                .iter()
+                .any(|(name, _)| name.as_str() == "agent.id")
+        );
+
+        let terminal_fields = registry.get_context_fields("terminal");
+        assert!(terminal_fields.len() >= 8); // Should have multiple terminal fields
+        assert!(
+            terminal_fields
+                .iter()
+                .any(|(name, _)| name.as_str() == "terminal.interactive")
+        );
+
+        let unknown_fields = registry.get_context_fields("unknown");
+        assert!(unknown_fields.is_empty());
     }
 
     // Field Registry Tests
