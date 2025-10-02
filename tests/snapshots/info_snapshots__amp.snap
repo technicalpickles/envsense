@@ -1,0 +1,85 @@
+---
+source: tests/info_snapshots.rs
+expression: json
+---
+{
+  "contexts": [
+    "agent"
+  ],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdin.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdin.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdout.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdout.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stderr.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stderr.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "AGENT",
+      "signal": "env",
+      "supports": [
+        "agent.id"
+      ],
+      "value": "amp"
+    }
+  ],
+  "facets": {},
+  "meta": {
+    "schema_version": "0.3.0"
+  },
+  "traits": {
+    "agent": {
+      "id": "amp"
+    },
+    "ci": {},
+    "ide": {},
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": true,
+        "tty": false
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
+  },
+  "version": "0.3.0"
+}

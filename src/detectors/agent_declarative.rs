@@ -134,6 +134,28 @@ mod tests {
     }
 
     #[test]
+    fn detects_amp_agent() {
+        let detector = DeclarativeAgentDetector::new();
+        let snapshot = create_env_snapshot(vec![("AGENT", "amp")]);
+
+        let detection = detector.detect(&snapshot);
+
+        assert!(detection.contexts_add.contains(&"agent".to_string()));
+
+        // Verify nested AgentTraits object
+        let agent_traits_value = detection.traits_patch.get("agent").unwrap();
+        let agent_traits: AgentTraits = serde_json::from_value(agent_traits_value.clone()).unwrap();
+        assert_eq!(agent_traits.id, Some("amp".to_string()));
+
+        // Verify legacy facet is maintained
+        assert_eq!(
+            detection.facets_patch.get("agent_id").unwrap(),
+            &json!("amp")
+        );
+        assert_eq!(detection.confidence, 1.0);
+    }
+
+    #[test]
     fn detects_replit_agent() {
         let detector = DeclarativeAgentDetector::new();
         let snapshot = create_env_snapshot(vec![("REPL_ID", "abc123")]);

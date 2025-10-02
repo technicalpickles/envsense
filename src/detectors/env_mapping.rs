@@ -747,6 +747,22 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
             contexts: vec!["agent".to_string()],
             value_mappings: vec![],
         },
+        // Amp detection
+        EnvMapping {
+            id: "amp".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "AGENT".to_string(),
+                value: Some("amp".to_string()),
+                required: false,
+                prefix: false,
+                contains: None,
+                priority: 0,
+            }],
+            facets: HashMap::new(),
+            contexts: vec!["agent".to_string()],
+            value_mappings: vec![],
+        },
         // Cline detection
         EnvMapping {
             id: "cline".to_string(),
@@ -1376,6 +1392,17 @@ mod tests {
         let env_vars = HashMap::from([("AIDER_MODEL".to_string(), "gpt-4o-mini".to_string())]);
 
         assert!(aider_mapping.matches(&env_vars));
+    }
+
+    #[test]
+    fn test_amp_mapping() {
+        let mappings = get_agent_mappings();
+        let amp_mapping = mappings.iter().find(|m| m.id == "amp").unwrap();
+
+        let env_vars = HashMap::from([("AGENT".to_string(), "amp".to_string())]);
+
+        assert!(amp_mapping.matches(&env_vars));
+        assert_eq!(amp_mapping.confidence, HIGH);
     }
 
     #[test]
