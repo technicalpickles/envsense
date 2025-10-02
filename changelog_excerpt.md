@@ -1,3 +1,5 @@
-## Changes in v0.1.0-test-1756865237
+## Changes in v0.5.0
 
-See commit history for details.
+### Added
+
+- Amp agent detection via `AGENT=amp` environment variable
