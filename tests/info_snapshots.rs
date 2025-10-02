@@ -86,6 +86,12 @@ fn snapshot_cursor() {
 }
 
 #[test]
+fn snapshot_amp() {
+    let json = run_info_json(&[("AGENT", "amp")]);
+    assert_json_snapshot!("amp", json);
+}
+
+#[test]
 fn snapshot_github_actions() {
     let json = run_info_json(&[("GITHUB_ACTIONS", "1")]);
     assert_json_snapshot!("github_actions", json);

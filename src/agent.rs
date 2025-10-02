@@ -97,6 +97,14 @@ fn descriptor(name: &str) -> (Option<&'static str>, Option<&'static str>, Vec<St
                 .map(String::from)
                 .collect(),
         ),
+        "amp" => (
+            Some("Amp"),
+            Some("terminal"),
+            vec!["code-edit", "run-commands", "file-ops"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        ),
         "aider" => (
             Some("Aider"),
             Some("terminal"),
