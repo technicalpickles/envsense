@@ -30,6 +30,8 @@ when:
 
 ## Step-by-Step Release Instructions
 
+Follow these steps to create a new release via pull request:
+
 ### 1. Verify Current State
 
 Before starting a release, check:
@@ -71,43 +73,65 @@ version = "0.5.1" # Update to new version
 **Important**: This is a workspace project. Only update the root `Cargo.toml`
 version field (line ~10).
 
-### 4. Update CHANGELOG.md (If Exists)
+### 4. Create Release Branch and PR
 
-If there's a `CHANGELOG.md` file, add an entry for the new version:
-
-```markdown
-## [0.5.1] - 2025-10-21
-
-### Added
-
-- New feature descriptions
-
-### Changed
-
-- Updates to existing features
-
-### Fixed
-
-- Bug fixes
-```
-
-**Note**: Currently there's no CHANGELOG.md in the root. The release workflow
-will auto-generate release notes from commits if no changelog exists.
-
-### 5. Commit and Push to Main
-
-Create a release commit:
+Create a release branch with your changes:
 
 ```bash
+git checkout -b release-v0.5.1
 git add Cargo.toml
-# If CHANGELOG.md was updated:
-# git add CHANGELOG.md
-
 git commit -m "Release v0.5.1"
-git push origin main
+git push origin release-v0.5.1
 ```
 
-### 6. Monitor Automated Release
+### 5. Create Pull Request
+
+Create a PR with a structured description of the release. Use this template:
+
+```markdown
+Release v0.5.1
+
+Brief description of what this release includes (new features, bug fixes,
+improvements).
+
+## Changes
+
+- Feature/fix description with link to PR #123
+- Another change description with link to PR #124
+- Additional improvement with link to PR #125
+
+## Test Results
+
+All XXX tests passing.
+
+## Breaking Changes
+
+None (or list any breaking changes if applicable)
+```
+
+**Example from recent release:**
+
+```markdown
+Release v0.5.0
+
+Minor release adding Amp agent detection support.
+
+## Changes
+
+- Add Amp agent detection via `AGENT=amp` environment variable (#56)
+
+All 329 tests passing.
+```
+
+### 6. Merge PR to Main
+
+Once the PR is reviewed and approved:
+
+```bash
+gh pr merge --squash  # Or merge via GitHub UI
+```
+
+### 7. Monitor Automated Release
 
 The automated workflow will:
 
@@ -126,7 +150,7 @@ The automated workflow will:
      - macOS Universal (`universal-apple-darwin` - Intel + Apple Silicon)
    - Signs binaries with cosign (keyless signing)
    - Creates GitHub release with:
-     - Release notes (from CHANGELOG.md or auto-generated)
+     - Release notes (from PR description and auto-generated from commits)
      - Binary artifacts
      - SHA256 checksums
      - Cryptographic signatures (.sig files)
@@ -138,7 +162,7 @@ The automated workflow will:
    - Tests local aqua configuration
    - Reports next steps (aqua registry submission)
 
-### 7. Monitor Workflow Progress
+### 8. Monitor Workflow Progress
 
 Check workflow status:
 
@@ -155,7 +179,7 @@ gh run view --log
 
 Or visit: https://github.com/technicalpickles/envsense/actions
 
-### 8. Verify Release
+### 9. Verify Release
 
 Once complete, verify the release:
 
@@ -171,7 +195,7 @@ gh release view 0.5.1  # Use your version number
 gh release download 0.5.1 --pattern "*x86_64-unknown-linux-gnu*"
 ```
 
-### 9. Post-Release Tasks (Optional)
+### 10. Post-Release Tasks (Optional)
 
 After a successful release:
 
@@ -292,9 +316,10 @@ Use this checklist when performing a release:
 - [ ] Clippy passes (`cargo clippy --all --locked -- -D warnings`)
 - [ ] Prettier passes (`npm run format:check`)
 - [ ] Version updated in `Cargo.toml`
-- [ ] CHANGELOG.md updated (if exists)
-- [ ] Changes committed to main branch
-- [ ] Changes pushed to origin
+- [ ] Release branch created
+- [ ] Pull request created with proper description and linked PRs
+- [ ] PR reviewed and approved
+- [ ] PR merged to main branch
 - [ ] CI workflow completed successfully
 - [ ] Release workflow completed successfully
 - [ ] Git tag created and pushed
