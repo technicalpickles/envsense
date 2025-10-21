@@ -26,11 +26,15 @@ cargo test --package envsense-macros
 
 When making breaking schema changes (like removing fields):
 
-1. Bump `SCHEMA_VERSION` in `src/schema.rs` (currently 0.3.0)
+1. Bump `SCHEMA_VERSION` in `src/schema/main.rs` (currently 0.3.0)
 2. Update tests to expect new version
 3. Run `cargo insta accept` to update snapshots
 4. Verify all tests pass
 5. **Note**: Schema version 0.3.0 removed legacy `facet:` and `trait:` syntax
+
+**Important**: Most releases do NOT require schema version changes. The schema
+version (0.3.0) is separate from the crate version. Only bump the schema version
+when making breaking changes to the JSON output structure.
 
 ## Development Workflow
 
@@ -51,50 +55,53 @@ cargo build --release
 ## Release Process
 
 The project uses automated releases triggered by version changes in `Cargo.toml`
-on the main branch.
+on the main branch. Releases are created via pull requests for review and
+safety.
 
 ### Creating a Release
 
-1. **Update the version** in `Cargo.toml`:
+See the [Release Skill](.claude/skills/release/SKILL.md) for comprehensive
+step-by-step instructions.
+
+**Quick Summary:**
+
+1. **Create release branch**:
 
    ```bash
-   # Edit Cargo.toml and change version field
-   version = "0.2.0"  # New version
+   git checkout -b release-v0.6.0
    ```
 
-2. **Update CHANGELOG.md** (if it exists):
+2. **Update version** in `Cargo.toml` (root workspace, line ~10):
 
-   ```markdown
-   ## [0.2.0] - 2024-01-15
-
-   ### Added
-
-   - New feature descriptions
-
-   ### Changed
-
-   - Breaking changes
-
-   ### Fixed
-
-   - Bug fixes
+   ```toml
+   version = "0.6.0" # New version
    ```
 
-3. **Commit and push to main**:
+3. **Commit and push**:
 
    ```bash
-   git add Cargo.toml CHANGELOG.md
-   git commit -m "Release v0.2.0"
-   git push origin main
+   git add Cargo.toml
+   git commit -m "Bump version to 0.6.0"
+   git push origin release-v0.6.0
    ```
 
-4. **Automated release process**:
-   - GitHub Actions detects the version change
+4. **Create and merge PR**:
+
+   ```bash
+   gh pr create --title "Release v0.6.0" --body "Bump version from 0.5.0 to 0.6.0 for minor release."
+   gh pr merge --squash
+   ```
+
+5. **Automated release process**:
+   - CI workflow runs first (tests, linting, formatting)
+   - Release workflow detects the version change
    - Builds binaries for supported platforms:
      - **Linux x64** (`x86_64-unknown-linux-gnu`)
-     - **macOS Universal** (`universal-apple-darwin`) - single binary supporting
-       both Intel and Apple Silicon
-   - Creates a GitHub release with binaries
+     - **Linux ARM64** (`aarch64-unknown-linux-gnu`)
+     - **macOS Universal** (`universal-apple-darwin`) - supports both Intel and
+       Apple Silicon
+   - Signs binaries with cosign (keyless signing)
+   - Creates a GitHub release with binaries, checksums, and signatures
    - Automatically creates and pushes a git tag
 
 ### Binary Naming Convention
@@ -104,14 +111,14 @@ conventions used by popular CLI tools like ripgrep).
 
 Examples:
 
-- `envsense-0.2.2-x86_64-unknown-linux-gnu` (Linux x64)
-- `envsense-0.2.2-universal-apple-darwin` (macOS Universal - supports both Intel
+- `envsense-0.6.0-x86_64-unknown-linux-gnu` (Linux x64)
+- `envsense-0.6.0-aarch64-unknown-linux-gnu` (Linux ARM64)
+- `envsense-0.6.0-universal-apple-darwin` (macOS Universal - supports both Intel
   and Apple Silicon)
 
-**Note**: Starting with v0.2.2, the "v" prefix was removed from artifact names
-to align with common CLI tool conventions. The universal macOS binary is the
-only macOS build provided, eliminating the need for separate Intel and Apple
-Silicon binaries.
+**Note**: The "v" prefix is not used in artifact names to align with common CLI
+tool conventions. The universal macOS binary is the only macOS build provided,
+eliminating the need for separate Intel and Apple Silicon binaries.
 
 #### Universal macOS Binary Approach
 
@@ -135,10 +142,13 @@ runs the appropriate architecture.
 
 The release workflow automatically:
 
-- Extracts changelog content for the specific version (if available)
-- Includes build information and supported platforms
+- Uses the PR description as the release notes
 - Generates additional release notes from commit history
 - Provides SHA256 checksums for all binaries
+- Creates cryptographic signatures (.sig, .bundle) for all binaries
+
+**Note**: There is currently no CHANGELOG.md file. Release notes are generated
+from PR descriptions and git commit history.
 
 ### Testing Releases
 
