@@ -1,0 +1,96 @@
+---
+source: tests/info_snapshots.rs
+expression: json
+---
+{
+  "contexts": [
+    "ide"
+  ],
+  "evidence": [
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdin.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdin.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stdout.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stdout.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.stderr.tty",
+      "signal": "tty",
+      "supports": [
+        "terminal.stderr.tty"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "terminal.interactive",
+      "signal": "tty",
+      "supports": [
+        "terminal.interactive"
+      ],
+      "value": "false"
+    },
+    {
+      "confidence": 1.0,
+      "key": "NVIM",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide.id"
+      ],
+      "value": "/var/folders/kl/sqt6t_7s7dq78xyr6vrbv_z00000gn/T/nvim.josh.nichols/vrGRDn/nvim.1094.0"
+    },
+    {
+      "confidence": 1.0,
+      "key": "MYVIMRC",
+      "signal": "env",
+      "supports": [
+        "ide",
+        "ide.id"
+      ],
+      "value": "/Users/josh.nichols/.config/nvim/init.lua"
+    }
+  ],
+  "facets": {},
+  "meta": {
+    "schema_version": "0.3.0"
+  },
+  "traits": {
+    "agent": {},
+    "ci": {},
+    "ide": {
+      "id": "nvim"
+    },
+    "terminal": {
+      "color_level": "none",
+      "interactive": false,
+      "stderr": {
+        "piped": true,
+        "tty": false
+      },
+      "stdin": {
+        "piped": true,
+        "tty": false
+      },
+      "stdout": {
+        "piped": true,
+        "tty": false
+      },
+      "supports_hyperlinks": false
+    }
+  },
+  "version": "0.3.0"
+}
