@@ -833,6 +833,40 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
 /// Predefined environment mappings for IDE detection
 pub fn get_ide_mappings() -> Vec<EnvMapping> {
     vec![
+        // Neovim detection (works for both :terminal and :!command modes)
+        EnvMapping {
+            id: "nvim".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "NVIM".to_string(),
+                    value: None,
+                    required: false, // Optional - present in :terminal mode
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+                EnvIndicator {
+                    key: "VIMRUNTIME".to_string(),
+                    value: None,
+                    required: false, // Optional - present in :!command mode
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+                EnvIndicator {
+                    key: "MYVIMRC".to_string(),
+                    value: None,
+                    required: false, // Optional - present in both modes
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+            ],
+            facets: HashMap::from([("ide_id".to_string(), "nvim".to_string())]),
+            contexts: vec!["ide".to_string()],
+            value_mappings: vec![],
+        },
         // Cursor IDE detection (highest priority)
         EnvMapping {
             id: "cursor-ide".to_string(),
