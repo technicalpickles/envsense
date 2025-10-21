@@ -198,6 +198,26 @@ mod tests {
     }
 
     #[test]
+    fn detects_nvim_without_myvimrc() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![(
+            "VIMRUNTIME",
+            "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim/runtime",
+        )]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should still detect nvim even without MYVIMRC (e.g., nvim -u NONE)
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+        assert!(detection.evidence.len() >= 1);
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
     fn no_detection_without_vscode() {
         let detector = DeclarativeIdeDetector::new();
         let snapshot = create_env_snapshot(vec![]);

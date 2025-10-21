@@ -834,6 +834,10 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
 pub fn get_ide_mappings() -> Vec<EnvMapping> {
     vec![
         // Neovim detection (works for both :terminal and :!command modes)
+        // Priority 4 ensures nvim takes precedence in nested scenarios, such as
+        // running nvim inside a VS Code terminal (VS Code has priority 1) or
+        // Cursor terminal (Cursor has priority 3). This correctly reports the
+        // immediate IDE environment rather than the outer container.
         EnvMapping {
             id: "nvim".to_string(),
             confidence: HIGH,
