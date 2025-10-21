@@ -747,6 +747,22 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
             contexts: vec!["agent".to_string()],
             value_mappings: vec![],
         },
+        // Amp detection
+        EnvMapping {
+            id: "amp".to_string(),
+            confidence: HIGH,
+            indicators: vec![EnvIndicator {
+                key: "AGENT".to_string(),
+                value: Some("amp".to_string()),
+                required: false,
+                prefix: false,
+                contains: None,
+                priority: 0,
+            }],
+            facets: HashMap::new(),
+            contexts: vec!["agent".to_string()],
+            value_mappings: vec![],
+        },
         // Cline detection
         EnvMapping {
             id: "cline".to_string(),
@@ -817,6 +833,44 @@ pub fn get_agent_mappings() -> Vec<EnvMapping> {
 /// Predefined environment mappings for IDE detection
 pub fn get_ide_mappings() -> Vec<EnvMapping> {
     vec![
+        // Neovim detection (works for both :terminal and :!command modes)
+        // Priority 4 ensures nvim takes precedence in nested scenarios, such as
+        // running nvim inside a VS Code terminal (VS Code has priority 1) or
+        // Cursor terminal (Cursor has priority 3). This correctly reports the
+        // immediate IDE environment rather than the outer container.
+        EnvMapping {
+            id: "nvim".to_string(),
+            confidence: HIGH,
+            indicators: vec![
+                EnvIndicator {
+                    key: "NVIM".to_string(),
+                    value: None,
+                    required: false, // Optional - present in :terminal mode
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+                EnvIndicator {
+                    key: "VIMRUNTIME".to_string(),
+                    value: None,
+                    required: false, // Optional - present in :!command mode
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+                EnvIndicator {
+                    key: "MYVIMRC".to_string(),
+                    value: None,
+                    required: false, // Optional - present in both modes
+                    prefix: false,
+                    contains: None,
+                    priority: 4,
+                },
+            ],
+            facets: HashMap::from([("ide_id".to_string(), "nvim".to_string())]),
+            contexts: vec!["ide".to_string()],
+            value_mappings: vec![],
+        },
         // Cursor IDE detection (highest priority)
         EnvMapping {
             id: "cursor-ide".to_string(),
@@ -1376,6 +1430,17 @@ mod tests {
         let env_vars = HashMap::from([("AIDER_MODEL".to_string(), "gpt-4o-mini".to_string())]);
 
         assert!(aider_mapping.matches(&env_vars));
+    }
+
+    #[test]
+    fn test_amp_mapping() {
+        let mappings = get_agent_mappings();
+        let amp_mapping = mappings.iter().find(|m| m.id == "amp").unwrap();
+
+        let env_vars = HashMap::from([("AGENT".to_string(), "amp".to_string())]);
+
+        assert!(amp_mapping.matches(&env_vars));
+        assert_eq!(amp_mapping.confidence, HIGH);
     }
 
     #[test]

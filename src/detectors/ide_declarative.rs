@@ -115,6 +115,109 @@ mod tests {
     }
 
     #[test]
+    fn detects_nvim_terminal_mode() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("NVIM", "/tmp/nvim.user/abc123/nvim.1094.0"),
+            ("MYVIMRC", "/Users/user/.config/nvim/init.lua"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+        assert!(detection.evidence.len() >= 1);
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
+    fn detects_nvim_command_mode() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            (
+                "VIMRUNTIME",
+                "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim/runtime",
+            ),
+            ("VIM", "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim"),
+            ("MYVIMRC", "/Users/user/.config/nvim/init.lua"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+        assert!(detection.evidence.len() >= 1);
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
+    fn nvim_takes_precedence_over_ghostty() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("TERM_PROGRAM", "ghostty"),
+            (
+                "VIMRUNTIME",
+                "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim/runtime",
+            ),
+            ("MYVIMRC", "/Users/user/.config/nvim/init.lua"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should detect nvim, not ghostty (ghostty isn't an IDE anyway)
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+    }
+
+    #[test]
+    fn nvim_inside_vscode_detects_as_nvim() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![
+            ("TERM_PROGRAM", "vscode"),
+            ("VIMRUNTIME", "/usr/share/nvim/runtime"),
+            ("MYVIMRC", "/home/user/.config/nvim/init.lua"),
+        ]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Nvim should win due to higher priority (4 vs 1)
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+    }
+
+    #[test]
+    fn detects_nvim_without_myvimrc() {
+        let detector = DeclarativeIdeDetector::new();
+        let snapshot = create_env_snapshot(vec![(
+            "VIMRUNTIME",
+            "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim/runtime",
+        )]);
+
+        let detection = detector.detect(&snapshot);
+
+        // Should still detect nvim even without MYVIMRC (e.g., nvim -u NONE)
+        assert_eq!(detection.contexts_add, vec!["ide"]);
+        assert_eq!(
+            detection.facets_patch.get("ide_id").unwrap(),
+            &json!("nvim")
+        );
+        assert!(detection.evidence.len() >= 1);
+        assert_eq!(detection.confidence, HIGH);
+    }
+
+    #[test]
     fn no_detection_without_vscode() {
         let detector = DeclarativeIdeDetector::new();
         let snapshot = create_env_snapshot(vec![]);

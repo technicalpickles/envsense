@@ -86,6 +86,41 @@ fn snapshot_cursor() {
 }
 
 #[test]
+fn snapshot_nvim_terminal_mode() {
+    let json = run_info_json(&[
+        (
+            "NVIM",
+            "/var/folders/kl/sqt6t_7s7dq78xyr6vrbv_z00000gn/T/nvim.josh.nichols/vrGRDn/nvim.1094.0",
+        ),
+        ("MYVIMRC", "/Users/josh.nichols/.config/nvim/init.lua"),
+        ("NVIM_LOG_FILE", "/Users/josh.nichols/.local/state/nvim/log"),
+        ("TERM_PROGRAM", "ghostty"),
+    ]);
+    assert_json_snapshot!("nvim_terminal_mode", json);
+}
+
+#[test]
+fn snapshot_nvim_command_mode() {
+    let json = run_info_json(&[
+        (
+            "VIMRUNTIME",
+            "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim/runtime",
+        ),
+        ("MYVIMRC", "/Users/josh.nichols/.config/nvim/init.lua"),
+        ("VIM", "/opt/homebrew/Cellar/neovim/0.11.2/share/nvim"),
+        ("NVIM_LOG_FILE", "/Users/josh.nichols/.local/state/nvim/log"),
+        ("TERM_PROGRAM", "ghostty"),
+    ]);
+    assert_json_snapshot!("nvim_command_mode", json);
+}
+
+#[test]
+fn snapshot_amp() {
+    let json = run_info_json(&[("AGENT", "amp")]);
+    assert_json_snapshot!("amp", json);
+}
+
+#[test]
 fn snapshot_github_actions() {
     let json = run_info_json(&[("GITHUB_ACTIONS", "1")]);
     assert_json_snapshot!("github_actions", json);

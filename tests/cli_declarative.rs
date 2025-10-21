@@ -90,6 +90,25 @@ fn cli_declarative_aider_detection() {
 }
 
 #[test]
+fn cli_declarative_amp_detection() {
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("AGENT", "amp")
+        .args(["check", "agent"])
+        .assert()
+        .success()
+        .stdout("true\n");
+
+    let mut cmd = Command::cargo_bin("envsense").unwrap();
+    cmd.env_clear()
+        .env("AGENT", "amp")
+        .args(["check", "agent.id=amp"])
+        .assert()
+        .success()
+        .stdout("true\n");
+}
+
+#[test]
 fn cli_declarative_openhands_detection() {
     let mut cmd = Command::cargo_bin("envsense").unwrap();
     cmd.env_clear()
