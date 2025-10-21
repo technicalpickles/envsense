@@ -10,6 +10,11 @@ pre-commit:
       run: cargo fmt --all
       stage_fixed: true
 
+    update-lockfile:
+      glob: "**/Cargo.toml"
+      run: cargo metadata --format-version=1 > /dev/null
+      stage_fixed: true
+
     clippy:
       glob: "*.rs"
       run: cargo clippy --all --locked --fix --allow-dirty --allow-staged
